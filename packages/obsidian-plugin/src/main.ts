@@ -5,6 +5,8 @@ import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DAT
 const ADAPTERS: Record<string, SystemAdapter<any>> = { dsa41: dsa41Adapter }
 
 interface VtfSettings {
+  /** name of the vault in Foundry; part of every document id. Fixed on first use, independent of the folder name. */
+  vaultName: string
   outputDir: string
   excludePatterns: string[]
   rootFolder: string
@@ -42,6 +44,7 @@ function defaultOutputDir(): string {
 }
 
 const DEFAULTS: VtfSettings = {
+  vaultName: '',
   outputDir: '',
   excludePatterns: [],
   rootFolder: '',
@@ -156,6 +159,16 @@ export default class VaultToFoundryPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     this.settings = { ...DEFAULTS, outputDir: defaultOutputDir(), ...((await this.loadData()) ?? {}) }
+    if (!this.settings.vaultName.trim()) {
+      // remember the name once, so renaming the vault folder later does not create duplicates in Foundry
+      this.settings.vaultName = this.app.vault.getName()
+      await this.saveSettings()
+    }
+  }
+
+  /** name used for ids and the server folder */
+  foundryVaultName(): string {
+    return this.settings.vaultName.trim() || this.app.vault.getName()
   }
 
   async saveSettings(): Promise<void> {
@@ -195,7 +208,7 @@ export default class VaultToFoundryPlugin extends Plugin {
     }
     const resolver: LinkResolver = { resolve: (linkpath, from) => cache.getFirstLinkpathDest(linkpath, from)?.path ?? null }
     return buildBundle({
-      vaultName: vault.getName(),
+      vaultName: this.foundryVaultName(),
       notes,
       attachments: files.filter((f) => f.extension !== 'md').map((f) => f.path),
       resolver,
@@ -299,7 +312,7 @@ export default class VaultToFoundryPlugin extends Plugin {
       return
     }
     try {
-      const slug = vaultSlug(this.app.vault.getName())
+      const slug = vaultSlug(this.foundryVaultName())
       const unused = await this.client().unused(slug)
       if (!unused.length) {
         new Notice('Vault to Foundry: Auf dem Server liegen keine ungenutzten Dateien.')
@@ -315,7 +328,7 @@ export default class VaultToFoundryPlugin extends Plugin {
   }
 
   outputFileName(): string {
-    return `${vaultSlug(this.app.vault.getName())}-foundry.zip`
+    return `${vaultSlug(this.foundryVaultName())}-foundry.zip`
   }
 
   async exportZip(): Promise<void> {
@@ -556,7 +569,7 @@ class VtfSettingTab extends PluginSettingTab {
           try {
             const c = this.plugin.client()
             const h = await c.health()
-            const st = await c.state(vaultSlug(this.app.vault.getName()))
+            const st = await c.state(vaultSlug(this.plugin.foundryVaultName()))
             new Notice(`Verbunden mit vtf-sync ${h.version}. Auf dem Server: Revision ${st.revision}, ${Object.keys(st.assets).length} Dateien.`)
           } catch (e) {
             new Notice(`Keine Verbindung: ${(e as Error)?.message ?? e}`, 10000)
@@ -567,6 +580,15 @@ class VtfSettingTab extends PluginSettingTab {
       .addButton((b) => b.setButtonText('Ungenutzte Dateien entfernen …').onClick(() => this.plugin.cleanupServer()))
 
     containerEl.createEl('h3', { text: 'Allgemein' })
+    new Setting(containerEl)
+      .setName('Vault-Name in Foundry')
+      .setDesc('Steckt in den IDs aller Dokumente und im Ordner auf dem Server. Wird beim ersten Start vom Ordnernamen übernommen und bleibt dann fest, auch wenn du den Vault-Ordner umbenennst. Nur ändern, wenn Foundry einen anderen Namen kennt – sonst entstehen in Foundry Duplikate.')
+      .addText((t) =>
+        t.setValue(s.vaultName).onChange(async (v) => {
+          s.vaultName = v.trim()
+          await this.plugin.saveSettings()
+        })
+      )
     new Setting(containerEl)
       .setName('Spielsystem für NSC-Blöcke')
       .setDesc('Welche Codeblöcke als NSC gelten und wie sie nach Foundry übertragen werden.')

@@ -140,6 +140,14 @@ describe('Import in Foundry (Fake-API)', () => {
     expect(world.files.get('vault-to-foundry/uthuria-ob/assets/Asasets/Token/token_ebba.png')).toBe(2)
   })
 
+  it('warnt, wenn dieselben Notizen schon unter anderem Vault-Namen existieren', async () => {
+    await run({ 'A.md': 'x' })
+    const { zip, bundle } = await makeZip({ 'A.md': 'x' })
+    bundle.vault = { name: 'test-vault', slug: 'test-vault' }
+    const report = await importBundle(zip, bundle)
+    expect(report.errors[0]).toContain('aus einem Vault namens „uthuria-ob“, dieser Import heißt „test-vault“')
+  })
+
   it('lehnt fremde ZIPs und zu neue Bundles ab', async () => {
     const zip = new JSZip()
     zip.file('x.txt', 'x')

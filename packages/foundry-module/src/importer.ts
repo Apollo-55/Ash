@@ -217,6 +217,23 @@ async function syncJournals(bundle: Bundle, report: ImportReport, opts: ImportOp
   const byId = new Map(docs.map((d) => [d.id, d]))
   const entry = (d: BundleJournal): ReportEntry => ({ id: d.id, uuid: `JournalEntry.${d.id}`, name: d.name, sourcePath: d.sourcePath, type: 'JournalEntry' })
 
+  // safety net: the same notes already exist under another vault name → would become duplicates
+  if (plan.create.length) {
+    const otherVault = new Map<string, string>()
+    for (const j of game.journal.contents) {
+      const f = flagsOf(j)
+      if (f?.vault && f.vault !== bundle.vault.slug && f.sourcePath) otherVault.set(f.sourcePath, f.vault)
+    }
+    const clashes = plan.create.map((id) => byId.get(id)!).filter((d) => otherVault.has(d.sourcePath))
+    if (clashes.length) {
+      const names = [...new Set(clashes.map((d) => otherVault.get(d.sourcePath)))].join(', ')
+      report.errors.push(
+        `${clashes.length} Notiz(en) gibt es schon aus einem Vault namens „${names}“, dieser Import heißt „${bundle.vault.slug}“ – es entstehen Duplikate. ` +
+          `Im Obsidian-Plugin unter „Vault-Name in Foundry“ denselben Namen eintragen, dann die Duplikate über „Verwaist“ bzw. von Hand löschen.`
+      )
+    }
+  }
+
   if (plan.create.length) {
     const data = plan.create.map((id) => {
       const d = byId.get(id)!
