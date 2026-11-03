@@ -1,6 +1,7 @@
 import { parseDocument } from 'yaml'
 import type { BlockIssue, ParsedBlock } from '../adapter.ts'
 import { find, findWeapon, normalizeName, suggest } from './catalog.ts'
+import { checkSfPrerequisites } from './rules.ts'
 
 export const ATTRIBUTES = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK'] as const
 export type Attr = (typeof ATTRIBUTES)[number]
@@ -239,6 +240,7 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
   for (const [a, v] of Object.entries(data.attributes)) {
     if (v < 0 || v > 30) warn(`${a} ${v} ist ungewöhnlich (Tippfehler?).`)
   }
+  for (const m of checkSfPrerequisites(data)) warn(`Voraussetzung fehlt: ${m}.`)
   return { name: data.name, data, issues }
 }
 

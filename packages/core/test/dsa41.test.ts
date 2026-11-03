@@ -270,3 +270,20 @@ describe('Kurzformen', () => {
     expect(parse('name: X\nsonderfertigkeiten: [Ausweichen]').issues.some((i) => i.level === 'warning')).toBe(true)
   })
 })
+
+describe('SF-Voraussetzungen', () => {
+  it('fehlende Voraussetzungen sind Warnungen im Wertekasten', () => {
+    const r = parse('name: X\neigenschaften: { MU: 12, KL: 12, IN: 11, CH: 12, FF: 12, GE: 14, KO: 12, KK: 11 }\nsonderfertigkeiten: [Ausweichen II, Todesstoß, Aufmerksamkeit]')
+    const w = r.issues.filter((i) => i.level === 'warning').map((i) => i.message)
+    expect(w).toContain('Voraussetzung fehlt: Ausweichen II braucht SF Ausweichen I.')
+    expect(w).toContain('Voraussetzung fehlt: Todesstoß braucht MU 15, SF Gezielter Stich.')
+    expect(w).toContain('Voraussetzung fehlt: Aufmerksamkeit braucht IN 12.')
+  })
+  it('Basiswerte und Talentwerte', () => {
+    expect(dsa41.checkSfPrerequisites(parse('name: X\neigenschaften: { MU: 10, KL: 10, IN: 10, CH: 10, FF: 13, GE: 10, KO: 10, KK: 10 }\nsonderfertigkeiten: [Kampfreflexe, Geschützmeister]\ntalente: { Belagerungswaffen: 12, Mechanik: 3 }').data!))
+      .toEqual(['Kampfreflexe braucht INI-Basis 10', 'Geschützmeister braucht TaW Mechanik 7'])
+  })
+  it('die 24 umgewandelten NSCs (Shahane) erfüllen alles', () => {
+    expect(dsa41.checkSfPrerequisites(parse(SHAHANE).data!)).toEqual([])
+  })
+})

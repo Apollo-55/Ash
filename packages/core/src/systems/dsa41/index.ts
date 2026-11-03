@@ -33,3 +33,4 @@ export { parseNscBlock, renderStatblock, nscToActor }
 export { computeDerived, overrides } from './derived.ts'
 export { findWeapon, find as findCatalog, findBySid, normalizeName, suggest, CATALOG_VERSION } from './catalog.ts'
 export type { NscData, NscWeapon, NamedEntry } from './schema.ts'
+export { checkSfPrerequisites, baseEnergies, SF_RULES } from './rules.ts'
