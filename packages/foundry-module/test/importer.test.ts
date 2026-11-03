@@ -6,10 +6,10 @@ import { installFakeFoundry, type FakeWorld } from './fake-foundry.ts'
 
 let world: FakeWorld
 
-async function makeZip(notes: Record<string, string>, files: Record<string, string> = {}, idMap: Record<string, string> = {}) {
+async function makeZip(notes: Record<string, string>, files: Record<string, string> = {}, idMap: Record<string, string> = {}, vaultName = 'uthuria-ob') {
   const paths = [...Object.keys(notes), ...Object.keys(files)]
   const { bundle, assetFiles, idMap: newMap } = buildBundle({
-    vaultName: 'uthuria-ob',
+    vaultName,
     notes: Object.entries(notes).map(([path, content]) => ({ path, content })),
     attachments: Object.keys(files),
     resolver: createSimpleResolver(paths),
@@ -142,8 +142,8 @@ describe('Import in Foundry (Fake-API)', () => {
 
   it('warnt, wenn dieselben Notizen schon unter anderem Vault-Namen existieren', async () => {
     await run({ 'A.md': 'x' })
-    const { zip, bundle } = await makeZip({ 'A.md': 'x' })
-    bundle.vault = { name: 'test-vault', slug: 'test-vault' }
+    // same note, but the vault is called differently (e.g. folder name of a copy) → different ids
+    const { zip, bundle } = await makeZip({ 'A.md': 'x' }, {}, {}, 'test-vault')
     const report = await importBundle(zip, bundle)
     expect(report.errors[0]).toContain('aus einem Vault namens „uthuria-ob“, dieser Import heißt „test-vault“')
   })
