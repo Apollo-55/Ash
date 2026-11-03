@@ -28,7 +28,7 @@ function inlineText(children: Token[] | null): string {
     .trim()
 }
 
-/** Adds data-anchor to headings and records them in env.headings. */
+/** Gives headings an id (Foundry's TOC uses heading.id as anchor) and records them in env.headings. */
 function headingRule(state: StateCore): void {
   const env = state.env as unknown as RenderEnv
   const used = new Map<string, number>()
@@ -41,7 +41,7 @@ function headingRule(state: StateCore): void {
     const n = used.get(slug) ?? 0
     used.set(slug, n + 1)
     if (n > 0) slug = `${slug}-${n}`
-    tokens[i].attrSet('data-anchor', slug)
+    tokens[i].attrSet('id', slug)
     env.headings.push({ text, slug })
   }
 }

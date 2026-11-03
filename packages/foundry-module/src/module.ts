@@ -21,6 +21,14 @@ Hooks.once('ready', () => {
   if (mod) mod.api = { openImportDialog, runImport, showLastReport }
 })
 
+// Foundry v13 only scrolls to a link's #anchor when the page changes. A heading link into a freshly opened
+// single-page journal therefore lands at the top. Scroll ourselves (next tick, after Foundry restores the scroll
+// position) – only for journals made by this importer.
+Hooks.on('renderJournalEntrySheet', (app: any, _el: HTMLElement, _ctx: unknown, options: { anchor?: string }) => {
+  if (!options?.anchor || !app.document?.flags?.[MODULE_ID]) return
+  setTimeout(() => app.getPageSheet?.(app.pageId)?.toc?.[options.anchor!]?.element?.scrollIntoView(), 0)
+})
+
 // Buttons in the journal sidebar (GM only)
 Hooks.on('renderJournalDirectory', (_app: unknown, html: HTMLElement | { [0]: HTMLElement }) => {
   if (!game.user?.isGM) return

@@ -4,7 +4,7 @@ import type { BundleWarning, WarningCode } from '../types.ts'
 export interface HeadingInfo {
   /** Plain text of the heading */
   text: string
-  /** Anchor used in Foundry (data-anchor) */
+  /** Anchor used in Foundry (the heading's id attribute) */
   slug: string
 }
 
@@ -47,7 +47,7 @@ export function normalizeHeading(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
 }
 
-/** Mirrors Foundry's JournalEntryPage.slugifyHeading (v13). */
+/** Our anchor slug; set as heading id, which Foundry's TOC prefers over its own slug. */
 export function slugifyHeading(text: string): string {
   return text
     .replace(/\s+/g, '-')

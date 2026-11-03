@@ -1,6 +1,16 @@
-# Manuelle Testcheckliste Foundry (M1: Journale)
+# Testcheckliste Foundry (M1: Journale)
 
-Die Import-Logik ist mit einer nachgebauten Foundry-API getestet (`packages/foundry-module/test`). Was die echte Foundry anders machen könnte, steht hier. Testwelt: `vtf-test` (dsa-41 v13.1.4, Foundry v13).
+Die Import-Logik ist dreifach getestet:
+
+1. `npm test`: vitest gegen eine nachgebaute Foundry-API (`packages/foundry-module/test`).
+2. `npm run e2e`: automatisch im Browser gegen die **lokale** Foundry 13.351 (`.foundry/`, gitignored, Welt `vtf-test` mit dsa-41 v13.1.4). Vorher in einem zweiten Terminal `npm run foundry` starten. Das Skript deckt die mit **[auto]** markierten Punkte ab. Screenshots landen in `dist/e2e/`.
+3. Von Hand auf dem Server: die restlichen Punkte unten.
+
+Testwelt: `vtf-test` (dsa-41 v13.1.4, Foundry v13).
+
+Erkenntnisse aus dem Test gegen die echte Foundry 13.351:
+- Foundry nimmt als Anker im Inhaltsverzeichnis das **`id`-Attribut** der Überschrift (`data-anchor` wird ignoriert). Ohne `id` würde Foundry selbst umschreiben (ü → u), Links mit Umlaut-Überschriften wären dann kaputt.
+- Foundry scrollt bei einem `#Anker`-Link nur, wenn die Seite wechselt. Bei einem frisch geöffneten Journal mit einer einzigen Seite landet man oben. Das Modul scrollt deshalb bei seinen eigenen Journalen selbst.
 
 ## Vorbereitung
 
@@ -12,14 +22,14 @@ Die Import-Logik ist mit einer nachgebauten Foundry-API getestet (`packages/foun
 ## Erster Import
 
 - [ ] Journal-Seitenleiste zeigt „Vault importieren“ und das Bericht-Symbol (nur als GM, als Spieler nicht).
-- [ ] Dialog: ZIP wählen → Fortschrittsanzeige → Importbericht öffnet sich.
+- [ ] **[auto]** Dialog: ZIP wählen → Fortschrittsanzeige → Importbericht öffnet sich.
 - [ ] Bericht: 33 angelegt, 0 aktualisiert, 0 übersprungen, 1 Warnung („create a link“ in Welcome). Keine Upload-Fehler.
-- [ ] Ordner wie in der Vault: NPC › Besatzung, NPC › Expedition › Geweite …, Uthuria › Act1 Überfahrt › Entcounter › Alanfaner Sabotage (4 Ebenen).
+- [ ] **[auto]** Ordner wie in der Vault: NPC › Besatzung, NPC › Expedition › Geweite …, Uthuria › Act1 Überfahrt › Entcounter › Alanfaner Sabotage (4 Ebenen).
 - [ ] Ordner alphabetisch sortiert.
 - [ ] „Shahane ay Zedrakin“: Porträt und Token-Bild werden angezeigt, Zeilenumbrüche im Wertekasten wie in Obsidian.
-- [ ] „Encounter“: drei Kartenbilder (Leaflet), Tabelle, Links „Besondere Ereignisse“ usw. springen zum jeweiligen Journal.
+- [ ] **[auto]** „Encounter“: drei Kartenbilder (Leaflet), Tabelle, Links „Besondere Ereignisse“ usw. springen zum jeweiligen Journal.
 - [ ] „Die Singenden Inseln“: Link „Q02 - Efferds Wogen, S. 181“ öffnet das PDF-Journal. „S. 181 öffnen“ öffnet das PDF im neuen Tab auf Seite 181.
-- [ ] Dateibrowser: `vault-to-foundry/uthuria-ob/assets/…` enthält Asasets/Token, Maps, PDFs (Namen ohne Umlaute/Leerzeichen).
+- [ ] **[auto]** Dateibrowser: `vault-to-foundry/uthuria-ob/assets/…` enthält Asasets/Token, Maps, PDFs (Namen ohne Umlaute/Leerzeichen).
 - [ ] Bericht: Link auf eine Quelldatei öffnet die Notiz in Obsidian (Browser fragt nach „obsidian://“). Klappt nur auf dem Rechner mit Obsidian.
 
 ## Testnotiz mit allen Sonderfällen
@@ -46,25 +56,25 @@ LIST
 ```
 ~~~
 
-- [ ] Export + Import: „Alles“ hat Standard-Berechtigung „Beobachter“.
-- [ ] Alias-Link zeigt „die Proviantmeisterin“. Der Überschriften-Link springt in Valerianos Journal zur Überschrift (**prüfen: `data-anchor` wird von Foundry übernommen**).
-- [ ] „darf nie in Foundry landen“ steht nirgends, auch nicht im HTML-Quelltext der Seite (Seite bearbeiten → Quelltext).
-- [ ] Callout farbig mit Titel „Achtung“.
+- [ ] **[auto]** Export + Import: „Alles“ hat Standard-Berechtigung „Beobachter“.
+- [ ] **[auto]** Alias-Link zeigt „die Proviantmeisterin“. Der Überschriften-Link springt in Valerianos Journal zur Überschrift (Anker = `id` der Überschrift, automatisch geprüft in `tools/e2e`).
+- [ ] **[auto]** „darf nie in Foundry landen“ steht nirgends, auch nicht im HTML-Quelltext der Seite (Seite bearbeiten → Quelltext).
+- [ ] **[auto]** Callout farbig mit Titel „Achtung“.
 - [ ] Secret: Spieler sehen es nicht. GM kann es aufdecken (Seite bearbeiten → Secret → „Aufdecken“).
-- [ ] Bericht warnt „Dataview ausgelassen“.
+- [ ] **[auto]** Bericht warnt „Dataview ausgelassen“.
 
 ## Erneuter Import
 
-- [ ] Ohne Änderung erneut exportieren und importieren: 0 angelegt, alles „übersprungen“, Dateien „unverändert“, keine Duplikate.
-- [ ] Secret in „Alles“ aufdecken, dann in Obsidian einen Satz in „Alles“ ändern, exportieren, importieren: 1 aktualisiert, Secret **bleibt aufgedeckt**, neuer Satz da.
+- [ ] **[auto]** Ohne Änderung erneut exportieren und importieren: 0 angelegt, alles „übersprungen“, Dateien „unverändert“, keine Duplikate.
+- [ ] **[auto]** Secret in „Alles“ aufdecken, dann in Obsidian einen Satz in „Alles“ ändern, exportieren, importieren: 1 aktualisiert, Secret **bleibt aufgedeckt**, neuer Satz da.
 - [ ] Im Journal „Alles“ von Hand eine zweite Seite anlegen → nach dem nächsten Import ist sie noch da.
 - [ ] Berechtigung eines Journals ohne `sichtbar:` von Hand ändern → bleibt nach Import erhalten.
 - [ ] In Obsidian „Ebba“ nach `NPC/Expedition/` verschieben und umbenennen → Import: kein Duplikat, Journal heißt neu und liegt im neuen Ordner. Ein leerer Ordner erscheint als verwaist.
-- [ ] Notiz in Obsidian löschen → Import: Journal bleibt, steht unter „Verwaist“. „Ausgewählte löschen …“ → Rückfrage → gelöscht. Nicht leere Ordner bleiben.
+- [ ] **[auto]** Notiz in Obsidian löschen → Import: Journal bleibt, steht unter „Verwaist“. „Ausgewählte löschen …“ → Rückfrage → gelöscht. Nicht leere Ordner bleiben.
 - [ ] Bild in Obsidian austauschen (gleicher Name) → Import lädt genau diese Datei neu hoch. Eventuell Browser-Cache leeren (Strg+F5), um das neue Bild zu sehen.
 - [ ] Bericht-Symbol in der Seitenleiste öffnet den letzten Bericht wieder.
 
 ## Fehlerfälle
 
-- [ ] Beliebige andere ZIP wählen → Meldung „enthält keine bundle.json“.
+- [ ] **[auto]** Beliebige andere ZIP wählen → Meldung „enthält keine bundle.json“.
 - [ ] Als Spieler (Nicht-GM): kein Knopf sichtbar.

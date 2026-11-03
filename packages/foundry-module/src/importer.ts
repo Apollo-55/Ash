@@ -87,37 +87,53 @@ const MIME: Record<string, string> = {
   webm: 'video/webm', m4a: 'audio/mp4',
 }
 
+/** Parallel uploads; the server handles them independently. */
+const UPLOAD_CONCURRENCY = 4
+
 async function uploadAssets(zip: JSZip, bundle: Bundle, report: ImportReport, opts: ImportOptions): Promise<void> {
   const manifest: AssetManifest = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.assetManifest) ?? {})
+  const pending = bundle.assets.filter((a) => {
+    const unchanged = !opts.forceAssets && a.hash && manifest[`${bundle.assetsBase}/${a.path}`] === a.hash
+    if (unchanged) report.assets.unchanged++
+    return !unchanged
+  })
+  if (!pending.length) return
+
+  // create all directories first (sequentially, avoids races between parallel uploads)
   const known = new Set<string>()
-  const total = bundle.assets.length
+  for (const dir of new Set(pending.map((a) => dirname(`${bundle.assetsBase}/${a.path}`)))) await ensureDirectory(dir, known)
+
   let done = 0
-  for (const asset of bundle.assets) {
-    done++
+  let sinceSave = 0
+  const uploadOne = async (asset: (typeof pending)[number]) => {
     const key = `${bundle.assetsBase}/${asset.path}`
-    if (!opts.forceAssets && asset.hash && manifest[key] === asset.hash) {
-      report.assets.unchanged++
-      continue
-    }
-    opts.onProgress?.((done / total) * 0.6, `Lade hoch: ${asset.path}`)
     try {
       const entry = zip.file(`assets/${asset.path}`)
       if (!entry) throw new Error('fehlt in der ZIP')
       const blob = await entry.async('blob')
       const ext = asset.path.split('.').pop()?.toLowerCase() ?? ''
       const file = new File([blob], basename(asset.path), { type: MIME[ext] ?? 'application/octet-stream' })
-      const dir = dirname(key)
-      await ensureDirectory(dir, known)
-      const result = await FilePicker().upload('data', dir, file, {}, { notify: false })
+      const result = await FilePicker().upload('data', dirname(key), file, {}, { notify: false })
       if (!result || (result.status && result.status !== 'success')) throw new Error(result?.message ?? 'Upload abgelehnt')
       manifest[key] = asset.hash
       report.assets.uploaded++
-      // persist progress every 20 uploads so an aborted import does not start from zero
-      if (report.assets.uploaded % 20 === 0) await game.settings.set(MODULE_ID, SETTINGS.assetManifest, manifest)
+      // persist progress regularly so an aborted import does not start from zero
+      if (++sinceSave >= 20) {
+        sinceSave = 0
+        await game.settings.set(MODULE_ID, SETTINGS.assetManifest, manifest)
+      }
     } catch (e) {
       report.assets.failed.push(`${asset.path}: ${(e as Error)?.message ?? e}`)
     }
+    done++
+    opts.onProgress?.((done / pending.length) * 0.6, `Dateien ${done}/${pending.length}`)
   }
+
+  const queue = [...pending]
+  const worker = async () => {
+    for (let a = queue.shift(); a; a = queue.shift()) await uploadOne(a)
+  }
+  await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, worker))
   await game.settings.set(MODULE_ID, SETTINGS.assetManifest, manifest)
 }
 

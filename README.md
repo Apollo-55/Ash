@@ -24,6 +24,13 @@ npm run dev         # wie deploy, aber bei jeder Änderung
 
 Umgebungsvariablen für `deploy`: `VTF_TEST_VAULT` (Standard `./test-vault`), `VTF_FOUNDRY_MODULES` (falls der Modulordner des Servers eingehängt ist, wird dorthin kopiert).
 
+Lokale Foundry zum Testen (gitignored in `.foundry/`, Foundry 13.351 + dsa-41 v13.1.4, Welt `vtf-test`):
+
+```bash
+npm run foundry     # startet http://localhost:30013 (eigenes Terminal)
+npm run e2e         # kompletter Durchlauf im Browser (Playwright), Screenshots in dist/e2e/
+```
+
 Ohne Obsidian exportieren (zum Testen): `node tools/export-cli.ts <vault-ordner> ausgabe.zip --name uthuria-ob`
 
 ## Installation

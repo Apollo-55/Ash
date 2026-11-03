@@ -91,7 +91,7 @@ describe('Wikilinks', () => {
     const target = bundle.documents.find((d) => d.sourcePath === 'NPC/Sir Rondrigo.md')!
     const page = target.pages[0].id
     expect(out).toContain(`@UUID[JournalEntry.${target.id}.JournalEntryPage.${page}#der-hintergrund-(der-skandal):]{Sir Rondrigo › Der Hintergrund (Der Skandal):}`)
-    expect(target.pages[0].html).toContain('data-anchor="der-hintergrund-(der-skandal):"')
+    expect(target.pages[0].html).toContain('id="der-hintergrund-(der-skandal):"')
   })
 
   it('unbekannte Überschrift verlinkt die Notiz und warnt', () => {
