@@ -5,3 +5,9 @@ test-vault/
 *.zip
 .foundry/
 backup/
+
+# Regelwerke (urheberrechtlich geschützt) – niemals ins Git
+Regelwerke/
+*.pdf
+# lokales LLM: Modelle und Index
+.llm/
