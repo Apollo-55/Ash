@@ -104,6 +104,21 @@ talente:
 
 Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
+## Idee M6: NSC-Generator (Beschreibung → `dsa-nsc`-Block) – noch nicht begonnen
+
+Stand der Entscheidungen 2026-11-03:
+
+- **Eigenes, optionales Obsidian-Plugin** („DSA-NSC-Generator“), nutzt den vorhandenen core (Schema, Katalog, Validierung, SF-Voraussetzungen, Rechenwerte).
+- **LLM-Anbieter einstellbar:** lokal (bevorzugt, Ollama) oder Cloud (API-Schlüssel), umschaltbar in den Einstellungen.
+- **Lokal aus Obsidian startbar** (Knopf „Lokales LLM starten“) mit **Analyse**: Grafikkarte/Speicher erkennen, passendes Modell vorschlagen und laden, Erreichbarkeit prüfen.
+  Rechner: AMD RX 6800/6900 (Navi 21, 16 GB VRAM), 46 GB RAM → Modelle bis ca. 14 B ganz auf der GPU.
+  Offen: Obsidian ist ein Flatpak; Starten eines Containers braucht `flatpak-spawn --host` (Flatpak-Recht `--talk-name=org.freedesktop.Flatpak`) oder einen dauerhaft laufenden Ollama-Dienst (Podman, Benutzer-systemd), den Obsidian nur prüft. Vor dem Einrichten fragen.
+- **Eingabe:** alle drei Wege – markierter Text, ganze Notiz, Formular (Dialog, vorbefüllt mit Markierung bzw. Notiz; Erfahrungsstufe, Rolle).
+- **Ablauf:** LLM wählt die Profession aus einer Liste → Code liefert das Professionspaket (Wege der Helden), Liturgien nach Gottheit/Grad (Liber Liturgium), Zauber nach Tradition → LLM füllt den Block als JSON nach Schema → Validierung (Namen, Werte, SF-Voraussetzungen) → Fehler zurück ans LLM (bis 3 Runden) → Block unter die Beschreibung. Formeln (LeP, AuP …) rechnet der Code.
+- **Testmenge:** die 24 umgewandelten NSCs (docs/nsc-umwandlung.md) als Vergleich für die Modellauswahl.
+- **Später:** OCR für *Wege des Schwerts* (PDF ohne lesbaren Text) für ausgefallene Kampf-SF.
+- Regelwerke bleiben lokal; bei Cloud-Anbietern gehen nur Auszüge der Professionspakete hinaus (Hinweis in den Einstellungen).
+
 ## ✅ M5: Sync über eigenen Dienst – Entscheidungen 2026-11-03
 
 - Ansatz A: eigener kleiner Dienst `vtf-sync` (Docker) neben Foundry (felddy) hinter nginx. Er mountet nur `Data/vault-to-foundry/`, nimmt Einzeldateien und `bundle.json` an, führt eine Revision und kennt die Hashes der Dateien. Zugriff per Token.
