@@ -60,6 +60,7 @@ LIST
 - [ ] **[auto]** Alias-Link zeigt „die Proviantmeisterin“. Der Überschriften-Link springt in Valerianos Journal zur Überschrift (Anker = `id` der Überschrift, automatisch geprüft in `tools/e2e`).
 - [ ] **[auto]** „darf nie in Foundry landen“ steht nirgends, auch nicht im HTML-Quelltext der Seite (Seite bearbeiten → Quelltext).
 - [ ] **[auto]** Callout farbig mit Titel „Achtung“.
+- [ ] **[auto]** `==Markierung==` hervorgehoben, Fußnote unten im Journal, `![[Shahane ay Zedrakin#Proviantmeisterin]]` zeigt den Abschnitt samt Wertekasten mit „Zum Charakter“.
 - [ ] Secret: Spieler sehen es nicht. GM kann es aufdecken (Seite bearbeiten → Secret → „Aufdecken“).
 - [ ] **[auto]** Bericht warnt „Dataview ausgelassen“.
 

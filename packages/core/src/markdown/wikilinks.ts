@@ -142,7 +142,14 @@ export function renderWikilink(link: ParsedWikilink, env: RenderEnv): string {
     return unresolved(label)
   }
   if (extname(targetPath) === 'md') {
-    // ![[Other note]] is rendered as a link for now
+    // ![[Other note]] / ![[Note#Heading]]: show the content (up to 2 levels deep), otherwise a link
+    if (link.embed && env.embedNote && (env.embedDepth ?? 0) < 2 && !link.subpath?.startsWith('^')) {
+      const html = env.embedNote(targetPath, link.subpath, (env.embedDepth ?? 0) + 1)
+      if (html !== null) {
+        const title = renderNoteLink(env, targetPath, link.subpath, link.alias, link.target)
+        return `</p><div class="vtf-embed"><div class="vtf-embed-title">${title}</div>\n${html}</div><p>`
+      }
+    }
     return renderNoteLink(env, targetPath, link.subpath, link.alias, link.target)
   }
   return renderAsset(env, targetPath, link.alias, link.subpath, link.embed)

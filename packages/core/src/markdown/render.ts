@@ -1,4 +1,7 @@
+/// <reference path="./plugins.d.ts" />
 import MarkdownItCtor, { type MarkdownIt, type StateCore, type Token } from 'markdown-it'
+import footnote from 'markdown-it-footnote'
+import mark from 'markdown-it-mark'
 import { extname } from '../paths.ts'
 import { calloutPlugin } from './callouts.ts'
 import { slugifyHeading, type FenceHandler, type RenderEnv } from './env.ts'
@@ -152,6 +155,13 @@ export function createMarkdown(): MarkdownIt {
   const md = new MarkdownItCtor({ html: true, breaks: true, linkify: false, typographer: false })
   md.use(wikilinkPlugin)
   md.use(calloutPlugin)
+  md.use(mark) // ==Markierung==
+  md.use(footnote)
+  // footnotes without jump links (Foundry journals do not navigate by #hash); numbers stay
+  md.renderer.rules.footnote_ref = (tokens, idx) => `<sup class="vtf-footnote-ref">[${Number(tokens[idx].meta?.id ?? 0) + 1}]</sup>`
+  md.renderer.rules.footnote_anchor = () => ''
+  md.renderer.rules.footnote_block_open = () => '<section class="vtf-footnotes"><hr>\n<ol>\n'
+  md.renderer.rules.footnote_block_close = () => '</ol>\n</section>\n'
   md.core.ruler.after('inline', 'vtf_headings', headingRule)
   md.core.ruler.after('vtf_headings', 'vtf_md_links', markdownLinkRule)
   md.core.ruler.after('vtf_md_links', 'vtf_tasks', taskRule)
@@ -179,7 +189,10 @@ export function renderBody(body: string, env: RenderEnv): string {
   env.secretCount = 0
   env.blockCount = 0
   ;(env as RenderEnv & { sceneCount?: number }).sceneCount = 0
-  return getMarkdown().render(body, env as unknown as Record<string, unknown>)
+  // embedded notes close/reopen paragraphs; drop the empty ones that leaves behind
+  return getMarkdown()
+    .render(body, env as unknown as Record<string, unknown>)
+    .replace(/<p>\s*<\/p>\n?/g, '')
 }
 
 export { uuidLink }

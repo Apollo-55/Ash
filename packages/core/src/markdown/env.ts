@@ -38,6 +38,10 @@ export interface RenderEnv {
   secretCount: number
   /** index of the next NPC block in this note (fence handlers) */
   blockCount: number
+  /** renders another note (or one of its sections) for ![[Note]] / ![[Note#Heading]]; null = not possible */
+  embedNote?(targetPath: string, subpath: string | null, depth: number): string | null
+  /** nesting depth of embedded notes (0 = the note itself) */
+  embedDepth?: number
 }
 
 export function makeWarningCollector(list: BundleWarning[], sourcePath: string) {

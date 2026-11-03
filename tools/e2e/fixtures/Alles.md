@@ -19,3 +19,9 @@ LIST
 
 - [ ] offen
 - [x] erledigt
+
+Das ist ==wichtig== für die Runde.[^q]
+
+![[Shahane ay Zedrakin#Proviantmeisterin]]
+
+[^q]: Quelle: Wege der Helden, S. 132.

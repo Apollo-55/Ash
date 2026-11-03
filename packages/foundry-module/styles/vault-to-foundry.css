@@ -69,3 +69,11 @@
 .vtf-buttons .vtf-sync.vtf-pending::after { content: "●"; color: #e0a100; margin-left: 6px; }
 .vtf-vaults { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
 .vtf-vault-row { display: flex; gap: 8px; align-items: baseline; }
+
+/* ---- embedded notes, highlights, footnotes ---- */
+.vtf-embed { border-left: 3px solid rgba(127, 127, 127, 0.5); padding: 2px 0 2px 12px; margin: 0.75em 0; }
+.vtf-embed-title { font-size: 0.85em; opacity: 0.8; margin-bottom: 4px; }
+mark { background: rgba(255, 208, 0, 0.35); color: inherit; padding: 0 2px; border-radius: 2px; }
+.vtf-footnote-ref { font-size: 0.75em; }
+.vtf-footnotes { font-size: 0.9em; opacity: 0.9; }
+.vtf-footnotes hr { margin: 1em 0 0.5em; }

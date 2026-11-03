@@ -479,57 +479,22 @@ class VtfSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this
     const s = this.plugin.settings
+    const save = () => this.plugin.saveSettings()
     containerEl.empty()
 
-    new Setting(containerEl)
-      .setName('Exportordner')
-      .setDesc(`Hierhin wird „${this.plugin.outputFileName()}“ geschrieben (wird bei jedem Export überschrieben).`)
-      .addText((t) =>
-        t.setPlaceholder('/home/…/Downloads').setValue(s.outputDir).onChange(async (v) => {
-          s.outputDir = v
-          await this.plugin.saveSettings()
-        })
-      )
-
-    new Setting(containerEl)
-      .setName('Nie exportieren')
-      .setDesc('Ein Muster pro Zeile. „Ordner/“ schließt einen Ordner aus, „*“ steht für beliebige Zeichen, „*.canvas“ wirkt überall. Beispiel: _privat/, Vorlagen/, *TODO*')
-      .addTextArea((t) => {
-        t.inputEl.rows = 5
-        t.setValue(s.excludePatterns.join('\n')).onChange(async (v) => {
-          s.excludePatterns = v.split('\n').map((x) => x.trim()).filter(Boolean)
-          await this.plugin.saveSettings()
-        })
-      })
-
-    new Setting(containerEl)
-      .setName('Wurzelordner in Foundry')
-      .setDesc('Optional. Legt alles in einen gemeinsamen Ordner. Foundry erlaubt 4 Ebenen, tiefere werden zusammengefasst.')
-      .addText((t) =>
-        t.setPlaceholder('(keiner)').setValue(s.rootFolder).onChange(async (v) => {
-          s.rootFolder = v
-          await this.plugin.saveSettings()
-        })
-      )
-
-    new Setting(containerEl)
-      .setName('Auch nicht verlinkte Dateien hochladen')
-      .setDesc('Bilder, Tokens und PDFs, auf die keine Notiz verweist, trotzdem mitnehmen (z. B. für Tiles).')
-      .addToggle((t) =>
-        t.setValue(s.includeUnreferencedAttachments).onChange(async (v) => {
-          s.includeUnreferencedAttachments = v
-          await this.plugin.saveSettings()
-        })
-      )
-
-    containerEl.createEl('h3', { text: 'Sync-Server' })
+    // ---- Sync ----
+    new Setting(containerEl).setName('Sync mit Foundry').setHeading()
+    containerEl.createEl('p', {
+      cls: 'setting-item-description',
+      text: 'Geänderte Notizen und Bilder gehen an den Sync-Dienst auf deinem Server. Foundry übernimmt sie erst, wenn du dort „Vault synchronisieren“ klickst. Einrichtung: docs/sync-server.md.',
+    })
     new Setting(containerEl)
       .setName('Server-Adresse')
-      .setDesc('Adresse des vtf-sync-Dienstes, z. B. https://foundry.example.org/vtf-sync')
+      .setDesc('z. B. https://dsa.manic-gaming.de/vtf-sync')
       .addText((t) =>
         t.setPlaceholder('https://…/vtf-sync').setValue(s.syncUrl).onChange(async (v) => {
           s.syncUrl = v.trim()
-          await this.plugin.saveSettings()
+          await save()
           this.plugin.setStatus(this.plugin.syncConfigured() ? 'idle' : 'off')
         })
       )
@@ -540,17 +505,17 @@ class VtfSettingTab extends PluginSettingTab {
         t.inputEl.type = 'password'
         t.setValue(s.syncToken).onChange(async (v) => {
           s.syncToken = v.trim()
-          await this.plugin.saveSettings()
+          await save()
           this.plugin.setStatus(this.plugin.syncConfigured() ? 'idle' : 'off')
         })
       })
     new Setting(containerEl)
       .setName('Beim Speichern automatisch synchronisieren')
-      .setDesc('Schickt geänderte Notizen und Bilder kurz nach dem Speichern an den Server. Foundry übernimmt sie erst, wenn du dort „Vault synchronisieren“ klickst.')
+      .setDesc('Sonst nur per Befehl „Mit Foundry-Server synchronisieren“ oder Klick auf „Foundry“ in der Statusleiste.')
       .addToggle((t) =>
         t.setValue(s.autoSync).onChange(async (v) => {
           s.autoSync = v
-          await this.plugin.saveSettings()
+          await save()
         })
       )
     new Setting(containerEl)
@@ -559,11 +524,10 @@ class VtfSettingTab extends PluginSettingTab {
       .addSlider((sl) =>
         sl.setLimits(2, 60, 1).setValue(s.autoSyncDelay).setDynamicTooltip().onChange(async (v) => {
           s.autoSyncDelay = v
-          await this.plugin.saveSettings()
+          await save()
         })
       )
     new Setting(containerEl)
-      .setName('Verbindung')
       .addButton((b) =>
         b.setButtonText('Verbindung testen').onClick(async () => {
           try {
@@ -579,19 +543,8 @@ class VtfSettingTab extends PluginSettingTab {
       .addButton((b) => b.setButtonText('Jetzt synchronisieren').setCta().onClick(() => this.plugin.syncNow(true)))
       .addButton((b) => b.setButtonText('Ungenutzte Dateien entfernen …').onClick(() => this.plugin.cleanupServer()))
 
-    containerEl.createEl('h3', { text: 'Allgemein' })
-    new Setting(containerEl)
-      .setName('Vault-Name in Foundry')
-      .setDesc('Steckt in den IDs aller Dokumente und im Ordner auf dem Server. Wird beim ersten Start vom Ordnernamen übernommen und bleibt dann fest, auch wenn du den Vault-Ordner umbenennst. Nur ändern, wenn Foundry einen anderen Namen kennt – sonst entstehen in Foundry Duplikate.')
-      .addText((t) =>
-        t.setValue(s.vaultName).onChange(async (v) => {
-          if (v.trim() === s.vaultName) return
-          s.vaultName = v.trim()
-          // the stored ids belong to the old name → recompute them under the new one
-          s.idMap = {}
-          await this.plugin.saveSettings()
-        })
-      )
+    // ---- Inhalt ----
+    new Setting(containerEl).setName('Inhalt').setHeading()
     new Setting(containerEl)
       .setName('Spielsystem für NSC-Blöcke')
       .setDesc('Welche Codeblöcke als NSC gelten und wie sie nach Foundry übertragen werden.')
@@ -602,17 +555,73 @@ class VtfSettingTab extends PluginSettingTab {
           .setValue(s.system)
           .onChange(async (v) => {
             s.system = v
-            await this.plugin.saveSettings()
+            await save()
           })
       )
+    new Setting(containerEl)
+      .setName('Nie exportieren')
+      .setDesc('Ein Muster pro Zeile. „Ordner/“ schließt einen Ordner aus, „*“ steht für beliebige Zeichen, „*.canvas“ wirkt überall. Beispiel: _privat/, Vorlagen/, *TODO*')
+      .addTextArea((t) => {
+        t.inputEl.rows = 5
+        t.setValue(s.excludePatterns.join('\n')).onChange(async (v) => {
+          s.excludePatterns = v.split('\n').map((x) => x.trim()).filter(Boolean)
+          await save()
+        })
+      })
+    new Setting(containerEl)
+      .setName('Auch nicht verlinkte Dateien mitnehmen')
+      .setDesc('Bilder, Tokens und PDFs, auf die keine Notiz verweist, trotzdem übertragen (z. B. für Tiles).')
+      .addToggle((t) =>
+        t.setValue(s.includeUnreferencedAttachments).onChange(async (v) => {
+          s.includeUnreferencedAttachments = v
+          await save()
+        })
+      )
+    new Setting(containerEl)
+      .setName('Wurzelordner in Foundry')
+      .setDesc('Optional. Legt alles in einen gemeinsamen Ordner. Foundry erlaubt 4 Ebenen, tiefere werden zusammengefasst.')
+      .addText((t) =>
+        t.setPlaceholder('(keiner)').setValue(s.rootFolder).onChange(async (v) => {
+          s.rootFolder = v
+          await save()
+        })
+      )
 
+    // ---- ZIP ----
+    new Setting(containerEl).setName('ZIP-Backup').setHeading()
+    new Setting(containerEl)
+      .setName('Exportordner')
+      .setDesc(`Hierhin schreibt der Befehl „Nach Foundry exportieren (ZIP)“ die Datei „${this.plugin.outputFileName()}“ (wird jedes Mal überschrieben). Import in Foundry über das ZIP-Symbol.`)
+      .addText((t) =>
+        t.setPlaceholder('/home/…/Downloads').setValue(s.outputDir).onChange(async (v) => {
+          s.outputDir = v
+          await save()
+        })
+      )
+      .addButton((b) => b.setButtonText('Jetzt exportieren').onClick(() => this.plugin.exportZip()))
+
+    // ---- Fortgeschritten ----
+    new Setting(containerEl).setName('Fortgeschritten').setHeading()
+    new Setting(containerEl)
+      .setName('Vault-Name in Foundry')
+      .setDesc('Steckt in den IDs aller Dokumente und im Ordner auf dem Server. Wird beim ersten Start vom Ordnernamen übernommen und bleibt fest, auch wenn du den Vault-Ordner umbenennst. Nur ändern, wenn Foundry einen anderen Namen kennt – sonst entstehen in Foundry Duplikate. Ändern setzt die ID-Zuordnung zurück.')
+      .addText((t) =>
+        t.setValue(s.vaultName).onChange(async (v) => {
+          if (v.trim() === s.vaultName) return
+          s.vaultName = v.trim()
+          // the stored ids belong to the old name → recompute them under the new one
+          s.idMap = {}
+          await save()
+        })
+      )
     new Setting(containerEl)
       .setName('ID-Zuordnung')
-      .setDesc(`${Object.keys(s.idMap).length} Notizen haben eine feste Foundry-ID. Zurücksetzen erzeugt beim nächsten Import Duplikate für umbenannte Notizen.`)
+      .setDesc(`${Object.keys(s.idMap).length} Notizen und NSCs haben eine feste Foundry-ID, die beim Umbenennen und Verschieben erhalten bleibt. Zurücksetzen nur, wenn Foundry neu befüllt wird – sonst entstehen Duplikate für umbenannte Notizen.`)
       .addButton((b) =>
-        b.setButtonText('Zurücksetzen').setWarning().onClick(async () => {
+        b.setButtonText('Zurücksetzen …').setWarning().onClick(async () => {
+          if (!window.confirm('ID-Zuordnung wirklich zurücksetzen? Umbenannte Notizen erscheinen in Foundry danach doppelt.')) return
           s.idMap = {}
-          await this.plugin.saveSettings()
+          await save()
           this.display()
         })
       )

@@ -17,7 +17,7 @@ $E2E enable
 echo "== 1. Import";                  $EXPORT dist/e2e-1.zip --name uthuria-ob >/dev/null; $E2E import dist/e2e-1.zip | tr -d '\n '; echo
 echo "== 2. Prüfen";                  $E2E inspect | tr -d '\n'; echo
 echo "== 3. Überschriften-Links";     $E2E anchorclick
-echo "== 3b. NSCs";                   $E2E actors | grep -E '^ "|weapons|Bogen|"neu"|LeP|"MR"' | head -60
+echo "== 3b. NSCs";                   $E2E actors > dist/e2e/actors.json; grep -c '"weapons"' dist/e2e/actors.json | sed 's/^/   NSCs mit Waffen: /'
 echo "== 3d. Szenen";                  $E2E scenes
 echo "== 3c. Spielstand + geänderter Block"
 $E2E play

@@ -230,3 +230,49 @@ describe('Sonstiges Markup', () => {
     expect(out).toContain('☑ erledigt')
   })
 })
+
+describe('Markierung, Fußnoten, eingebettete Notizen', () => {
+  it('==Markierung== wird <mark>', () => {
+    const { html: out } = html({ 'N.md': 'Das ist ==wichtig== hier.' }, 'N.md')
+    expect(out).toContain('<mark>wichtig</mark>')
+  })
+
+  it('Fußnoten mit Nummer, ohne Sprunglinks', () => {
+    const { html: out } = html({ 'N.md': 'Text[^1] und mehr[^b].\n\n[^1]: Erste Quelle.\n[^b]: Zweite.' }, 'N.md')
+    expect(out).toContain('<sup class="vtf-footnote-ref">[1]</sup>')
+    expect(out).toContain('<sup class="vtf-footnote-ref">[2]</sup>')
+    expect(out).toContain('<section class="vtf-footnotes">')
+    expect(out).toContain('Erste Quelle.')
+    expect(out).not.toContain('href="#fn')
+  })
+
+  it('![[Notiz]] bettet den Inhalt ein, mit Link als Titel', () => {
+    const notes = { 'A.md': 'Vorher\n\n![[Wetter]]\n\nNachher', 'Wetter.md': '# Wetter\nSturm aus **Süd**.' }
+    const { html: out } = html(notes, 'A.md')
+    expect(out).toMatch(/<div class="vtf-embed"><div class="vtf-embed-title">@UUID\[JournalEntry\.\w{16}\]\{Wetter\}<\/div>/)
+    expect(out).toContain('Sturm aus <strong>Süd</strong>.')
+    expect(out).not.toContain('<p></p>')
+  })
+
+  it('![[Notiz#Abschnitt]] bettet nur den Abschnitt ein', () => {
+    const notes = { 'A.md': '![[Regeln#Sturm]]', 'Regeln.md': '# Regeln\n## Flaute\nRuhig.\n## Sturm\nSeefahrt-Probe +5.\n### Folgen\nSchaden.\n## Nebel\nSicht 10.' }
+    const { html: out } = html(notes, 'A.md')
+    expect(out).toContain('Seefahrt-Probe +5.')
+    expect(out).toContain('Schaden.')
+    expect(out).not.toContain('Ruhig.')
+    expect(out).not.toContain('Sicht 10.')
+  })
+
+  it('Kommentare und Secrets der eingebetteten Notiz: Kommentare weg, Secrets bleiben Secrets', () => {
+    const notes = { 'A.md': '![[B]]', 'B.md': 'Sichtbar %%privat%%\n\n> [!geheim]\n> Nur SL.' }
+    const { html: out } = html(notes, 'A.md')
+    expect(out).not.toContain('privat')
+    expect(out).toMatch(/<section class="secret" id="secret-\w{16}">/)
+  })
+
+  it('Rekursion begrenzt, fehlender Abschnitt → Link + Warnung', () => {
+    const { html: out, bundle } = html({ 'A.md': '![[B]]\n\n![[B#Gibts nicht]]', 'B.md': 'B ![[A]]' }, 'A.md')
+    expect(out.match(/vtf-embed"/g)!.length).toBeLessThanOrEqual(3)
+    expect(bundle.warnings.some((w) => /Eingebettete Überschrift „Gibts nicht“/.test(w.message))).toBe(true)
+  })
+})

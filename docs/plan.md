@@ -176,7 +176,7 @@ Statt eines Parsers, der bei jedem Export rät: ein Befehl **„Wertekasten in d
 2. ✅ **M2** dsa-nsc (Schema, Validierung, Rendering, Vorlage), Kompendium-Lookup, Actor-Import, AT/PA-Abgleich.
 3. **M2b** Befehl „Wertekasten umwandeln“ für Stil 2 und 3.
 4. ✅ **M3** Szenen.
-5. **M4** Aufräumen verwaister Dokumente, Einstellungen, README.
+5. ✅ **M4** Aufräumen verwaister Dokumente, Einstellungen, README, Markierung/Fußnoten/eingebettete Notizen, Version 1.0.0 mit fertigen ZIPs.
 6. Später `dnd5e`-Adapter.
 
 ## Testorte

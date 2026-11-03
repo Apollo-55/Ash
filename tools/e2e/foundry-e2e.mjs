@@ -147,6 +147,9 @@ const steps = {
         out.contentLinks = (enriched.match(/class="content-link/g) ?? []).length
         out.hasSecret = /<section class="secret" id="secret-\w{16}">/.test(html)
         out.callout = /vtf-callout-warning/.test(html)
+        out.mark = /<mark>wichtig<\/mark>/.test(html)
+        out.footnote = /vtf-footnotes/.test(html) && /Wege der Helden, S\. 132/.test(html)
+        out.embedShahane = /vtf-embed/.test(html) && /Zum Charakter/.test(html) && /Belkelel/.test(html)
         // all links in all journals resolvable?
         let broken = 0, total = 0
         for (const j of game.journal) for (const p of j.pages) {
@@ -260,9 +263,11 @@ const steps = {
           const act = s.base.combatAttributes.active
           const weapons = a.items.filter((i) => ['meleeWeapon', 'rangedWeapon'].includes(i.type)).map((w) => {
             const t = a.items.find((i) => i.type === 'combatTalent' && i.system.sid === w.system.talent)
+            if (w.type === 'rangedWeapon') return `${w.name}[${t?.name ?? '?'} TaW ${t?.system.value}] FK ${t ? act.baseRangedAttack.value + t.system.combat.rangedAttack : '?'} TP ${w.system.damage}`
             const sheetAT = t ? act.baseAttack.value + t.system.combat.attack : null
             const sheetPA = t ? act.baseParry.value + t.system.combat.parry : null
-            return `${w.name}[${t?.name ?? '?'} TaW ${t?.system.value}] Bogen ${sheetAT}/${sheetPA} Wurf ${sheetAT + w.system.weaponMod.attack}/${sheetPA + w.system.weaponMod.parry} TP ${w.system.damage} INI-Mod ${w.system.initiativeMod}`
+            const wm = w.system.weaponMod ?? { attack: 0, parry: 0 }
+            return `${w.name}[${t?.name ?? '?'} TaW ${t?.system.value}] Bogen ${sheetAT}/${sheetPA} Wurf ${sheetAT + wm.attack}/${sheetPA + wm.parry} TP ${w.system.damage} INI-Mod ${w.system.initiativeMod}`
           })
           const origin = {}
           for (const i of a.items) {

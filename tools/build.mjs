@@ -57,10 +57,7 @@ async function doDeploy() {
     cpSync(moduleOut, target, { recursive: true })
     console.log(`→ Modul in ${target}`)
   }
-  await zipDir(moduleOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-module.zip'))
-  console.log('→ dist/vault-to-foundry-module.zip (zum Hochladen auf den Server)')
-  await zipDir(join(root, 'dist/vtf-sync'), 'vtf-sync', join(root, 'dist/vtf-sync.zip'))
-  console.log('→ dist/vtf-sync.zip (Sync-Dienst für den Server)')
+
 }
 
 let deployTimer = null
@@ -84,10 +81,20 @@ function packSyncService() {
   for (const f of ['server.mjs', 'Dockerfile', 'docker-compose.example.yml', 'nginx.example.conf']) cpSync(join(root, 'packages/sync-service', f), join(out, f))
 }
 
+async function packZips() {
+  await zipDir(moduleOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-module.zip'))
+  await zipDir(pluginOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-obsidian.zip'))
+  await zipDir(join(root, 'dist/vtf-sync'), 'vtf-sync', join(root, 'dist/vtf-sync.zip'))
+  console.log('→ dist/vault-to-foundry-obsidian.zip  (Obsidian: nach <vault>/.obsidian/plugins/ entpacken)')
+  console.log('→ dist/vault-to-foundry-module.zip    (Foundry: nach <Data>/modules/ entpacken)')
+  console.log('→ dist/vtf-sync.zip                   (Server: neben die docker-compose.yaml entpacken)')
+}
+
 async function finish() {
   copyStatic()
   packSyncService()
   if (deploy) await doDeploy()
+  await packZips()
 }
 
 const common = { bundle: true, sourcemap: watch ? 'inline' : false, logLevel: 'warning', target: 'es2022', plugins: [after] }

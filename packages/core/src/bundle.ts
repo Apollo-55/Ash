@@ -172,7 +172,7 @@ export function buildBundle(opts: BuildOptions): BuildResult {
       skipped.push({ sourcePath: note.path, reason: 'foundry.typ: ignorieren' })
       continue
     }
-    if (config.type === 'szene') warn('note-type-pending', 'Szenen kommen in M3, die Notiz wird vorerst als Journal exportiert.')
+    if (config.type === 'szene') warn('note-type-pending', '„foundry: typ: szene“ wird nicht mehr verwendet – Szenen entstehen aus ```szene-Blöcken. Die Notiz wird als Journal exportiert.')
 
     const stripped = stripComments(split.body)
     if (stripped.unclosed) warn('unclosed-comment', 'Kommentar „%%“ nicht geschlossen: der Rest der Notiz wird (wie in Obsidian) ausgeblendet.')
@@ -264,8 +264,10 @@ export function buildBundle(opts: BuildOptions): BuildResult {
   fenceHandlers[SCENE_BLOCK] = (content, env) => {
     const idx = (env as RenderEnv & { sceneCount?: number }).sceneCount ?? 0
     ;(env as RenderEnv & { sceneCount?: number }).sceneCount = idx + 1
-    const s = scenesByNote.get(env.sourcePath)?.[idx]
-    const parsed = s?.parsed ?? parseSceneBlock(content)
+    const own = parseSceneBlock(content)
+    const list = scenesByNote.get(env.sourcePath) ?? []
+    const s = (own.name ? list.find((x) => x.parsed.name === own.name) : undefined) ?? list[idx]
+    const parsed = s?.parsed ?? own
     return renderSceneCard(parsed, {
       sceneUuid: s?.sceneId ? `Scene.${s.sceneId}` : undefined,
       fallbackName: s?.name,
@@ -274,23 +276,44 @@ export function buildBundle(opts: BuildOptions): BuildResult {
   }
   if (adapter) {
     fenceHandlers[adapter.blockLanguage] = (content, env) => {
-      const b = blocksByNote.get(env.sourcePath)?.[env.blockCount++]
-      const parsed = b?.parsed ?? adapter.parse(content)
+      const list = blocksByNote.get(env.sourcePath) ?? []
+      const own = adapter.parse(content)
+      // by name (works inside embedded sections too), otherwise by position
+      const b = (own.name ? list.find((x) => x.name === own.name) : undefined) ?? list[env.blockCount]
+      env.blockCount++
+      const parsed = b?.parsed ?? own
       return adapter.renderStatblock(parsed, { actorUuid: b?.actorId ? `Actor.${b.actorId}` : undefined })
     }
   }
-  const makeEnv = (sourcePath: string, warn: RenderEnv['warn'], id: string, map: Map<string, LinkTarget>): RenderEnv => ({
-    sourcePath,
-    resolver: opts.resolver,
-    targets: map,
-    assetUrl,
-    warn,
-    secretId: (n) => makeId(id, 'secret', String(n)),
-    fenceHandlers,
-    headings: [],
-    secretCount: 0,
-    blockCount: 0,
-  })
+  const preparedByPath = new Map(prepared.map((p) => [p.note.path, p]))
+  const makeEnv = (sourcePath: string, warn: RenderEnv['warn'], id: string, map: Map<string, LinkTarget>): RenderEnv => {
+    const env: RenderEnv = {
+      sourcePath,
+      resolver: opts.resolver,
+      targets: map,
+      assetUrl,
+      warn,
+      secretId: (n) => makeId(id, 'secret', String(n)),
+      fenceHandlers,
+      headings: [],
+      secretCount: 0,
+      blockCount: 0,
+      // ![[Note]] / ![[Note#Heading]] → content of that note, rendered in the context of the target note
+      embedNote: (targetPath, subpath, depth) => {
+        const t = preparedByPath.get(targetPath)
+        if (!t) return null
+        const body = subpath ? extractSection(t.body, subpath) : t.body
+        if (body === null) {
+          warn('unresolved-heading', `Eingebettete Überschrift „${subpath}“ in „${t.name}“ nicht gefunden, nur verlinkt.`)
+          return null
+        }
+        const child = makeEnv(targetPath, warn, makeId(t.id, 'embed', sourcePath), map)
+        child.embedDepth = depth
+        return renderBody(body, child)
+      },
+    }
+    return env
+  }
 
   // headings of every note (for [[Note#Heading]]) – throwaway render without warnings
   for (const p of prepared) {
@@ -472,4 +495,34 @@ export function findImageEmbeds(body: string): { line: number; ref: string }[] {
     for (const m of line.matchAll(/!\[\[([^\]|#]+)[^\]]*\]\]|!\[[^\]]*\]\(([^)\s]+)\)/g)) out.push({ line: i, ref: (m[1] ?? decodeURIComponent(m[2])).trim() })
   })
   return out
+}
+
+/** Section of a note below a heading (until the next heading of the same or a higher level). */
+export function extractSection(body: string, heading: string): string | null {
+  const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
+  const want = norm(heading)
+  const lines = body.split('\n')
+  let fence: string | null = null
+  let start = -1
+  let level = 0
+  for (let i = 0; i < lines.length; i++) {
+    const f = /^ {0,3}(`{3,}|~{3,})/.exec(lines[i])
+    if (f) {
+      if (!fence) fence = f[1]
+      else if (lines[i].trim().startsWith(fence[0].repeat(fence.length))) fence = null
+      continue
+    }
+    if (fence) continue
+    const h = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(lines[i])
+    if (!h) continue
+    if (start < 0) {
+      if (norm(h[2]) === want) {
+        start = i
+        level = h[1].length
+      }
+    } else if (h[1].length <= level) {
+      return lines.slice(start + 1, i).join('\n')
+    }
+  }
+  return start < 0 ? null : lines.slice(start + 1).join('\n')
 }

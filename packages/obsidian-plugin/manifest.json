@@ -1,9 +1,9 @@
 {
   "id": "vault-to-foundry",
   "name": "Vault to Foundry",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Exportiert Notizen als Journale (später NSCs und Szenen) für Foundry VTT.",
+  "description": "Bringt Notizen, NSCs (DSA 4.1) und Szenen nach Foundry VTT – per Sync-Dienst oder ZIP.",
   "author": "Martin Lilienthal",
   "isDesktopOnly": true
 }

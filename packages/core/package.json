@@ -1,6 +1,6 @@
 {
   "name": "@vtf/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
@@ -8,6 +8,8 @@
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "markdown-it": "^15.0.3",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
     "yaml": "^2.9.1"
   }
 }

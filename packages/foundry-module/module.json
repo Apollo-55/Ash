@@ -1,15 +1,34 @@
 {
   "id": "vault-to-foundry",
   "title": "Vault to Foundry – Import",
-  "description": "Importiert Journale (später NSCs und Szenen) aus einem Obsidian-Export des Plugins „Vault to Foundry“.",
-  "version": "0.1.0",
-  "authors": [{ "name": "Martin Lilienthal" }],
-  "compatibility": { "minimum": "13", "verified": "13" },
-  "esmodules": ["scripts/module.js"],
-  "styles": ["styles/vault-to-foundry.css"],
+  "description": "Übernimmt Journale, NSCs (dsa-41) und Szenen aus Obsidian (Plugin „Vault to Foundry“) – per Sync-Dienst oder ZIP.",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "Martin Lilienthal"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": [
+    "scripts/module.js"
+  ],
+  "styles": [
+    "styles/vault-to-foundry.css"
+  ],
   "languages": [
-    { "lang": "de", "name": "Deutsch", "path": "lang/de.json" },
-    { "lang": "en", "name": "English", "path": "lang/en.json" }
+    {
+      "lang": "de",
+      "name": "Deutsch",
+      "path": "lang/de.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
   ],
   "flags": {}
 }
