@@ -1,4 +1,4 @@
-# Testcheckliste Foundry (M1: Journale, M2: NSCs, M3: Szenen)
+# Testcheckliste Foundry (M1: Journale, M2: NSCs, M3: Szenen, M5: Sync)
 
 Die Import-Logik ist dreifach getestet:
 
@@ -103,3 +103,13 @@ Testdaten: `tools/e2e/fixtures/Szenen.md` (Leaflet-Karte `süd-map` aus „Encou
 - [ ] **[auto]** Unverändert erneut: übersprungen.
 - [ ] Von Hand im Browser: Vorschaubild in der Szenenleiste vorhanden (entsteht nur mit Canvas), Pins anklicken, Szene aktivieren, Spieler sehen nur aufgedeckte Tokens.
 - [ ] Von Hand in Obsidian: `szene`-Block erscheint als Karte mit Vorschau; ein Tippfehler (z. B. `licht: mittag`) erscheint rot.
+
+## Sync-Dienst (M5)
+
+Automatisch: `npm test` startet den Dienst und prüft Push, unveränderten Push, Einzeländerung, ungenutzte Dateien, Prüfsummen und Pfade.
+
+- [ ] **[auto]** Push über den Dienst, Knopf zeigt Punkt, Dialog nennt Revision, „Übernehmen“ ändert das Journal, Punkt verschwindet.
+- [ ] **[auto]** Dateien aus einem früheren ZIP-Import werden erkannt und nicht erneut hochgeladen.
+- [ ] Von Hand auf dem Server: Container läuft als Foundry-Benutzer, `curl …/vtf-sync/health`, Foundry kann hochgeladene Bilder anzeigen.
+- [ ] Von Hand in Obsidian: „Verbindung testen“, eine Notiz ändern → Statusleiste ⏳ → ⟳ → ✓; falsches Token → ✗ mit Grund.
+- [ ] Von Hand: „Ungenutzte Dateien entfernen“ zeigt die Liste, löscht nach Bestätigung.

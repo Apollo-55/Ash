@@ -1,6 +1,6 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
+import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type LinkResolver, type NoteInput, type SystemAdapter } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient } from '../../core/src/index.ts'
 
 const ADAPTERS: Record<string, SystemAdapter<any>> = { dsa41: dsa41Adapter }
 
@@ -13,6 +13,22 @@ interface VtfSettings {
   system: string
   /** sourcePath → Foundry id; kept up to date on rename so ids survive moves */
   idMap: Record<string, string>
+  /** vtf-sync service, e.g. https://foundry.example.org/vtf-sync */
+  syncUrl: string
+  syncToken: string
+  /** sync automatically after saving */
+  autoSync: boolean
+  /** seconds after the last change */
+  autoSyncDelay: number
+  /** file hashes by modification time, so unchanged files are not read again */
+  hashCache: Record<string, { mtime: number; size: number; hash: string }>
+}
+
+/** Obsidian's requestUrl as transport (no CORS restrictions). */
+const obsidianHttp: HttpFn = async (req) => {
+  const body = req.body instanceof Uint8Array ? req.body.buffer.slice(req.body.byteOffset, req.body.byteOffset + req.body.byteLength) as ArrayBuffer : req.body
+  const res = await requestUrl({ url: req.url, method: req.method, headers: req.headers, body, contentType: req.headers['Content-Type'], throw: false })
+  return { status: res.status, text: res.text }
 }
 
 const nodeRequire = (id: string): any => (window as any).require(id)
@@ -32,13 +48,40 @@ const DEFAULTS: VtfSettings = {
   includeUnreferencedAttachments: true,
   system: 'dsa41',
   idMap: {},
+  syncUrl: '',
+  syncToken: '',
+  autoSync: true,
+  autoSyncDelay: 10,
+  hashCache: {},
 }
 
 export default class VaultToFoundryPlugin extends Plugin {
   settings: VtfSettings = { ...DEFAULTS }
+  private statusEl!: HTMLElement
+  private syncTimer: number | null = null
+  private syncRunning = false
+  private syncAgain = false
 
   async onload(): Promise<void> {
     await this.loadSettings()
+
+    // ---- server sync ----
+    this.statusEl = this.addStatusBarItem()
+    this.statusEl.addClass('vtf-status')
+    this.statusEl.addEventListener('click', () => this.syncNow(true))
+    this.setStatus(this.syncConfigured() ? 'idle' : 'off')
+    this.addCommand({ id: 'sync-server', name: 'Mit Foundry-Server synchronisieren', callback: () => this.syncNow(true) })
+    this.addCommand({ id: 'cleanup-server', name: 'Ungenutzte Dateien auf dem Foundry-Server entfernen', callback: () => this.cleanupServer() })
+    this.app.workspace.onLayoutReady(() => {
+      // registered after startup, otherwise every file of the vault fires a "create" event
+      const trigger = (file: TAbstractFile) => {
+        if (!file.path.startsWith(this.app.vault.configDir)) this.scheduleSync()
+      }
+      this.registerEvent(this.app.vault.on('modify', trigger))
+      this.registerEvent(this.app.vault.on('create', trigger))
+      this.registerEvent(this.app.vault.on('delete', trigger))
+      this.registerEvent(this.app.vault.on('rename', trigger))
+    })
 
     this.addCommand({
       id: 'export-zip',
@@ -140,6 +183,137 @@ export default class VaultToFoundryPlugin extends Plugin {
     }
   }
 
+  /** Builds the bundle from the current vault (shared by ZIP export and server sync). */
+  async buildFromVault() {
+    const vault = this.app.vault
+    const cache = this.app.metadataCache
+    const files = vault.getFiles()
+    const notes: NoteInput[] = []
+    for (const f of files) {
+      if (f.extension !== 'md') continue
+      notes.push({ path: f.path, content: await vault.cachedRead(f), frontmatter: cache.getFileCache(f)?.frontmatter ?? null })
+    }
+    const resolver: LinkResolver = { resolve: (linkpath, from) => cache.getFirstLinkpathDest(linkpath, from)?.path ?? null }
+    return buildBundle({
+      vaultName: vault.getName(),
+      notes,
+      attachments: files.filter((f) => f.extension !== 'md').map((f) => f.path),
+      resolver,
+      idMap: this.settings.idMap,
+      excludePatterns: this.settings.excludePatterns,
+      rootFolder: this.settings.rootFolder.trim() || undefined,
+      includeUnreferencedAttachments: this.settings.includeUnreferencedAttachments,
+      generator: { name: 'vault-to-foundry-obsidian', version: this.manifest.version },
+      system: ADAPTERS[this.settings.system],
+      leafletMarkers: await this.leafletMarkers(),
+    })
+  }
+
+  // ---- server sync ---------------------------------------------------------------------------
+
+  syncConfigured(): boolean {
+    return Boolean(this.settings.syncUrl.trim() && this.settings.syncToken.trim())
+  }
+
+  client(): SyncClient {
+    return new SyncClient(this.settings.syncUrl.trim(), this.settings.syncToken.trim(), obsidianHttp)
+  }
+
+  setStatus(state: 'off' | 'idle' | 'waiting' | 'busy' | 'ok' | 'error', detail = ''): void {
+    const text: Record<typeof state, string> = {
+      off: '', idle: 'Foundry ○', waiting: 'Foundry ⏳', busy: `Foundry ⟳ ${detail}`, ok: `Foundry ✓`, error: 'Foundry ✗',
+    }
+    this.statusEl.setText(text[state])
+    this.statusEl.setAttr('title', detail || (state === 'waiting' ? 'Synchronisiert gleich' : 'Klicken: jetzt mit Foundry synchronisieren'))
+    this.statusEl.toggleClass('vtf-status-error', state === 'error')
+  }
+
+  scheduleSync(): void {
+    if (!this.settings.autoSync || !this.syncConfigured()) return
+    if (this.syncTimer) window.clearTimeout(this.syncTimer)
+    this.setStatus('waiting')
+    this.syncTimer = window.setTimeout(() => {
+      this.syncTimer = null
+      this.syncNow(false)
+    }, Math.max(2, this.settings.autoSyncDelay) * 1000)
+  }
+
+  private async fileInfo(path: string): Promise<{ hash: string; size: number }> {
+    const file = this.app.vault.getAbstractFileByPath(path)
+    if (!(file instanceof TFile)) throw new Error(`${path} fehlt`)
+    const cached = this.settings.hashCache[path]
+    if (cached && cached.mtime === file.stat.mtime && cached.size === file.stat.size) return cached
+    const data = new Uint8Array(await this.app.vault.readBinary(file))
+    const entry = { mtime: file.stat.mtime, size: data.byteLength, hash: hashBytes(data) }
+    this.settings.hashCache[path] = entry
+    return entry
+  }
+
+  async syncNow(manual: boolean): Promise<void> {
+    if (!this.syncConfigured()) {
+      if (manual) new Notice('Vault to Foundry: Bitte in den Einstellungen Server-Adresse und Token eintragen.')
+      return
+    }
+    if (this.syncRunning) {
+      this.syncAgain = true
+      return
+    }
+    this.syncRunning = true
+    this.setStatus('busy', '…')
+    try {
+      const { bundle, idMap, assetFiles } = await this.buildFromVault()
+      const r = await pushBundle({
+        client: this.client(),
+        bundle,
+        assetFiles,
+        fileInfo: (p) => this.fileInfo(p),
+        read: async (p) => new Uint8Array(await this.app.vault.readBinary(this.app.vault.getAbstractFileByPath(p) as TFile)),
+        onProgress: (done, total) => this.setStatus('busy', `${done}/${total}`),
+      })
+      // forget hashes of files that are gone
+      const current = new Set(assetFiles.values())
+      for (const k of Object.keys(this.settings.hashCache)) if (!current.has(k)) delete this.settings.hashCache[k]
+      this.settings.idMap = idMap
+      await this.saveSettings()
+      if (r.failed.length) throw new Error(`${r.failed.length} Datei(en) nicht hochgeladen: ${r.failed[0]}`)
+      const summary = `Revision ${r.revision}${r.bundleUnchanged ? ' (unverändert)' : ''}, ${r.uploaded.length} Datei(en) hochgeladen`
+      this.setStatus('ok', `Zuletzt ${new Date().toLocaleTimeString('de-DE')}: ${summary}`)
+      if (manual) new Notice(`Vault to Foundry: ${summary}. In Foundry „Vault synchronisieren“ klicken.`)
+    } catch (e) {
+      const msg = (e as Error)?.message ?? String(e)
+      this.setStatus('error', `Sync fehlgeschlagen: ${msg}`)
+      if (manual) new Notice(`Vault to Foundry: Sync fehlgeschlagen – ${msg}`, 10000)
+      console.error('vault-to-foundry sync', e)
+    } finally {
+      this.syncRunning = false
+      if (this.syncAgain) {
+        this.syncAgain = false
+        this.syncNow(false)
+      }
+    }
+  }
+
+  async cleanupServer(): Promise<void> {
+    if (!this.syncConfigured()) {
+      new Notice('Vault to Foundry: Bitte zuerst Server-Adresse und Token eintragen.')
+      return
+    }
+    try {
+      const slug = vaultSlug(this.app.vault.getName())
+      const unused = await this.client().unused(slug)
+      if (!unused.length) {
+        new Notice('Vault to Foundry: Auf dem Server liegen keine ungenutzten Dateien.')
+        return
+      }
+      new CleanupModal(this.app, unused, async () => {
+        const deleted = await this.client().cleanup(slug, unused)
+        new Notice(`Vault to Foundry: ${deleted.length} Datei(en) auf dem Server gelöscht.`)
+      }).open()
+    } catch (e) {
+      new Notice(`Vault to Foundry: ${(e as Error)?.message ?? e}`, 10000)
+    }
+  }
+
   outputFileName(): string {
     return `${vaultSlug(this.app.vault.getName())}-foundry.zip`
   }
@@ -153,31 +327,7 @@ export default class VaultToFoundryPlugin extends Plugin {
     const notice = new Notice('Vault to Foundry: exportiere …', 0)
     try {
       const vault = this.app.vault
-      const cache = this.app.metadataCache
-      const files = vault.getFiles()
-      const notes: NoteInput[] = []
-      for (const f of files) {
-        if (f.extension !== 'md') continue
-        notes.push({ path: f.path, content: await vault.cachedRead(f), frontmatter: cache.getFileCache(f)?.frontmatter ?? null })
-      }
-      const attachments = files.filter((f) => f.extension !== 'md').map((f) => f.path)
-      const resolver: LinkResolver = {
-        resolve: (linkpath, from) => cache.getFirstLinkpathDest(linkpath, from)?.path ?? null,
-      }
-
-      const { bundle, idMap, assetFiles } = buildBundle({
-        vaultName: vault.getName(),
-        notes,
-        attachments,
-        resolver,
-        idMap: this.settings.idMap,
-        excludePatterns: this.settings.excludePatterns,
-        rootFolder: this.settings.rootFolder.trim() || undefined,
-        includeUnreferencedAttachments: this.settings.includeUnreferencedAttachments,
-        generator: { name: 'vault-to-foundry-obsidian', version: this.manifest.version },
-        system: ADAPTERS[this.settings.system],
-        leafletMarkers: await this.leafletMarkers(),
-      })
+      const { bundle, idMap, assetFiles } = await this.buildFromVault()
 
       const zip = new JSZip()
       const byZip = new Map(bundle.assets.map((a) => [`assets/${a.path}`, a]))
@@ -212,6 +362,35 @@ export default class VaultToFoundryPlugin extends Plugin {
       console.error('vault-to-foundry', e)
       new Notice(`Vault to Foundry: Export fehlgeschlagen – ${(e as Error)?.message ?? e}`, 10000)
     }
+  }
+}
+
+class CleanupModal extends Modal {
+  constructor(
+    app: App,
+    private paths: string[],
+    private onConfirm: () => Promise<void>
+  ) {
+    super(app)
+  }
+  onOpen(): void {
+    this.titleEl.setText('Ungenutzte Dateien auf dem Server')
+    this.contentEl.createEl('p', { text: `${this.paths.length} Datei(en) auf dem Foundry-Server gehören zu keiner Notiz mehr und werden gelöscht. Szenen oder Charaktere in Foundry, die sie noch benutzen, zeigen danach kein Bild mehr.` })
+    const ul = this.contentEl.createEl('ul', { cls: 'vtf-cleanup-list' })
+    for (const p of this.paths.slice(0, 200)) ul.createEl('li', { text: p })
+    if (this.paths.length > 200) this.contentEl.createEl('p', { text: `… und ${this.paths.length - 200} weitere` })
+    new Setting(this.contentEl)
+      .addButton((b) => b.setButtonText('Abbrechen').onClick(() => this.close()))
+      .addButton((b) =>
+        b.setButtonText('Löschen').setWarning().onClick(async () => {
+          b.setDisabled(true)
+          await this.onConfirm()
+          this.close()
+        })
+      )
+  }
+  onClose(): void {
+    this.contentEl.empty()
   }
 }
 
@@ -330,6 +509,64 @@ class VtfSettingTab extends PluginSettingTab {
         })
       )
 
+    containerEl.createEl('h3', { text: 'Sync-Server' })
+    new Setting(containerEl)
+      .setName('Server-Adresse')
+      .setDesc('Adresse des vtf-sync-Dienstes, z. B. https://foundry.example.org/vtf-sync')
+      .addText((t) =>
+        t.setPlaceholder('https://…/vtf-sync').setValue(s.syncUrl).onChange(async (v) => {
+          s.syncUrl = v.trim()
+          await this.plugin.saveSettings()
+          this.plugin.setStatus(this.plugin.syncConfigured() ? 'idle' : 'off')
+        })
+      )
+    new Setting(containerEl)
+      .setName('Token')
+      .setDesc('Derselbe Wert wie VTF_TOKEN im Container.')
+      .addText((t) => {
+        t.inputEl.type = 'password'
+        t.setValue(s.syncToken).onChange(async (v) => {
+          s.syncToken = v.trim()
+          await this.plugin.saveSettings()
+          this.plugin.setStatus(this.plugin.syncConfigured() ? 'idle' : 'off')
+        })
+      })
+    new Setting(containerEl)
+      .setName('Beim Speichern automatisch synchronisieren')
+      .setDesc('Schickt geänderte Notizen und Bilder kurz nach dem Speichern an den Server. Foundry übernimmt sie erst, wenn du dort „Vault synchronisieren“ klickst.')
+      .addToggle((t) =>
+        t.setValue(s.autoSync).onChange(async (v) => {
+          s.autoSync = v
+          await this.plugin.saveSettings()
+        })
+      )
+    new Setting(containerEl)
+      .setName('Wartezeit nach dem Speichern')
+      .setDesc('Sekunden ohne weitere Änderung, bevor synchronisiert wird.')
+      .addSlider((sl) =>
+        sl.setLimits(2, 60, 1).setValue(s.autoSyncDelay).setDynamicTooltip().onChange(async (v) => {
+          s.autoSyncDelay = v
+          await this.plugin.saveSettings()
+        })
+      )
+    new Setting(containerEl)
+      .setName('Verbindung')
+      .addButton((b) =>
+        b.setButtonText('Verbindung testen').onClick(async () => {
+          try {
+            const c = this.plugin.client()
+            const h = await c.health()
+            const st = await c.state(vaultSlug(this.app.vault.getName()))
+            new Notice(`Verbunden mit vtf-sync ${h.version}. Auf dem Server: Revision ${st.revision}, ${Object.keys(st.assets).length} Dateien.`)
+          } catch (e) {
+            new Notice(`Keine Verbindung: ${(e as Error)?.message ?? e}`, 10000)
+          }
+        })
+      )
+      .addButton((b) => b.setButtonText('Jetzt synchronisieren').setCta().onClick(() => this.plugin.syncNow(true)))
+      .addButton((b) => b.setButtonText('Ungenutzte Dateien entfernen …').onClick(() => this.plugin.cleanupServer()))
+
+    containerEl.createEl('h3', { text: 'Allgemein' })
     new Setting(containerEl)
       .setName('Spielsystem für NSC-Blöcke')
       .setDesc('Welche Codeblöcke als NSC gelten und wie sie nach Foundry übertragen werden.')

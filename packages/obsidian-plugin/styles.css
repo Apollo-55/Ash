@@ -21,3 +21,8 @@
 .vtf-scene { border: 1px solid var(--background-modifier-border); border-left: 4px solid var(--color-blue); border-radius: 6px; padding: 8px 12px; margin: 8px 0; background: var(--background-secondary); font-size: var(--font-ui-small); }
 .vtf-scene .vtf-scene-preview { max-width: 100%; max-height: 240px; border-radius: 4px; margin-top: 6px; display: block; }
 .vtf-scene p { margin: 3px 0; }
+
+/* ---- sync status ---- */
+.vtf-status { cursor: pointer; }
+.vtf-status-error { color: var(--text-error); }
+.vtf-cleanup-list { max-height: 300px; overflow-y: auto; font-size: var(--font-ui-small); }

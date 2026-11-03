@@ -59,6 +59,8 @@ async function doDeploy() {
   }
   await zipDir(moduleOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-module.zip'))
   console.log('→ dist/vault-to-foundry-module.zip (zum Hochladen auf den Server)')
+  await zipDir(join(root, 'dist/vtf-sync'), 'vtf-sync', join(root, 'dist/vtf-sync.zip'))
+  console.log('→ dist/vtf-sync.zip (Sync-Dienst für den Server)')
 }
 
 let deployTimer = null
@@ -76,8 +78,15 @@ const after = {
   },
 }
 
+function packSyncService() {
+  const out = join(root, 'dist/vtf-sync')
+  mkdirSync(out, { recursive: true })
+  for (const f of ['server.mjs', 'Dockerfile', 'docker-compose.example.yml', 'nginx.example.conf']) cpSync(join(root, 'packages/sync-service', f), join(out, f))
+}
+
 async function finish() {
   copyStatic()
+  packSyncService()
   if (deploy) await doDeploy()
 }
 

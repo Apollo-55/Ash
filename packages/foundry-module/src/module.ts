@@ -1,5 +1,6 @@
 import { MODULE_ID, SETTINGS } from './constants.ts'
-import { openImportDialog, runImport, showLastReport } from './ui.ts'
+import { pendingCount } from './server-sync.ts'
+import { openImportDialog, openServerSync, runImport, runServerSync, showLastReport } from './ui.ts'
 
 Hooks.once('init', () => {
   game.settings.register(MODULE_ID, SETTINGS.assetManifest, {
@@ -16,6 +17,12 @@ Hooks.once('init', () => {
     type: String,
     default: '',
   })
+  game.settings.register(MODULE_ID, SETTINGS.syncRevisions, {
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: {},
+  })
   game.settings.register(MODULE_ID, SETTINGS.lastReport, {
     scope: 'world',
     config: false,
@@ -26,8 +33,24 @@ Hooks.once('init', () => {
 
 Hooks.once('ready', () => {
   const mod = game.modules.get(MODULE_ID)
-  if (mod) mod.api = { openImportDialog, runImport, showLastReport }
+  if (mod) mod.api = { openImportDialog, runImport, showLastReport, openServerSync, runServerSync, pendingCount }
+  if (game.user?.isGM) {
+    // only shows that changes are waiting – applying always needs the button
+    refreshPending()
+    setInterval(refreshPending, 60_000)
+  }
 })
+
+let pending = 0
+async function refreshPending() {
+  pending = await pendingCount().catch(() => 0)
+  document.querySelectorAll<HTMLElement>('.vtf-sync').forEach(markButton)
+}
+function markButton(btn: HTMLElement) {
+  btn.classList.toggle('vtf-pending', pending > 0)
+  btn.title = pending > 0 ? 'Neue Änderungen aus Obsidian liegen bereit' : 'Stand vom Sync-Server übernehmen'
+}
+Hooks.on('vault-to-foundry.synced', () => refreshPending())
 
 // Foundry v13 only scrolls to a link's #anchor when the page changes. A heading link into a freshly opened
 // single-page journal therefore lands at the top. Scroll ourselves (next tick, after Foundry restores the scroll
@@ -47,8 +70,11 @@ Hooks.on('renderJournalDirectory', (_app: unknown, html: HTMLElement | { [0]: HT
   const wrap = document.createElement('div')
   wrap.className = 'vtf-buttons'
   wrap.innerHTML = `
-    <button type="button" class="vtf-import"><i class="fa-solid fa-file-import"></i> Vault importieren</button>
+    <button type="button" class="vtf-sync"><i class="fa-solid fa-rotate"></i> Vault synchronisieren</button>
+    <button type="button" class="vtf-import" title="Backup: Export-ZIP importieren"><i class="fa-solid fa-file-zipper"></i></button>
     <button type="button" class="vtf-last-report" title="Letzten Importbericht anzeigen"><i class="fa-solid fa-list-check"></i></button>`
+  wrap.querySelector('.vtf-sync')!.addEventListener('click', () => openServerSync())
+  markButton(wrap.querySelector('.vtf-sync')!)
   wrap.querySelector('.vtf-import')!.addEventListener('click', () => openImportDialog())
   wrap.querySelector('.vtf-last-report')!.addEventListener('click', () => showLastReport())
   target.after(wrap)

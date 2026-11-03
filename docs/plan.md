@@ -104,6 +104,14 @@ talente:
 
 Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
+## ✅ M5: Sync über eigenen Dienst – Entscheidungen 2026-11-03
+
+- Ansatz A: eigener kleiner Dienst `vtf-sync` (Docker) neben Foundry (felddy) hinter nginx. Er mountet nur `Data/vault-to-foundry/`, nimmt Einzeldateien und `bundle.json` an, führt eine Revision und kennt die Hashes der Dateien. Zugriff per Token.
+- Obsidian synchronisiert **automatisch beim Speichern** (verzögert, nur geänderte Dateien), zusätzlich per Befehl. Statusleiste zeigt den Stand.
+- Foundry übernimmt **nur per Knopf**, nie automatisch. Der Knopf zeigt an, wenn neue Änderungen bereitliegen. Das Modul liest `bundle.json` direkt aus Foundrys Datenordner (gleiche Domain), es spricht nicht mit dem Dienst.
+- Ungenutzte Dateien auf dem Server: Befehl in Obsidian mit Bestätigungsliste.
+- Die ZIP-Variante bleibt als Backup.
+
 ## Szenen (M3) – Entscheidungen 2026-11-03
 
 - Markierung über einen eigenen Codeblock `szene`, beliebig viele pro Notiz. Die Notiz bleibt ein Journal und wird das verknüpfte Journal der Szene. Kein `foundry: typ: szene` im Frontmatter.

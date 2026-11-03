@@ -13,3 +13,4 @@ export type { SystemAdapter, ParsedBlock, BlockIssue, ActorContext, StatblockOpt
 export { dsa41Adapter } from './systems/dsa41/index.ts'
 export * as dsa41 from './systems/dsa41/index.ts'
 export * from './scenes.ts'
+export * from './sync-client.ts'

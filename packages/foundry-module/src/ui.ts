@@ -1,5 +1,6 @@
 import { MODULE_ID, SETTINGS } from './constants.ts'
 import { deleteOrphans, importBundle, readBundleZip, type ImportReport, type ReportEntry } from './importer.ts'
+import { applyServerVault, openSyncDialog } from './server-sync.ts'
 
 const esc = (s: unknown) => foundry.utils.escapeHTML?.(String(s ?? '')) ?? String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
@@ -45,7 +46,11 @@ export function renderReportHTML(report: ImportReport): string {
   const when = new Date(report.importedAt).toLocaleString('de-DE')
   return `
   <div class="vtf-report-body">
-    <p class="vtf-meta">Vault <strong>${esc(report.vault.name)}</strong> · importiert ${esc(when)} · Dateien: ${report.assets.uploaded} hochgeladen, ${report.assets.unchanged} unverändert</p>
+    <p class="vtf-meta">Vault <strong>${esc(report.vault.name)}</strong> · importiert ${esc(when)} · ${
+      report.source === 'server'
+        ? `über den Sync-Dienst${report.revision ? `, Revision ${report.revision}` : ''}`
+        : `ZIP, Dateien: ${report.assets.uploaded} hochgeladen, ${report.assets.unchanged} unverändert`
+    }</p>
     ${errors.length ? `<div class="vtf-errors"><strong>Fehler</strong><ul>${errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>` : ''}
     ${section('Angelegt', report.created.length, entryList(report, report.created), report.created.length > 0 && report.created.length <= 30)}
     ${section('Aktualisiert', report.updated.length, entryList(report, report.updated), report.updated.length > 0 && report.updated.length <= 30)}
@@ -175,6 +180,32 @@ export async function runImport(file: Blob, opts: { forceAssets?: boolean; force
     note?.remove?.()
     console.error(`${MODULE_ID} |`, e)
     ui.notifications.error(`Vault-Import fehlgeschlagen: ${(e as Error)?.message ?? e}`)
+    return null
+  }
+}
+
+export async function openServerSync(): Promise<void> {
+  if (!game.user.isGM) {
+    ui.notifications.warn('Nur die Spielleitung kann synchronisieren.')
+    return
+  }
+  await openSyncDialog((slug, force) => runServerSync(slug, { forceDocuments: force }))
+}
+
+export async function runServerSync(slug: string, opts: { forceDocuments?: boolean } = {}): Promise<ImportReport | null> {
+  const note = ui.notifications.info('Vault-Sync: lese bundle.json …', { progress: true, permanent: true })
+  const progress = (pct: number, message: string) => note?.update?.({ pct, message: `Vault-Sync: ${message}` })
+  try {
+    const report = await applyServerVault(slug, { ...opts, onProgress: progress })
+    progress(1, 'fertig')
+    setTimeout(() => note?.remove?.(), 1500)
+    showReport(report)
+    Hooks.callAll(`${'vault-to-foundry'}.synced`, report)
+    return report
+  } catch (e) {
+    note?.remove?.()
+    console.error('vault-to-foundry |', e)
+    ui.notifications.error(`Vault-Sync fehlgeschlagen: ${(e as Error)?.message ?? e}`)
     return null
   }
 }

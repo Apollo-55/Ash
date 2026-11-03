@@ -1,0 +1,27 @@
+# Beispiel: vtf-sync neben felddy/foundryvtt. Pfade und Benutzer an deine Installation anpassen.
+services:
+  foundry:
+    image: felddy/foundryvtt:13
+    # … deine bestehende Konfiguration …
+    volumes:
+      - foundry-data:/data
+
+  vtf-sync:
+    build: ./vtf-sync            # Ordner mit server.mjs und Dockerfile
+    restart: unless-stopped
+    user: "421:421"              # wie Foundry (felddy: FOUNDRY_UID/FOUNDRY_GID, Standard 421)
+    environment:
+      VTF_TOKEN: "hier-ein-langes-zufälliges-geheimnis"   # z. B. openssl rand -hex 32
+      VTF_DATA_DIR: /data/vault-to-foundry
+    volumes:
+      # nur der Unterordner von Foundrys Data-Ordner, sonst nichts
+      - type: volume
+        source: foundry-data
+        target: /data/vault-to-foundry
+        volume:
+          subpath: Data/vault-to-foundry
+    expose:
+      - "8787"
+
+volumes:
+  foundry-data:

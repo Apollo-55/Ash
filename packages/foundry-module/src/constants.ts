@@ -6,4 +6,5 @@ export const SETTINGS = {
   assetManifest: 'assetManifest',
   lastReport: 'lastReport',
   extraPacks: 'extraPacks',
+  syncRevisions: 'syncRevisions',
 } as const

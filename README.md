@@ -2,7 +2,7 @@
 
 Exportiert eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-Blöcke werden spielbare Charaktere (DSA 4.1, System `dsa-41`), `szene`-Blöcke werden Szenen.
 
-Stand: **M3**. Journale, Ordner, Links, Bilder, PDFs, Callouts, Secrets, Kommentare, NSCs mit Items aus den Kompendien, erneuter Import ohne Duplikate, Importbericht.
+Stand: **M5**. Sync über den eigenen Dienst `vtf-sync` (siehe [docs/sync-server.md](docs/sync-server.md)), ZIP-Import als Backup. Journale, Ordner, Links, Bilder, PDFs, Callouts, Secrets, Kommentare, NSCs mit Items aus den Kompendien, erneuter Import ohne Duplikate, Importbericht.
 
 ## Bestandteile
 
@@ -10,7 +10,8 @@ Stand: **M3**. Journale, Ordner, Links, Bilder, PDFs, Callouts, Secrets, Komment
 |---|---|
 | `packages/core` | Logik ohne Obsidian/Foundry: Markdown → HTML, Links, IDs, Bundle, Sync-Planung |
 | `packages/obsidian-plugin` | Obsidian-Plugin „Vault to Foundry“: Befehl „Nach Foundry exportieren (ZIP)“ |
-| `packages/foundry-module` | Foundry-Modul `vault-to-foundry` (v13): Knopf „Vault importieren“ in der Journal-Seitenleiste |
+| `packages/foundry-module` | Foundry-Modul `vault-to-foundry` (v13): Knöpfe „Vault synchronisieren“ und ZIP-Import in der Journal-Seitenleiste |
+| `packages/sync-service` | Sync-Dienst `vtf-sync` (Docker) für den Server: nimmt Änderungen aus Obsidian an |
 
 ## Bauen
 
@@ -40,6 +41,10 @@ Ohne Obsidian exportieren (zum Testen): `node tools/export-cli.ts <vault-ordner>
 **Foundry (Server):** `dist/vault-to-foundry-module.zip` in `<Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren.
 
 ## Ablauf
+
+**Mit Sync-Dienst (empfohlen):** Obsidian schickt Änderungen beim Speichern automatisch an den Server. In Foundry „Vault synchronisieren“ klicken, sobald der Knopf einen Punkt zeigt. Einrichtung: [docs/sync-server.md](docs/sync-server.md).
+
+**Backup per ZIP:**
 
 1. Obsidian: Befehl „Vault to Foundry: Nach Foundry exportieren (ZIP)“ (oder Paket-Symbol links). Die ZIP landet im Exportordner (Standard `~/Downloads/<vault>-foundry.zip`).
 2. Foundry (als GM): Journal-Seitenleiste → „Vault importieren“ → ZIP wählen.

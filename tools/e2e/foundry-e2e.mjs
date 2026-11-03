@@ -350,6 +350,31 @@ const steps = {
     })
   },
 
+  async serversync() {
+    // click "Vault synchronisieren", apply in the dialog, read the report
+    await withPage(async (page) => {
+      await page.evaluate(() => { ui.sidebar.changeTab('journal', 'primary'); ui.sidebar.toggleExpanded?.(true) })
+      await page.waitForSelector('.vtf-sync')
+      await page.waitForTimeout(1500)
+      const before = await page.evaluate(() => ({ pending: document.querySelector('.vtf-sync')?.classList.contains('vtf-pending'), title: document.querySelector('.vtf-sync')?.title }))
+      await page.screenshot({ path: `${OUT}/50-sync-button.png` })
+      await page.click('.vtf-sync')
+      await page.waitForSelector('button[data-action="apply"]')
+      const dialogText = await page.evaluate(() => document.querySelector('.vtf-vaults')?.textContent?.replace(/\s+/g, ' ').trim())
+      await page.screenshot({ path: `${OUT}/51-sync-dialog.png` })
+      await page.click('button[data-action="apply"]')
+      await page.waitForSelector('#vault-to-foundry-report', { timeout: 120000 })
+      await page.waitForTimeout(1500)
+      await page.screenshot({ path: `${OUT}/52-sync-report.png` })
+      const after = await page.evaluate(() => {
+        const rep = game.settings.get('vault-to-foundry', 'lastReport')
+        return { source: rep.source, revision: rep.revision, created: rep.created.length, updated: rep.updated.length, skipped: rep.skipped.length, errors: rep.errors,
+          pending: document.querySelector('.vtf-sync')?.classList.contains('vtf-pending'), applied: game.settings.get('vault-to-foundry', 'syncRevisions') }
+      })
+      console.log(JSON.stringify({ before, dialogText, after }, null, 1))
+    })
+  },
+
   async scenes() {
     await withPage(async (page) => {
       const r = await page.evaluate(() => game.scenes.filter((s) => s.flags['vault-to-foundry']).map((s) => `${s.name}: ${s.width}x${s.height}, Raster ${s.grid.type}/${s.grid.size}, Journal ${s.journal?.name}, Licht ${s.environment.darknessLevel}, Pins ${s.notes.map((n) => n.entry?.name).join('+') || '–'}, Tokens ${s.tokens.map((t) => t.name).join('+') || '–'}`))

@@ -25,6 +25,9 @@ export interface ImportReport {
   warnings: BundleWarning[]
   errors: string[]
   assets: { uploaded: number; unchanged: number; failed: string[] }
+  /** "zip" (file upload) or "server" (files were placed by the sync service) */
+  source?: 'zip' | 'server'
+  revision?: number
 }
 
 export interface ImportOptions {
@@ -50,12 +53,16 @@ export async function readBundleZip(file: Blob): Promise<{ zip: JSZip; bundle: B
   const zip = await JSZip.loadAsync(file)
   const entry = zip.file('bundle.json')
   if (!entry) throw new Error('Die ZIP-Datei enthält keine bundle.json. Ist das ein Export von „Vault to Foundry“?')
-  const bundle = JSON.parse(await entry.async('string')) as Bundle
-  if (typeof bundle.schemaVersion !== 'number' || !bundle.vault?.slug) throw new Error('bundle.json ist unvollständig.')
+  return { zip, bundle: validateBundle(JSON.parse(await entry.async('string'))) }
+}
+
+export function validateBundle(raw: unknown): Bundle {
+  const bundle = raw as Bundle
+  if (!bundle || typeof bundle.schemaVersion !== 'number' || !bundle.vault?.slug) throw new Error('bundle.json ist unvollständig.')
   if (bundle.schemaVersion > SUPPORTED_SCHEMA) {
     throw new Error(`Das Bundle hat Schema-Version ${bundle.schemaVersion}, dieses Modul kennt nur bis ${SUPPORTED_SCHEMA}. Bitte das Modul aktualisieren.`)
   }
-  return { zip, bundle }
+  return bundle
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -254,7 +261,8 @@ async function syncJournals(bundle: Bundle, report: ImportReport, opts: ImportOp
 
 // ---------------------------------------------------------------------------------------------
 
-export async function importBundle(zip: JSZip, bundle: Bundle, opts: ImportOptions = {}): Promise<ImportReport> {
+/** zip = null: the files are already in the data folder (sync service), nothing is uploaded. */
+export async function importBundle(zip: JSZip | null, bundle: Bundle, opts: ImportOptions & { revision?: number } = {}): Promise<ImportReport> {
   const report: ImportReport = {
     vault: bundle.vault,
     importedAt: new Date().toISOString(),
@@ -267,8 +275,11 @@ export async function importBundle(zip: JSZip, bundle: Bundle, opts: ImportOptio
     warnings: [...bundle.warnings],
     errors: [],
     assets: { uploaded: 0, unchanged: 0, failed: [] },
+    source: zip ? 'zip' : 'server',
+    ...(opts.revision !== undefined ? { revision: opts.revision } : {}),
   }
-  await uploadAssets(zip, bundle, report, opts)
+  if (zip) await uploadAssets(zip, bundle, report, opts)
+  else report.assets.unchanged = bundle.assets.length
   opts.onProgress?.(0.6, 'Ordner …')
   await syncFolders(bundle, report)
   await syncJournals(bundle, report, opts)

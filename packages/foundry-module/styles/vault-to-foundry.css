@@ -61,3 +61,11 @@
 .vtf-scene .vtf-nsc-link { margin-left: auto; font-size: 0.85em; }
 .vtf-scene .vtf-scene-preview { max-width: 100%; max-height: 260px; border: none; margin-top: 4px; }
 .vtf-scene p { margin: 3px 0; }
+
+/* ---- server sync ---- */
+.vtf-buttons .vtf-sync { flex: 1; }
+.vtf-buttons .vtf-import { flex: 0 0 36px; }
+.vtf-buttons .vtf-sync.vtf-pending { border-color: #e0a100; box-shadow: 0 0 6px rgba(224, 161, 0, 0.7); }
+.vtf-buttons .vtf-sync.vtf-pending::after { content: "●"; color: #e0a100; margin-left: 6px; }
+.vtf-vaults { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.vtf-vault-row { display: flex; gap: 8px; align-items: baseline; }
