@@ -20,9 +20,9 @@ echo "== 3b. NSCs";                   $E2E actors | grep -E '^ "|weapons|Bogen|"
 echo "== 3c. Spielstand + geänderter Block"
 $E2E play
 SH="test-vault/NPC/Besatzung/Shahane ay Zedrakin.md"; mkdir -p dist; cp "$SH" dist/shahane.md.bak
-sed -i 's/^LeP: 36$/LeP: 40/; s/AT: 16, PA: 18/AT: 17, PA: 18/; s/, Finte, /, /; s/Neid: 8/Neid: 9/' "$SH"
+sed -i 's/^LeP: 36$/LeP: 40/; s/Säbel: 18,/Säbel: 19,/; s/, Finte, /, /; s/Neid: 8/Neid: 9/' "$SH"
 $EXPORT dist/e2e-nsc.zip --name uthuria-ob >/dev/null; $E2E import dist/e2e-nsc.zip | tr -d '\n '; echo
-echo "   erwartet LeP 20/40, Hand-Item + Effekt da, Säbel-AT 17, Finte weg, Neid 9:"; $E2E playcheck
+echo "   erwartet LeP 20/40, Hand-Item + Effekt da, Säbel-TaW 19, Finte weg, Neid 9:"; $E2E playcheck
 mv dist/shahane.md.bak "$SH"
 echo "== 4. Secret aufdecken";        $E2E reveal
 sed -i 's/^Privat: %%darf nie in Foundry landen%%$/&\nNeuer Satz nach dem Aufdecken./' test-vault/Test/Alles.md

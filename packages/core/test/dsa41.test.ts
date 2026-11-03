@@ -178,6 +178,13 @@ describe('Umwandlung in Actor-Daten', () => {
     expect(dolch.system.talent).toBe('talent-dolche')
   })
 
+  it('Waffe ohne AT/PA: Talent aus der Liste, sonst untrainiert (0 statt -1)', () => {
+    const a = dsa41.nscToActor(parse('name: S\nwaffen: [Säbel, Kurzbogen]\ntalente: { Säbel: 12 }').data!, ctx)
+    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'combatTalent')!.system).toEqual({ value: 12, 'combat.attack': 6, 'combat.parry': 6 })
+    expect(a.items.find((i) => i.name === 'Bogen')!.system).toEqual({ value: 0, 'combat.rangedAttack': 0 })
+    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'meleeWeapon')!.combat).toEqual({ talentSid: 'talent-saebel', AT: undefined, PA: undefined, FK: undefined, INI: undefined })
+  })
+
   it('Kampftalent ohne Waffe: TaW wird aufgeteilt', () => {
     const a = dsa41.nscToActor(parse('name: S\ntalente: { Säbel: 9, Bogen: 7 }').data!, ctx)
     expect(a.items.find((i) => i.name === 'Säbel')!.system).toEqual({ value: 9, 'combat.attack': 5, 'combat.parry': 4 })

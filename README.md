@@ -94,10 +94,10 @@ INI: 12+1W6                        # gespeichert wird 12, Würfel kommen aus den
 ausweichen: 14
 rüstung: [Lederharnisch]           # aus dem Kompendium; RS oben ist dann der Gesamtwert
 waffen:
-  - { name: Säbel, AT: 16, PA: 18, TP: 1W6+3, DK: N, INI: 12 }
-  - { name: Orchidee, AT: 17, PA: 15, TP: 1W6+1, DK: H }
+  - Säbel                         # Normalfall: Werte rechnet das System aus dem TaW
+  - { name: Orchidee, AT: 17, PA: 15 }   # optional: feste Werte
   - { name: Mandragora-Dolch, talent: Dolche, AT: 17, PA: 15, TP: 1W+1, WM: 0/-1 }   # eigene Waffe
-talente: { Sinnenschärfe: 10, Menschenkenntnis: 18, Sternkunde: { TaW: 8, probe: KL/KL/IN, kategorie: Wissen } }
+talente: { Säbel: 18, Sinnenschärfe: 10, Menschenkenntnis: 18, Sternkunde: { TaW: 8, probe: KL/KL/IN, kategorie: Wissen } }
 zauber: { Blitz dich find: 16, Gardianum: 12, Schattenschleier: { ZfW: 12, probe: MU/IN/CH, kosten: 8 AsP, wirkung: … } }
 liturgien: [Segen der Heiligen Noiona]
 vorteile: [Soziale Anpassungsfähigkeit]
@@ -109,7 +109,7 @@ notiz: Freitext für die Biografie
 
 **Woher die Items kommen** (je Name, in dieser Reihenfolge): Gegenstände der Welt → zusätzliche Kompendien aus den Moduleinstellungen → dsa-41-Kompendien (Basis, dann Uthuria, dann die übrigen) → eigene Definition im Block → sonst ein leeres Item mit dem Namen plus Warnung. Eindeutige Kurzformen werden erkannt („Gardianum“ → „Gardianum Zauberschild“).
 
-**AT/PA:** Die Werte aus dem Block stehen genau so auf dem Bogen. Die erste Waffe eines Kampftalents legt die AT/PA-Verteilung des Talents fest, weitere Waffen mit demselben Talent bekommen den Rest als Waffenmodifikator (wirkt beim Wurf). BE aus Rüstungen wird beim Wurf zusätzlich abgezogen.
+**AT/PA:** Normalfall: nur die Waffe eintragen (`waffen: [Säbel]`) und den TaW unter `talente` (`Säbel: 14`). Dann rechnet das System AT/PA selbst (AT-Basis + Talentanteil, der TaW wird halbiert, die AT bekommt die größere Hälfte). Ohne TaW gilt das Kampftalent als untrainiert (0). Optional, wenn du feste Werte willst (z. B. aus einem Abenteuerband): `AT`/`PA`/`FK` an der Waffe. Dann stehen genau diese Werte auf dem Bogen. Die erste Waffe eines Kampftalents legt die AT/PA-Verteilung des Talents fest, weitere Waffen mit demselben Talent bekommen den Rest als Waffenmodifikator (wirkt beim Wurf). BE aus Rüstungen wird beim Wurf zusätzlich abgezogen.
 
 **Erneuter Import:** überschreibt Eigenschaften, Maximalwerte, die festen Werte, Profession, Biografie und die vom Import angelegten Items. **Nie angefasst:** aktuelle LeP/AuP/AsP/KaP, Wunden, Effekte, von Hand hinzugefügte Items.
 

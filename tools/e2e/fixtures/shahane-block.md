@@ -12,11 +12,11 @@ WS: 6
 GS: 8
 INI: 12+1W6
 waffen:
-  - { name: Säbel, INI: 12, AT: 16, PA: 18, TP: 1W6+3, DK: N }
-  - { name: Orchidee, AT: 17, PA: 15, TP: 1W6+1, DK: H }
+  - Säbel
+  - Orchidee
 vorteile: [Soziale Anpassungsfähigkeit]
 nachteile: { Brünstigkeit: 6, Eitelkeit: 7, Neid: 8 }
 sonderfertigkeiten: [Aufmerksamkeit, Ausweichen I, Ausweichen II, Improvisierte Waffen, Finte, "Waffenloser Kampfstil: Mercenario"]
-talente: { Selbstbeherrschung: 7, Sinnenschärfe: 10, Menschenkenntnis: 18, Überreden: 17 }
+talente: { Säbel: 18, Raufen: 16, Selbstbeherrschung: 7, Sinnenschärfe: 10, Menschenkenntnis: 18, Überreden: 17 }
 notiz: "Paktgeschenke: Brünstigkeit erzeugen, Lamijah, Befehl des Lamijah, Dämonische Hilfe"
 ```

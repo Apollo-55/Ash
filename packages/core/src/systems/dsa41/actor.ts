@@ -107,9 +107,8 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     const fallbackSystem: Record<string, unknown> = { description: customDescription(e.custom) }
     switch (key) {
       case 'talente': {
-        if (type === 'combatTalent') {
-          if (e.value !== null) Object.assign(system, splitTaW(e.value, hit?.cat))
-        } else if (e.value !== null) system.value = e.value
+        if (type === 'combatTalent') Object.assign(system, splitTaW(e.value ?? 0, hit?.cat))
+        else if (e.value !== null) system.value = e.value
         Object.assign(fallbackSystem, testFields(e.custom), {
           value: e.value ?? 0,
           category: TALENT_CATEGORY[String(e.custom?.kategorie ?? '').toLowerCase()] ?? 'knowledge',
@@ -185,8 +184,9 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
         name: t?.n ?? talentSid,
         types: ['combatTalent'],
         source: t ? { pack: t.p, sid: t.s, type: 'combatTalent' } : undefined,
-        system: {},
-        fallback: { type: 'combatTalent', system: { sid: talentSid, value: 0 } },
+        // not listed under talente: untrained (compendium entries carry -1 placeholders)
+        system: splitTaW(0, t?.cat),
+        fallback: { type: 'combatTalent', system: { sid: talentSid, ...splitTaW(0, t?.cat) } },
       })
     }
   }

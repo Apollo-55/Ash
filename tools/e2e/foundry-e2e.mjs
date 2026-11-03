@@ -311,7 +311,7 @@ const steps = {
           LeP: `${s.base.resources.vitality.value}/${s.base.resources.vitality.max}`,
           AuP: `${s.base.resources.endurance.value}/${s.base.resources.endurance.max}`,
           handItem: !!a.items.getName('Beutel mit Gift'), effect: !!a.effects.getName('Vergiftet'),
-          saebelAT: s.base.combatAttributes.active.baseAttack.value + t.system.combat.attack,
+          saebelTaW: `${t.system.value} (AT ${s.base.combatAttributes.active.baseAttack.value + t.system.combat.attack} / PA ${s.base.combatAttributes.active.baseParry.value + t.system.combat.parry})`,
           finte: !!a.items.getName('Finte'), neid: a.items.getName('Neid')?.system.value, items: a.items.size,
           actors: game.actors.size,
         }
