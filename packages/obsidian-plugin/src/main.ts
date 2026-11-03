@@ -585,7 +585,10 @@ class VtfSettingTab extends PluginSettingTab {
       .setDesc('Steckt in den IDs aller Dokumente und im Ordner auf dem Server. Wird beim ersten Start vom Ordnernamen übernommen und bleibt dann fest, auch wenn du den Vault-Ordner umbenennst. Nur ändern, wenn Foundry einen anderen Namen kennt – sonst entstehen in Foundry Duplikate.')
       .addText((t) =>
         t.setValue(s.vaultName).onChange(async (v) => {
+          if (v.trim() === s.vaultName) return
           s.vaultName = v.trim()
+          // the stored ids belong to the old name → recompute them under the new one
+          s.idMap = {}
           await this.plugin.saveSettings()
         })
       )
