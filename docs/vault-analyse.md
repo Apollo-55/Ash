@@ -73,6 +73,6 @@ Gemeinsam: Abkürzungen **LeP/AuP/AsP** (nicht LE/AU), **TP mit „W“** (`1W6+
 
 - Callouts, Secrets, Kommentare und Alias-Links trotzdem vollständig bauen (Auftrag). Sie werden aber nur in Testdaten vorkommen, bis ich sie in der Vault benutze.
 - **Leaflet-Blöcke** → im Journal als Bild der Karte (`image:`) ausgeben statt still verwerfen.
-- **PDF-Embeds** nicht hochladen (urheberrechtlich geschützte Bände), sondern als Text „Q02 - Efferds Wogen, S. 181“ mit Hinweis im Bericht.
-- Standard-Ausschlüsse: `Welcome.md`, `*.base`, `*.canvas`, leere Ordner.
-- Bildgröße: 33 MB insgesamt, Upload je Datei. Bei einem Reverse-Proxy vor Foundry auf das Upload-Limit achten (nginx-Standard 1 MB).
+- **PDF-Embeds** werden hochgeladen und als PDF-Journalseite mit Link auf die Seite verknüpft.
+- Keine Standard-Ausschlüsse (Entscheidung: alles exportieren). `.base`/`.canvas` sind keine Notizen und werden übersprungen, weil Foundry sie nicht darstellen kann.
+- Bildgröße: 33 MB insgesamt, Upload je Datei. nginx ist für große Uploads eingerichtet.

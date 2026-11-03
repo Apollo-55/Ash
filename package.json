@@ -1,0 +1,23 @@
+{
+  "name": "vault-to-foundry",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs --watch --deploy",
+    "deploy": "node tools/build.mjs --deploy",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/core && tsc -p packages/obsidian-plugin && tsc -p packages/foundry-module",
+    "export:test": "node --experimental-strip-types tools/export-cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

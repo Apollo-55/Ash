@@ -1,4 +1,15 @@
-# Plan (Vorschlag aus Phase 0, wartet auf OK)
+# Plan
+
+## Entscheidungen (2026-11-03)
+
+1. Notation wie unten, mit Item-Herkunft und eigenen Items (Abschnitt „Woher die Items kommen“).
+2. Befehl „Wertekasten in dsa-nsc umwandeln“ statt Fließtext-Parser beim Export.
+3. Angegebene Werte überschreiben die Automatik. Der gerenderte Block und der Umwandeln-Befehl zeigen bei jedem überschriebenen Wert den Rechenwert daneben (z. B. „MR 6 · gerechnet 7“).
+4. PDFs werden mit hochgeladen. `![[x.pdf#page=181]]` wird eine PDF-Journalseite plus Link auf die Seite.
+5. Leaflet-Blöcke → Kartenbild im Journal.
+6. nginx ist für große Uploads eingerichtet, Bilder bleiben im Original.
+7. Keine Standard-Ausschlüsse, alles wird exportiert. Ausschlüsse bleiben als Einstellung möglich.
+8. Test-Vault als Kopie in `Ash/test-vault/`, Testwelt `vtf-test` auf dem Server.
 
 ## Rahmen
 
@@ -45,8 +56,53 @@ Regeln:
 - Unbekannte Schlüssel, Nicht-Zahlen („KK: 1a“) und Namen, die in keinem Kompendium stehen, werden im gerenderten Block rot angezeigt und im Bericht gewarnt.
 - Waffen: Name zuerst im Waffen-Kompendium suchen (liefert Kampftalent, DK, INI-Mod …). Gibt es die Waffe nicht, eine generische Nahkampfwaffe anlegen, dann ist `talent:` Pflicht. `TP` überschreibt den Kompendiumwert.
 - AT/PA: Das Modul gleicht das Kampftalent so ab, dass Foundry genau die angegebenen Werte zeigt (siehe Datenmodell). TaW = AT-Anteil + PA-Anteil.
+- Überschriebene Rechenwerte (MR, INI, GS, WS, Ausweichen) zeigt der gerenderte Block mit dem gerechneten Wert daneben (Formeln wie im System: (MU+KL+KO)/5 gerundet usw.).
 - Bei Wiederimport werden nur LeP/AuP/AsP-**Maximum** und Basiswerte überschrieben, aktuelle Werte nie.
 - Biografie (`system.background.description`): Rücklink „Quelle: @UUID[Journal]“ plus `notiz`. Der Fließtext der Notiz bleibt im Journal und wird nicht kopiert.
+
+## Woher die Items kommen
+
+Der Actor bekommt echte eingebettete Items. Würfe für Talente, Zauber und Waffen funktionieren auf dem Bogen also wie bei einem von Hand gebauten Charakter. Suche pro Name, in dieser Reihenfolge:
+
+1. **Items der Welt** (Seitenleiste „Gegenstände“). Deine eigenen Hausregel-Zauber oder Sonderwaffen legst du dort einmal an.
+2. **Welt- und Modul-Kompendien**, die in den Moduleinstellungen ausgewählt sind.
+3. **dsa-41-Kompendien** (Basis + `uthuria*`, weitere per Einstellung).
+4. **Eigene Definition im Block** (siehe unten). Ein Item wird damit neu erzeugt.
+5. Nichts gefunden und nichts definiert → minimales Item mit dem Namen (damit nichts verloren geht) **plus Warnung** im Block und im Bericht.
+
+Das kopierte Item behält seine `sid`. Nur die Werte aus dem Block (TaW, ZfW, TP …) werden gesetzt.
+
+Eigene Items im Block: statt einer Zahl eine Map mit Feldern.
+
+```dsa-nsc
+name: Schattenweber
+zauber:
+  Blitz dich find: 16                       # aus Kompendium
+  Schattenschleier:                         # eigener Zauber
+    ZfW: 12
+    probe: MU/IN/CH
+    kosten: 8 AsP
+    wirkung: Hüllt den Zauberer in Schatten …
+liturgien:
+  - Mein Segen: { grad: 2, wirkung: … }
+waffen:
+  - name: Mandragora-Dolch                 # eigene Waffe
+    talent: Dolche                          # Pflicht bei eigener Waffe
+    TP: 1W6+1
+    DK: H
+    INI: 0
+    WM: 0/-1
+    AT: 17
+    PA: 15
+sonderfertigkeiten:
+  - Finte
+  - Schattenkampf: { typ: Kampf, beschreibung: … }
+talente:
+  Sinnenschärfe: 10
+  Sternkunde: { TaW: 8, probe: KL/KL/IN, kategorie: Wissen }
+```
+
+Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
 ## Szenen
 

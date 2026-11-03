@@ -29,30 +29,30 @@ Ein Feld für SO gibt es nicht. Es gibt nur `background.social.socialStatus.valu
 
 ### Energien: `base.resources.<key>.{value,max,min}`
 
-| DSA | key |
-|---|---|
-| LeP | `vitality` |
-| AuP | `endurance` |
-| AsP | `astralEnergy` (zusätzlich `settings.hasAstralEnergy`/`showAstralTab` = true) |
-| KaP | `karmicEnergy` (zusätzlich `settings.hasKarmicEnergy`/`showKarmicTab` = true) |
-| Schicksalspunkte | `special.resources.fatePoints` |
+| DSA              | key                                                                           |
+| ---------------- | ----------------------------------------------------------------------------- |
+| LeP              | `vitality`                                                                    |
+| AuP              | `endurance`                                                                   |
+| AsP              | `astralEnergy` (zusätzlich `settings.hasAstralEnergy`/`showAstralTab` = true) |
+| KaP              | `karmicEnergy` (zusätzlich `settings.hasKarmicEnergy`/`showKarmicTab` = true) |
+| Schicksalspunkte | `special.resources.fatePoints`                                                |
 
 `max` wird **gespeichert, nicht berechnet**. Der Import setzt `max`. `value` wird nur beim ersten Anlegen gesetzt (= max) und bleibt danach Spielzustand.
 
 ### Kampf- und abgeleitete Werte
 
-| DSA | Pfad | automatisch berechnet? (Schalter in `settings.`) |
-|---|---|---|
-| AT-Basis | `base.combatAttributes.active.baseAttack.value` | `autoCalcBaseAttack`, (MU+GE+KK)/5 |
-| PA-Basis | `…active.baseParry.value` | `autoCalcBaseParry`, (IN+GE+KK)/5 |
-| FK-Basis | `…active.baseRangedAttack.value` | `autoCalcBaseRangedAttack`, (IN+FF+KK)/5 |
-| INI-Basis | `…active.baseInitiative.value` | `autoCalcInitiative`, (MU+MU+IN+GE)/5 |
-| Ausweichen | `…active.dodge.value` | `autoCalcDodge`, PA-Basis − BE + Boni |
-| MR | `…passive.magicResistance.value`, Zuschlag: `base.combatAttributes.additionalMR` | `autoCalcMagicResistance`, (MU+KL+KO)/5 |
-| WS | `…passive.woundThresholds.{first,second,third,mod}` | `autoCalcWoundThresholds`, KO/2, KO, KO·1,5 |
-| GS | `base.movement.speed.value` | `autoCalcSpeed` |
-| RS | **kein gespeichertes Feld.** Summe der angelegten `armor`-Items + `modifiers.additionalRS` + Vorteil „Natürlicher Rüstungsschutz“ | immer berechnet |
-| BE | aus Rüstung (`load.encumbrance` nur Last) | berechnet |
+| DSA        | Pfad                                                                                                                              | automatisch berechnet? (Schalter in `settings.`) |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| AT-Basis   | `base.combatAttributes.active.baseAttack.value`                                                                                   | `autoCalcBaseAttack`, (MU+GE+KK)/5               |
+| PA-Basis   | `…active.baseParry.value`                                                                                                         | `autoCalcBaseParry`, (IN+GE+KK)/5                |
+| FK-Basis   | `…active.baseRangedAttack.value`                                                                                                  | `autoCalcBaseRangedAttack`, (IN+FF+KK)/5         |
+| INI-Basis  | `…active.baseInitiative.value`                                                                                                    | `autoCalcInitiative`, (MU+MU+IN+GE)/5            |
+| Ausweichen | `…active.dodge.value`                                                                                                             | `autoCalcDodge`, PA-Basis − BE + Boni            |
+| MR         | `…passive.magicResistance.value`, Zuschlag: `base.combatAttributes.additionalMR`                                                  | `autoCalcMagicResistance`, (MU+KL+KO)/5          |
+| WS         | `…passive.woundThresholds.{first,second,third,mod}`                                                                               | `autoCalcWoundThresholds`, KO/2, KO, KO·1,5      |
+| GS         | `base.movement.speed.value`                                                                                                       | `autoCalcSpeed`                                  |
+| RS         | **kein gespeichertes Feld.** Summe der angelegten `armor`-Items + `modifiers.additionalRS` + Vorteil „Natürlicher Rüstungsschutz“ | immer berechnet                                  |
+| BE         | aus Rüstung (`load.encumbrance` nur Last)                                                                                         | berechnet                                        |
 
 Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. RS ohne Rüstungs-Item geht nach `modifiers.additionalRS`.
 
