@@ -110,13 +110,14 @@ Stand der Entscheidungen 2026-11-03:
 
 - **Eigenes, optionales Obsidian-Plugin** („DSA-NSC-Generator“), nutzt den vorhandenen core (Schema, Katalog, Validierung, SF-Voraussetzungen, Rechenwerte).
 - **LLM-Anbieter einstellbar:** lokal (bevorzugt, Ollama) oder Cloud (API-Schlüssel), umschaltbar in den Einstellungen.
-- **Lokal aus Obsidian startbar** (Knopf „Lokales LLM starten“) mit **Analyse**: Grafikkarte/Speicher erkennen, passendes Modell vorschlagen und laden, Erreichbarkeit prüfen.
+- **Lokales LLM: keine Ressourcen, wenn ungenutzt** (einzige harte Anforderung, Weg egal). Plan: Ollama als Podman-Container, der **nur bei Bedarf läuft** – Start/Stopp per Befehl (`npm run llm:start` / `llm:stop`) oder per Knopf in Obsidian, falls das Flatpak-Recht später gewünscht ist. Der Container beendet sich zusätzlich selbst nach einer einstellbaren Leerlaufzeit (z. B. 15 Min.). Obsidian zeigt den Status („läuft / gestoppt“) und den Startbefehl zum Kopieren.
+  **Analyse** beim ersten Start: Grafikkarte/Speicher erkennen, passendes Modell vorschlagen und laden, Erreichbarkeit prüfen.
   Rechner: AMD RX 6800/6900 (Navi 21, 16 GB VRAM), 46 GB RAM → Modelle bis ca. 14 B ganz auf der GPU.
-  Offen: Obsidian ist ein Flatpak; Starten eines Containers braucht `flatpak-spawn --host` (Flatpak-Recht `--talk-name=org.freedesktop.Flatpak`) oder einen dauerhaft laufenden Ollama-Dienst (Podman, Benutzer-systemd), den Obsidian nur prüft. Vor dem Einrichten fragen.
+- **Regelwerke austauschbar:** Ordner `Regelwerke/` mit einer Liste der Bücher (Datei, Titel, Ausgabe, wofür: Professionen, Liturgien, Zauber, SF). Bücher hinzufügen, entfernen oder durch bessere PDFs ersetzen → „Index neu aufbauen“. Je Buchart ein Extraktor (Professionspakete, Liturgielisten nach Gottheit/Grad, Zauber nach Tradition, SF-Voraussetzungen), dazu ein Prüfbericht, was aus jedem Buch gelesen wurde. PDFs ohne lesbaren Text werden erkannt und gemeldet (statt still ignoriert); OCR nur als Option.
 - **Eingabe:** alle drei Wege – markierter Text, ganze Notiz, Formular (Dialog, vorbefüllt mit Markierung bzw. Notiz; Erfahrungsstufe, Rolle).
 - **Ablauf:** LLM wählt die Profession aus einer Liste → Code liefert das Professionspaket (Wege der Helden), Liturgien nach Gottheit/Grad (Liber Liturgium), Zauber nach Tradition → LLM füllt den Block als JSON nach Schema → Validierung (Namen, Werte, SF-Voraussetzungen) → Fehler zurück ans LLM (bis 3 Runden) → Block unter die Beschreibung. Formeln (LeP, AuP …) rechnet der Code.
 - **Testmenge:** die 24 umgewandelten NSCs (docs/nsc-umwandlung.md) als Vergleich für die Modellauswahl.
-- **Später:** OCR für *Wege des Schwerts* (PDF ohne lesbaren Text) für ausgefallene Kampf-SF.
+- **Später:** bessere PDF von *Wege des Schwerts* (die vorhandene hat keinen lesbaren Text) einfach in `Regelwerke/` tauschen und den Index neu aufbauen.
 - Regelwerke bleiben lokal; bei Cloud-Anbietern gehen nur Auszüge der Professionspakete hinaus (Hinweis in den Einstellungen).
 
 ## ✅ M5: Sync über eigenen Dienst – Entscheidungen 2026-11-03
