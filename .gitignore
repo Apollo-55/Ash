@@ -4,3 +4,4 @@ ref/
 test-vault/
 *.zip
 .foundry/
+backup/
