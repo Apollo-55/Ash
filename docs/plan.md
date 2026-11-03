@@ -104,7 +104,7 @@ talente:
 
 Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
-## Idee M6: NSC-Generator (Beschreibung → `dsa-nsc`-Block) – noch nicht begonnen
+## M6: NSC-Generator (Beschreibung → `dsa-nsc`-Block) – gebaut, Modellwahl läuft (Anleitung: docs/nsc-generator.md)
 
 Stand der Entscheidungen 2026-11-03:
 
