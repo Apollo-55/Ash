@@ -84,7 +84,38 @@ export interface BundleActor {
   hash: string
 }
 
-export type BundleDocument = BundleJournal | BundleActor
+export interface BundleScenePin {
+  id: string
+  /** pixel position on the map image (top left 0,0) */
+  x: number
+  y: number
+  label: string
+  entryId: string
+  pageId?: string
+}
+
+export interface BundleScene {
+  kind: 'scene'
+  id: string
+  sourcePath: string
+  blockName: string
+  folder: string | null
+  name: string
+  /** data path of the map image */
+  img: string
+  grid: { type: 'square' | 'hex' | 'none'; size: number; distance: number; units: string }
+  /** journal of the note (scene.journal) */
+  journal?: string
+  lighting: 'tag' | 'nacht' | 'dunkel'
+  fog: boolean
+  navigation: boolean
+  /** actor ids placed (hidden) when the scene is created */
+  tokens: string[]
+  pins: BundleScenePin[]
+  hash: string
+}
+
+export type BundleDocument = BundleJournal | BundleActor | BundleScene
 
 export interface BundleAsset {
   /** Path inside the ZIP and below assetsBase, e.g. "Asasets/Token/token_viper.png" */
@@ -105,6 +136,8 @@ export type WarningCode =
   | 'note-type-pending'
   | 'nsc-error'
   | 'nsc-warning'
+  | 'scene-error'
+  | 'scene-warning'
 
 export interface BundleWarning {
   code: WarningCode
@@ -141,3 +174,4 @@ export interface DocumentFlags {
 
 export const journalsOf = (b: Pick<Bundle, 'documents'>): BundleJournal[] => b.documents.filter((d): d is BundleJournal => d.kind === 'journal')
 export const actorsOf = (b: Pick<Bundle, 'documents'>): BundleActor[] => b.documents.filter((d): d is BundleActor => d.kind === 'actor')
+export const scenesOf = (b: Pick<Bundle, 'documents'>): BundleScene[] => b.documents.filter((d): d is BundleScene => d.kind === 'scene')

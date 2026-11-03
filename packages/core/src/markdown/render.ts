@@ -178,6 +178,7 @@ export function renderBody(body: string, env: RenderEnv): string {
   env.headings = []
   env.secretCount = 0
   env.blockCount = 0
+  ;(env as RenderEnv & { sceneCount?: number }).sceneCount = 0
   return getMarkdown().render(body, env as unknown as Record<string, unknown>)
 }
 

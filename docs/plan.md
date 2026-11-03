@@ -104,7 +104,29 @@ talente:
 
 Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
-## Szenen
+## Szenen (M3) – Entscheidungen 2026-11-03
+
+- Markierung über einen eigenen Codeblock `szene`, beliebig viele pro Notiz. Die Notiz bleibt ein Journal und wird das verknüpfte Journal der Szene. Kein `foundry: typ: szene` im Frontmatter.
+- Leaflet-Karten werden nur Szenen, wenn ein `szene`-Block sie über `leaflet: <id>` nennt. Bild und Marker kommen aus Leaflet, der Leaflet-Block selbst bleibt unverändert. Marker mit Link auf eine Notiz werden Kartennotizen (Pins) in Foundry. Umrechnung: x = lng · 2^(maxZoom−1), y = −lat · 2^(maxZoom−1), Standard maxZoom 10.
+- NSC-Tokens nur für die in `nscs:` genannten NSCs, versteckt in einer Reihe am oberen Rand, nur beim ersten Anlegen. Niedrige Priorität.
+- Nicht geplant: Wände aus Universal VTT (vielleicht später), Pins per Koordinate im Block, Musik.
+
+~~~markdown
+```szene
+name: Alanfaner Sabotage – Deck          # optional, sonst Notizname
+karte: "[[deck.webp]]"                   # Bild aus der Vault …
+leaflet: süd-map                         # … oder eine Leaflet-Karte (Bild + Marker)
+raster: { typ: quadrat, größe: 100, schritt: 1 }   # quadrat | hex | keins; Pixel pro Feld; Schritt pro Feld
+nscs: ["[[#Die Viper]]", "[[Sabotage NSC#Vollstrecker]]"]
+licht: nacht                             # tag (Standard) | nacht | dunkel
+nebel: ja                                # Sicht + Nebel des Krieges; Standard nein
+navigation: ja                           # in der Szenenleiste; Standard ja
+```
+~~~
+
+Erneuter Import überschreibt Name, Ordner, Bild (Maße neu), Raster, Journal, Licht, Nebel, Navigation und die vom Import angelegten Pins. Nie angefasst: Tokens nach dem ersten Anlegen, Wände, Lichter, Sounds, Zeichnungen, von Hand gesetzte Pins.
+
+## Szenen (ursprünglicher Entwurf)
 
 Wie im Auftrag. Dazu: `karte` darf auch ein Bild aus einem Leaflet-Block der Notiz sein.
 
@@ -129,7 +151,7 @@ Statt eines Parsers, der bei jedem Export rät: ein Befehl **„Wertekasten in d
 1. ✅ **M1** core (Markdown, Links, Embeds, Callouts, Secrets, Kommentare, IDs, Bundle) + Plugin-Export als ZIP + Modul-Import für Journals + Bericht.
 2. ✅ **M2** dsa-nsc (Schema, Validierung, Rendering, Vorlage), Kompendium-Lookup, Actor-Import, AT/PA-Abgleich.
 3. **M2b** Befehl „Wertekasten umwandeln“ für Stil 2 und 3.
-4. **M3** Szenen.
+4. ✅ **M3** Szenen.
 5. **M4** Aufräumen verwaister Dokumente, Einstellungen, README.
 6. Später `dnd5e`-Adapter.
 

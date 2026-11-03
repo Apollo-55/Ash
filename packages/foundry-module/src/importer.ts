@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import { planSync, preserveRevealedSecrets, sortFoldersByDepth } from '../../core/src/sync.ts'
 import { FLAG_SCOPE, type Bundle, type BundleJournal, type BundleJournalPage, type BundleWarning, type DocumentFlags } from '../../core/src/types.ts'
 import { syncActors } from './actors.ts'
+import { syncScenes } from './scenes.ts'
 import { MODULE_ID, SETTINGS, SUPPORTED_SCHEMA } from './constants.ts'
 
 export interface ReportEntry {
@@ -272,6 +273,7 @@ export async function importBundle(zip: JSZip, bundle: Bundle, opts: ImportOptio
   await syncFolders(bundle, report)
   await syncJournals(bundle, report, opts)
   await syncActors(bundle, report, opts)
+  await syncScenes(bundle, report, opts)
   opts.onProgress?.(1, 'Fertig')
   await game.settings.set(MODULE_ID, SETTINGS.lastReport, report)
   return report

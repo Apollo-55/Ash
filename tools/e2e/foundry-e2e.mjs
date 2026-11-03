@@ -59,7 +59,8 @@ async function withPage(fn) {
   const browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } })
   // headless Chromium has no GPU: canvas rendering would starve the page (client setting → localStorage)
-  await page.addInitScript(() => localStorage.setItem('core.noCanvas', 'true'))
+  if (!process.env.VTF_CANVAS) await page.addInitScript(() => localStorage.setItem('core.noCanvas', 'true'))
+  else await page.addInitScript(() => localStorage.setItem('core.noCanvas', 'false'))
   const errors = []
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
   page.on('console', (m) => {
@@ -346,6 +347,31 @@ const steps = {
         }
         await page.evaluate((n) => game.actors.getName(n).sheet.close(), name)
       }
+    })
+  },
+
+  async scenes() {
+    await withPage(async (page) => {
+      const r = await page.evaluate(() => game.scenes.filter((s) => s.flags['vault-to-foundry']).map((s) => `${s.name}: ${s.width}x${s.height}, Raster ${s.grid.type}/${s.grid.size}, Journal ${s.journal?.name}, Licht ${s.environment.darknessLevel}, Pins ${s.notes.map((n) => n.entry?.name).join('+') || '–'}, Tokens ${s.tokens.map((t) => t.name).join('+') || '–'}`))
+      console.log(r.join('\n'))
+    })
+  },
+
+  async sceneshot() {
+    // needs VTF_CANVAS=1: view a scene, screenshot it, try the thumbnail
+    await withPage(async (page) => {
+      const r = await page.evaluate(async (name) => {
+        const s = game.scenes.getName(name)
+        await s.view()
+        await new Promise((res) => setTimeout(res, 4000))
+        canvas.animatePan({ scale: Math.min(window.innerWidth / s.width, window.innerHeight / s.height) * 0.9, x: s.dimensions.sceneX + s.width / 2, y: s.dimensions.sceneY + s.height / 2, duration: 0 })
+        let thumb = null
+        try { thumb = !!(await s.createThumbnail())?.thumb } catch (e) { thumb = String(e) }
+        return { canvas: !!canvas?.ready, thumb }
+      }, arg ?? 'Südaventurien')
+      await page.waitForTimeout(2500)
+      await page.screenshot({ path: `${OUT}/40-szene.png` })
+      console.log(JSON.stringify(r))
     })
   },
 

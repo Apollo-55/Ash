@@ -1,8 +1,8 @@
 # Vault to Foundry
 
-Exportiert eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-Blöcke werden spielbare Charaktere (DSA 4.1, System `dsa-41`), später kommen Szenen dazu.
+Exportiert eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-Blöcke werden spielbare Charaktere (DSA 4.1, System `dsa-41`), `szene`-Blöcke werden Szenen.
 
-Stand: **M2**. Journale, Ordner, Links, Bilder, PDFs, Callouts, Secrets, Kommentare, NSCs mit Items aus den Kompendien, erneuter Import ohne Duplikate, Importbericht.
+Stand: **M3**. Journale, Ordner, Links, Bilder, PDFs, Callouts, Secrets, Kommentare, NSCs mit Items aus den Kompendien, erneuter Import ohne Duplikate, Importbericht.
 
 ## Bestandteile
 
@@ -115,6 +115,27 @@ notiz: Freitext für die Biografie
 
 In der Notiz zeigt das Journal den Wertekasten mit „Zum Charakter“. `[[Notiz#Die Viper]]` verlinkt direkt den Charakter.
 
+### Szenen: der `szene`-Block
+
+Beliebig viele pro Notiz. Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
+
+~~~markdown
+```szene
+name: Sabotage an Deck                   # optional, sonst Notizname
+karte: "[[deck.webp]]"                   # Bild aus der Vault …
+leaflet: süd-map                         # … oder eine Leaflet-Karte (Bild + Marker)
+raster: { typ: quadrat, größe: 100, schritt: 1 }   # quadrat | hex | keins; Standard: quadrat 100 (karte) bzw. keins (leaflet)
+nscs: ["[[#Die Viper]]", "[[Alanfaner Sabotage#Vollstrecker]]"]   # Tokens, versteckt am oberen Rand
+licht: nacht                             # tag (Standard) | nacht | dunkel
+nebel: ja                                # Sicht und Nebel des Krieges; Standard nein
+navigation: ja                           # in der Szenenleiste; Standard ja
+```
+~~~
+
+- **Leaflet:** Eine Leaflet-Karte wird nur Szene, wenn ein `szene`-Block sie mit `leaflet: <id>` nennt. Deine Marker mit Link auf eine Notiz werden Kartennotizen (Pins), die das Journal öffnen. Marker ohne Link oder mit Link auf nicht exportierte Notizen werden übersprungen und gemeldet.
+- **Erneuter Import** überschreibt Name, Ordner, Bild (Maße neu), Raster, Journal, Licht, Nebel, Navigation und die Pins aus Leaflet. **Nie angefasst:** Tokens nach dem ersten Anlegen (auch verschobene oder aufgedeckte), Wände, Lichter, Sounds, Zeichnungen, von Hand gesetzte Pins.
+- `[[Notiz#Szenenname]]` verlinkt direkt die Szene.
+
 ## Einstellungen (Obsidian)
 
 - **Exportordner**: wohin die ZIP geschrieben wird.
@@ -126,7 +147,7 @@ In der Notiz zeigt das Journal den Wertekasten mit „Zum Charakter“. `[[Notiz
 
 **Foundry:** Moduleinstellung „Zusätzliche Kompendien für NSC-Items“ (z. B. `world.hausregeln`).
 
-## Grenzen (M2)
+## Grenzen (M3)
 
 - Foundry erlaubt 4 Ordnerebenen. Tiefere Ebenen werden zu „A / B“ zusammengefasst.
 - Umbenennen wird nur erkannt, wenn Obsidian mit aktivem Plugin umbenennt (nicht im Dateimanager).
@@ -134,4 +155,4 @@ In der Notiz zeigt das Journal den Wertekasten mit „Zum Charakter“. `[[Notiz
 - Gelöschte Notizen werden nie automatisch gelöscht, nur auf Knopfdruck im Bericht.
 - Dateien, die Foundry nicht annimmt (z. B. `.bak`, `.exe`), werden übersprungen und im Export-Dialog genannt.
 - NSCs: Kreaturen sind normale Charaktere (dsa-41 kennt keinen eigenen Typ). BE aus Rüstungen wird nicht in AT/PA eingerechnet. Ein umbenannter Block (anderer `name:`) wird ein neuer Charakter, der alte erscheint als verwaist.
-- Der Befehl „Wertekasten in dsa-nsc umwandeln“ für alte Notizen kommt in M2b, Szenen in M3.
+- Szenen: keine Wände/Türen/Lichter aus der Vault, keine Musik. Leaflet-Karten mit eigenen `bounds` bekommen keine Pins.

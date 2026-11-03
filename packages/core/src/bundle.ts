@@ -6,12 +6,14 @@ import { readNoteConfig } from './note-config.ts'
 import { assetKind, basename, dirname, extname, folderLevels, isExcluded, isUploadable, isVaultInternal, safePath, stripExtension, vaultSlug } from './paths.ts'
 import type { LinkResolver } from './resolver.ts'
 import type { ParsedBlock, SystemAdapter } from './systems/adapter.ts'
+import { leafletToPixel, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, type LeafletBlock, type LeafletMarker, type SceneBlockData } from './scenes.ts'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
   type BundleActor,
   type BundleAsset,
   type BundleDocument,
+  type BundleScene,
   type BundleFolder,
   type BundleJournal,
   type BundleWarning,
@@ -42,6 +44,8 @@ export interface BuildOptions {
   fenceHandlers?: Record<string, FenceHandler>
   /** game system adapter for NPC blocks (e.g. dsa41Adapter); without it NPC blocks stay code blocks */
   system?: SystemAdapter<any>
+  /** markers of the Leaflet plugin (data.json → mapMarkers), keyed by map id */
+  leafletMarkers?: Record<string, LeafletMarker[]>
   generator?: { name: string; version: string }
   now?: Date
 }
@@ -148,8 +152,10 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     ownership?: BundleJournal['ownership']
     blocks: { name: string; actorId: string; parsed: ParsedBlock<unknown>; startLine: number }[]
     images: { line: number; ref: string }[]
+    scenes: { name: string; sceneId: string; parsed: ParsedBlock<SceneBlockData> }[]
   }
   const prepared: Prepared[] = []
+  const leafletBlocks = new Map<string, LeafletBlock & { sourcePath: string }>()
   const targets = new Map<string, LinkTarget>()
 
   for (const note of [...opts.notes].sort((a, b) => a.path.localeCompare(b.path))) {
@@ -201,7 +207,30 @@ export function buildBundle(opts: BuildOptions): BuildResult {
         target.anchors.set(normalizeHeading(parsed.name), { uuid: `Actor.${actorId}`, name: parsed.name })
       }
     }
-    prepared.push({ note, name, id, pageId, body, ownership: config.ownership, blocks, images: findImageEmbeds(body) })
+    // scene blocks
+    const scenes: Prepared['scenes'] = []
+    const sceneNames = new Map<string, number>()
+    for (const fence of findFences(body, SCENE_BLOCK)) {
+      const parsed = parseSceneBlock(fence.content)
+      const sName = parsed.name ?? name
+      for (const issue of parsed.issues) {
+        if (issue.level !== 'info') warn(issue.level === 'error' ? 'scene-error' : 'scene-warning', `Szene „${sName}“: ${issue.message}`)
+      }
+      const n = sceneNames.get(sName) ?? 0
+      sceneNames.set(sName, n + 1)
+      const label = n ? `${sName} ${n + 1}` : sName
+      const sceneId = parsed.data ? ids.get(`${note.path}#szene:${label}`) : ''
+      scenes.push({ name: label, sceneId, parsed })
+      if (sceneId && parsed.name) {
+        target.anchors ??= new Map()
+        target.anchors.set(normalizeHeading(parsed.name), { uuid: `Scene.${sceneId}`, name: label })
+      }
+    }
+    for (const fence of findFences(body, 'leaflet')) {
+      const lb = parseLeafletBlock(fence.content)
+      if (lb && !leafletBlocks.has(lb.id)) leafletBlocks.set(lb.id, { ...lb, sourcePath: note.path })
+    }
+    prepared.push({ note, name, id, pageId, body, ownership: config.ownership, blocks, images: findImageEmbeds(body), scenes })
     targets.set(note.path, target)
   }
 
@@ -221,6 +250,28 @@ export function buildBundle(opts: BuildOptions): BuildResult {
 
   const fenceHandlers: Record<string, FenceHandler> = { ...(opts.fenceHandlers ?? {}) }
   const blocksByNote = new Map(prepared.map((p) => [p.note.path, p.blocks]))
+  const scenesByNote = new Map(prepared.map((p) => [p.note.path, p.scenes]))
+  const resolveImageRef = (ref: string, from: string): string | null => {
+    const clean = ref.replace(/^["']|["']$/g, '').replace(/^!?\[\[|\]\]$/g, '').split('|')[0].trim()
+    const path = opts.resolver.resolve(clean, from)
+    return path ? assetUrl(path) : null
+  }
+  const sceneImage = (d: SceneBlockData, from: string): string | null => {
+    if (d.karte) return resolveImageRef(d.karte, from)
+    const lb = d.leaflet ? leafletBlocks.get(d.leaflet) : undefined
+    return lb?.images[0] ? resolveImageRef(lb.images[0], lb.sourcePath) : null
+  }
+  fenceHandlers[SCENE_BLOCK] = (content, env) => {
+    const idx = (env as RenderEnv & { sceneCount?: number }).sceneCount ?? 0
+    ;(env as RenderEnv & { sceneCount?: number }).sceneCount = idx + 1
+    const s = scenesByNote.get(env.sourcePath)?.[idx]
+    const parsed = s?.parsed ?? parseSceneBlock(content)
+    return renderSceneCard(parsed, {
+      sceneUuid: s?.sceneId ? `Scene.${s.sceneId}` : undefined,
+      fallbackName: s?.name,
+      imageSrc: parsed.data ? sceneImage(parsed.data, env.sourcePath) : null,
+    })
+  }
   if (adapter) {
     fenceHandlers[adapter.blockLanguage] = (content, env) => {
       const b = blocksByNote.get(env.sourcePath)?.[env.blockCount++]
@@ -302,6 +353,70 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     }
   }
   documents.push(...actors)
+
+  // ---- scenes from szene blocks -------------------------------------------------------------
+  const scenes: BundleScene[] = []
+  const actorIdsOf = (link: string, from: string, warnScene: (m: string) => void): string[] => {
+    const inner = link.replace(/^\[\[|\]\]$/g, '')
+    const [targetRaw, sub] = inner.split('|')[0].split('#')
+    const notePath = targetRaw.trim() ? opts.resolver.resolve(targetRaw.trim(), from) : from
+    const blocks = (notePath && blocksByNote.get(notePath)?.filter((b) => b.actorId)) || []
+    if (!blocks.length) {
+      warnScene(`NSC ${link}: keine NSC-Blöcke gefunden.`)
+      return []
+    }
+    if (sub) {
+      const hit = blocks.find((b) => normalizeHeading(b.name) === normalizeHeading(sub))
+      if (!hit) warnScene(`NSC ${link}: kein Block mit diesem Namen.`)
+      return hit ? [hit.actorId] : []
+    }
+    if (blocks.length > 1) warnScene(`NSC ${link}: die Notiz hat ${blocks.length} NSC-Blöcke – alle werden gesetzt (oder gezielt mit [[Notiz#Name]]).`)
+    return blocks.map((b) => b.actorId)
+  }
+  for (const p of prepared) {
+    for (const s of p.scenes) {
+      const d = s.parsed.data
+      if (!d || !s.sceneId) continue
+      const warnScene = (m: string) => warnings.push({ code: 'scene-warning', sourcePath: p.note.path, message: `Szene „${s.name}“: ${m}` })
+      const img = sceneImage(d, p.note.path)
+      if (!img) {
+        warnings.push({ code: 'scene-error', sourcePath: p.note.path, message: `Szene „${s.name}“: ${d.leaflet && !leafletBlocks.has(d.leaflet) ? `Leaflet-Karte „${d.leaflet}“ nicht gefunden` : 'Kartenbild nicht gefunden'} – Szene übersprungen.` })
+        continue
+      }
+      const grid = d.grid ?? (d.leaflet ? { type: 'none' as const, size: 100, distance: 1, units: 'Schritt' } : { type: 'square' as const, size: 100, distance: 1, units: 'Schritt' })
+      const tokens = [...new Set(d.nscs.flatMap((l) => actorIdsOf(l, p.note.path, warnScene)))]
+      // Leaflet markers with a link to an exported note become map pins
+      const pins: BundleScene['pins'] = []
+      if (d.leaflet) {
+        const lb = leafletBlocks.get(d.leaflet)!
+        const markers = opts.leafletMarkers?.[d.leaflet] ?? []
+        if (lb.hasBounds && markers.length) warnScene('Leaflet-Karte mit eigenen „bounds“ – Marker können nicht umgerechnet werden, keine Pins.')
+        else {
+          let skipped = 0
+          markers.forEach((m, i) => {
+            const linkPath = m.link ? opts.resolver.resolve(String(m.link).replace(/^\[\[|\]\]$/g, ''), lb.sourcePath) : null
+            const t = linkPath ? targets.get(linkPath) : undefined
+            const entry = t ? /^JournalEntry\.([A-Za-z0-9]{16})(?:\.JournalEntryPage\.([A-Za-z0-9]{16}))?/.exec(t.uuid) : null
+            if (!entry) {
+              if (m.link) warnScene(`Leaflet-Marker „${m.link}“: Ziel wird nicht exportiert, kein Pin.`)
+              else skipped++
+              return
+            }
+            const { x, y } = leafletToPixel(m.loc, lb.maxZoom)
+            pins.push({ id: makeId(s.sceneId, 'pin', String(i), String(m.link)), x, y, label: t!.name, entryId: entry[1], ...(entry[2] ? { pageId: entry[2] } : {}) })
+          })
+          if (skipped) warnScene(`${skipped} Leaflet-Marker ohne Link übersprungen.`)
+        }
+      }
+      const scene: Omit<BundleScene, 'hash'> = {
+        kind: 'scene', id: s.sceneId, sourcePath: p.note.path, blockName: s.name,
+        folder: folderFor('Scene', dirname(p.note.path)), name: s.name, img, grid, journal: p.id,
+        lighting: d.licht, fog: d.nebel, navigation: d.navigation, tokens, pins,
+      }
+      scenes.push({ ...scene, hash: hashObject({ v: BUNDLE_SCHEMA_VERSION, ...scene }) })
+    }
+  }
+  documents.push(...scenes)
 
   // ---- assets -----------------------------------------------------------------------------
   const assetFiles = new Map<string, string>()

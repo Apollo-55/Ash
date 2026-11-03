@@ -188,6 +188,7 @@ export function installFakeFoundry(): FakeWorld {
     journal: world.journal,
     folders: world.folders,
     actors: new Collection(),
+    scenes: new Collection(),
     system: { id: 'dsa-41' },
     user: { isGM: true },
     settings: {

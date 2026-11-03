@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, vaultSlug, type Bundle, type LinkResolver, type NoteInput, type SystemAdapter } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type LinkResolver, type NoteInput, type SystemAdapter } from '../../core/src/index.ts'
 
 const ADAPTERS: Record<string, SystemAdapter<any>> = { dsa41: dsa41Adapter }
 
@@ -54,6 +54,28 @@ export default class VaultToFoundryPlugin extends Plugin {
         el.appendChild(sanitizeHTMLToDom(html))
       })
     }
+    // scene blocks: card with map preview and validation
+    this.registerMarkdownCodeBlockProcessor(SCENE_BLOCK, async (source, el, ctx) => {
+      const parsed = parseSceneBlock(source)
+      let imageSrc: string | null = null
+      const d = parsed.data
+      const toFile = (ref: string, from: string) => {
+        const clean = ref.replace(/^["']|["']$/g, '').replace(/^!?\[\[|\]\]$/g, '').split('|')[0].trim()
+        return this.app.metadataCache.getFirstLinkpathDest(clean, from)
+      }
+      if (d?.karte) {
+        const f = toFile(d.karte, ctx.sourcePath)
+        if (f) imageSrc = this.app.vault.getResourcePath(f)
+        else parsed.issues.push({ level: 'error', message: `Kartenbild ${d.karte} nicht gefunden.` })
+      } else if (d?.leaflet) {
+        const lb = await this.findLeafletBlock(d.leaflet)
+        const f = lb?.images[0] ? toFile(lb.images[0], lb.sourcePath) : null
+        if (f) imageSrc = this.app.vault.getResourcePath(f)
+        else parsed.issues.push({ level: 'error', message: `Leaflet-Karte „${d.leaflet}“ nicht gefunden.` })
+      }
+      el.appendChild(sanitizeHTMLToDom(renderSceneCard(parsed, { showIssues: true, imageSrc, fallbackName: ctx.sourcePath.split('/').pop()?.replace(/\.md$/, '') })))
+    })
+
     this.addCommand({
       id: 'insert-nsc-template',
       name: 'DSA-NSC-Vorlage einfügen',
@@ -97,6 +119,27 @@ export default class VaultToFoundryPlugin extends Plugin {
     await this.saveData(this.settings)
   }
 
+  async findLeafletBlock(id: string): Promise<(ReturnType<typeof parseLeafletBlock> & { sourcePath: string }) | null> {
+    for (const f of this.app.vault.getMarkdownFiles()) {
+      const text = await this.app.vault.cachedRead(f)
+      if (!text.includes('```leaflet')) continue
+      for (const m of text.matchAll(/```leaflet\n([\s\S]*?)```/g)) {
+        const lb = parseLeafletBlock(m[1])
+        if (lb?.id === id) return { ...lb, sourcePath: f.path }
+      }
+    }
+    return null
+  }
+
+  async leafletMarkers() {
+    try {
+      const raw = await this.app.vault.adapter.read(`${this.app.vault.configDir}/${LEAFLET_DATA_PATH}`)
+      return leafletMarkersFromPluginData(JSON.parse(raw))
+    } catch {
+      return {}
+    }
+  }
+
   outputFileName(): string {
     return `${vaultSlug(this.app.vault.getName())}-foundry.zip`
   }
@@ -133,6 +176,7 @@ export default class VaultToFoundryPlugin extends Plugin {
         includeUnreferencedAttachments: this.settings.includeUnreferencedAttachments,
         generator: { name: 'vault-to-foundry-obsidian', version: this.manifest.version },
         system: ADAPTERS[this.settings.system],
+        leafletMarkers: await this.leafletMarkers(),
       })
 
       const zip = new JSZip()
@@ -186,7 +230,7 @@ class ExportResultModal extends Modal {
     this.titleEl.setText('Export für Foundry')
     contentEl.addClass('vtf-export-result')
     contentEl.createEl('p', {
-      text: `${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${bundle.folders.length} Ordner, ${bundle.assets.length} Dateien (${(this.size / 1048576).toFixed(1)} MB).`,
+      text: `${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${scenesOf(bundle).length} Szenen, ${bundle.folders.length} Ordner, ${bundle.assets.length} Dateien (${(this.size / 1048576).toFixed(1)} MB).`,
     })
     const p = contentEl.createEl('p')
     p.createSpan({ text: 'Gespeichert unter: ' })

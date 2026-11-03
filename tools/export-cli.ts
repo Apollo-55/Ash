@@ -3,7 +3,8 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, createSimpleResolver, dsa41Adapter, hashBytes, journalsOf } from '../packages/core/src/index.ts'
+import { actorsOf, buildBundle, createSimpleResolver, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, scenesOf } from '../packages/core/src/index.ts'
+import { existsSync } from 'node:fs'
 
 const args = process.argv.slice(2)
 const positional: string[] = []
@@ -37,6 +38,9 @@ const notes = files.filter((f) => f.endsWith('.md')).map((path) => ({ path, cont
 const attachments = files.filter((f) => !f.endsWith('.md'))
 const vaultName = name ?? basename(vaultDir.replace(/\/+$/, ''))
 
+const leafletFile = join(vaultDir, '.obsidian', LEAFLET_DATA_PATH)
+const leafletMarkers = existsSync(leafletFile) ? leafletMarkersFromPluginData(JSON.parse(readFileSync(leafletFile, 'utf8'))) : {}
+
 const { bundle, assetFiles } = buildBundle({
   vaultName,
   notes,
@@ -45,6 +49,7 @@ const { bundle, assetFiles } = buildBundle({
   excludePatterns: excludes,
   generator: { name: 'vault-to-foundry-cli', version: '0.1.0' },
   system: withSystem ? dsa41Adapter : undefined,
+  leafletMarkers,
 })
 
 const zip = new JSZip()
@@ -61,6 +66,6 @@ const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE'
 writeFileSync(outFile, buf)
 
 console.log(`Vault „${vaultName}“ → ${outFile} (${(buf.length / 1048576).toFixed(1)} MB)`)
-console.log(`  ${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${bundle.folders.length} Ordner, ${bundle.assets.length} Anhänge, ${bundle.skipped.length} übersprungen`)
+console.log(`  ${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${scenesOf(bundle).length} Szenen, ${bundle.folders.length} Ordner, ${bundle.assets.length} Anhänge, ${bundle.skipped.length} übersprungen`)
 console.log(`  ${bundle.warnings.length} Warnungen`)
 for (const w of bundle.warnings) console.log(`   - [${w.code}] ${w.sourcePath}: ${w.message}`)

@@ -1,4 +1,4 @@
-# Testcheckliste Foundry (M1: Journale, M2: NSCs)
+# Testcheckliste Foundry (M1: Journale, M2: NSCs, M3: Szenen)
 
 Die Import-Logik ist dreifach getestet:
 
@@ -92,3 +92,14 @@ Testdaten: `tools/e2e/fixtures/Sabotage NSC.md` (Viper, Schattenweber, Vollstrec
 - [ ] **[auto]** Unverändert erneut: alles übersprungen. Verwaiste NSCs löschbar.
 - [ ] Von Hand: Würfe vom Bogen (Talentprobe, Attacke mit Säbel, Zauber) funktionieren.
 - [ ] Von Hand in Obsidian: Wertekasten wird angezeigt, Fehler (z. B. `KK: 1a`) erscheinen rot, „gerechnet“ steht neben MR/INI/WS. Befehl „DSA-NSC-Vorlage einfügen“.
+
+## Szenen (M3)
+
+Testdaten: `tools/e2e/fixtures/Szenen.md` (Leaflet-Karte `süd-map` aus „Encounter“, Kampfszene auf `Ship_full.png` mit drei Gegnern).
+
+- [ ] **[auto]** Leaflet-Szene: Bild und Maße aus der Leaflet-Karte, kein Raster, Marker als Pins an der richtigen Stelle, Pins öffnen das Journal.
+- [ ] **[auto]** Kampfszene: Raster, Licht, Nebel, Journal; NSC-Tokens versteckt am oberen Rand.
+- [ ] **[auto]** Erneuter Import nach Änderung: Licht neu; verschobene/aufgedeckte Tokens und von Hand gezogene Wände bleiben; keine doppelten Tokens.
+- [ ] **[auto]** Unverändert erneut: übersprungen.
+- [ ] Von Hand im Browser: Vorschaubild in der Szenenleiste vorhanden (entsteht nur mit Canvas), Pins anklicken, Szene aktivieren, Spieler sehen nur aufgedeckte Tokens.
+- [ ] Von Hand in Obsidian: `szene`-Block erscheint als Karte mit Vorschau; ein Tippfehler (z. B. `licht: mittag`) erscheint rot.

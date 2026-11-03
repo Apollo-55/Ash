@@ -54,3 +54,10 @@
 .vtf-nsc .vtf-nsc-weapons td:first-child, .vtf-nsc .vtf-nsc-weapons th:first-child { text-align: left; }
 .vtf-nsc p { margin: 3px 0; }
 .vtf-nsc-note { opacity: 0.8; font-style: italic; }
+
+/* ---- szene card in journals ---- */
+.vtf-scene { border: 1px solid rgba(127, 127, 127, 0.4); border-left: 4px solid #2b5c8a; border-radius: 4px; padding: 6px 10px; margin: 0.75em 0; background: rgba(127, 127, 127, 0.08); }
+.vtf-scene .vtf-nsc-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.vtf-scene .vtf-nsc-link { margin-left: auto; font-size: 0.85em; }
+.vtf-scene .vtf-scene-preview { max-width: 100%; max-height: 260px; border: none; margin-top: 4px; }
+.vtf-scene p { margin: 3px 0; }

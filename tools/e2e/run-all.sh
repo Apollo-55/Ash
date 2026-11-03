@@ -7,6 +7,7 @@ E2E="node tools/e2e/foundry-e2e.mjs"
 EXPORT="node tools/export-cli.ts test-vault"
 mkdir -p test-vault/Test dist
 cp tools/e2e/fixtures/Alles.md test-vault/Test/Alles.md
+cp tools/e2e/fixtures/Szenen.md test-vault/Test/Szenen.md
 cp "tools/e2e/fixtures/Sabotage NSC.md" "test-vault/Test/Sabotage NSC.md"
 SH="test-vault/NPC/Besatzung/Shahane ay Zedrakin.md"
 grep -q '```dsa-nsc' "$SH" || cat tools/e2e/fixtures/shahane-block.md >> "$SH"
@@ -17,6 +18,7 @@ echo "== 1. Import";                  $EXPORT dist/e2e-1.zip --name uthuria-ob >
 echo "== 2. Prüfen";                  $E2E inspect | tr -d '\n'; echo
 echo "== 3. Überschriften-Links";     $E2E anchorclick
 echo "== 3b. NSCs";                   $E2E actors | grep -E '^ "|weapons|Bogen|"neu"|LeP|"MR"' | head -60
+echo "== 3d. Szenen";                  $E2E scenes
 echo "== 3c. Spielstand + geänderter Block"
 $E2E play
 SH="test-vault/NPC/Besatzung/Shahane ay Zedrakin.md"; mkdir -p dist; cp "$SH" dist/shahane.md.bak
