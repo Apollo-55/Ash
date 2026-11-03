@@ -1,0 +1,16 @@
+.dsa-gen-modal { width: min(820px, 92vw); }
+.dsa-gen-desc { width: 100%; min-width: 420px; }
+.dsa-gen-status { font-size: var(--font-ui-small); color: var(--text-muted); margin-bottom: 6px; }
+.dsa-gen-progress { font-size: var(--font-ui-small); color: var(--text-accent); min-height: 1.4em; }
+.dsa-gen-bad { color: var(--text-error); }
+.dsa-gen-result details { margin-top: 6px; font-size: var(--font-ui-small); }
+
+/* stat box (same look as in Vault to Foundry) */
+.dsa-gen-result .vtf-nsc { border: 1px solid var(--background-modifier-border); border-left: 4px solid var(--color-accent); border-radius: 6px; padding: 8px 12px; margin: 8px 0; background: var(--background-secondary); font-size: var(--font-ui-small); }
+.dsa-gen-result .vtf-nsc table { width: auto; margin: 4px 0; border-collapse: collapse; }
+.dsa-gen-result .vtf-nsc th, .dsa-gen-result .vtf-nsc td { padding: 1px 8px; border: 1px solid var(--background-modifier-border); text-align: center; }
+.dsa-gen-result .vtf-nsc p { margin: 3px 0; }
+.dsa-gen-result .vtf-nsc-calc { color: var(--text-muted); font-size: 0.9em; }
+.dsa-gen-result .vtf-nsc-issues { list-style: none; padding: 4px 8px; margin: 4px 0; }
+.dsa-gen-result .vtf-nsc-error { color: var(--text-error); }
+.dsa-gen-result .vtf-nsc-warning { color: var(--color-orange); }

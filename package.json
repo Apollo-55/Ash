@@ -11,7 +11,7 @@
     "dev": "node tools/build.mjs --watch --deploy",
     "deploy": "node tools/build.mjs --deploy",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core && tsc -p packages/obsidian-plugin && tsc -p packages/foundry-module",
+    "typecheck": "tsc -p packages/core && tsc -p packages/obsidian-plugin && tsc -p packages/foundry-module && tsc -p packages/nsc-generator && tsc -p packages/nsc-generator-plugin",
     "export:test": "node --experimental-strip-types tools/export-cli.ts",
     "foundry": "tools/foundry-local.sh",
     "e2e": "tools/e2e/run-all.sh",

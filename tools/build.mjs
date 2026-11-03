@@ -17,11 +17,14 @@ const testVault = process.env.VTF_TEST_VAULT ?? join(root, 'test-vault')
 const foundryModules = process.env.VTF_FOUNDRY_MODULES // e.g. a mounted <Data>/modules
 
 const pluginOut = join(root, 'dist/obsidian-plugin')
+const genOut = join(root, 'dist/nsc-generator-plugin')
 const moduleOut = join(root, 'dist/foundry-module/vault-to-foundry')
 
 function copyStatic() {
   mkdirSync(pluginOut, { recursive: true })
   for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'packages/obsidian-plugin', f), join(pluginOut, f))
+  mkdirSync(genOut, { recursive: true })
+  for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'packages/nsc-generator-plugin', f), join(genOut, f))
   mkdirSync(moduleOut, { recursive: true })
   for (const f of ['module.json', 'styles', 'lang']) cpSync(join(root, 'packages/foundry-module', f), join(moduleOut, f), { recursive: true })
 }
@@ -44,6 +47,9 @@ async function doDeploy() {
   if (existsSync(join(testVault, '.obsidian'))) {
     mkdirSync(pluginDir, { recursive: true })
     for (const f of ['main.js', 'manifest.json', 'styles.css']) cpSync(join(pluginOut, f), join(pluginDir, f))
+    const genDir = join(testVault, '.obsidian/plugins/dsa-nsc-generator')
+    mkdirSync(genDir, { recursive: true })
+    for (const f of ['main.js', 'manifest.json', 'styles.css']) cpSync(join(genOut, f), join(genDir, f))
     const cp = join(testVault, '.obsidian/community-plugins.json')
     const list = existsSync(cp) ? JSON.parse(readFileSync(cp, 'utf8')) : []
     if (!list.includes('vault-to-foundry')) writeFileSync(cp, JSON.stringify([...list, 'vault-to-foundry'], null, 2))
@@ -85,6 +91,8 @@ async function packZips() {
   await zipDir(moduleOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-module.zip'))
   await zipDir(pluginOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-obsidian.zip'))
   await zipDir(join(root, 'dist/vtf-sync'), 'vtf-sync', join(root, 'dist/vtf-sync.zip'))
+  await zipDir(genOut, 'dsa-nsc-generator', join(root, 'dist/dsa-nsc-generator-obsidian.zip'))
+  console.log('→ dist/dsa-nsc-generator-obsidian.zip (Obsidian: NSC-Generator, optional)')
   console.log('→ dist/vault-to-foundry-obsidian.zip  (Obsidian: nach <vault>/.obsidian/plugins/ entpacken)')
   console.log('→ dist/vault-to-foundry-module.zip    (Foundry: nach <Data>/modules/ entpacken)')
   console.log('→ dist/vtf-sync.zip                   (Server: neben die docker-compose.yaml entpacken)')
@@ -107,6 +115,14 @@ const plugin = await context({
   platform: 'browser',
   external: ['obsidian', 'electron', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
 })
+const gen = await context({
+  ...common,
+  entryPoints: [join(root, 'packages/nsc-generator-plugin/src/main.ts')],
+  outfile: join(genOut, 'main.js'),
+  format: 'cjs',
+  platform: 'browser',
+  external: ['obsidian', 'electron', ...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
+})
 const mod = await context({
   ...common,
   entryPoints: [join(root, 'packages/foundry-module/src/module.ts')],
@@ -116,10 +132,10 @@ const mod = await context({
 })
 
 if (watch) {
-  await Promise.all([plugin.watch(), mod.watch()])
+  await Promise.all([plugin.watch(), mod.watch(), gen.watch()])
   console.log('Beobachte Änderungen … (Strg+C beendet)')
 } else {
-  await Promise.all([plugin.rebuild(), mod.rebuild()])
-  await Promise.all([plugin.dispose(), mod.dispose()])
+  await Promise.all([plugin.rebuild(), mod.rebuild(), gen.rebuild()])
+  await Promise.all([plugin.dispose(), mod.dispose(), gen.dispose()])
   await finish()
 }
