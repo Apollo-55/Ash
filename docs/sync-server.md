@@ -49,3 +49,65 @@ Journal-Seitenleiste:
 VTF_TOKEN=mein-test-token-123456 VTF_DATA_DIR=$PWD/.foundry/data/Data/vault-to-foundry VTF_PORT=8787 node packages/sync-service/server.mjs
 node tools/sync-cli.ts test-vault --name uthuria-ob --url http://127.0.0.1:8787 --token mein-test-token-123456
 ```
+
+## Beispiel: DSA-Instanz auf manic (felddy, Bind-Mount)
+
+Foundry läuft dort als `1001:1001`, die Daten liegen auf dem Host unter `/manic/foundry/yvtt/data`. Pro Foundry-Instanz ein eigener `vtf-sync` mit eigenem Port.
+
+**Einmalig auf dem Host** (Ordner anlegen, gehört dem Foundry-Benutzer):
+
+```bash
+sudo mkdir -p /manic/foundry/yvtt/data/Data/vault-to-foundry
+sudo chown 1001:1001 /manic/foundry/yvtt/data/Data/vault-to-foundry
+```
+
+**`.env`** neben der `docker-compose.yaml` (nicht ins Git, Rechte 600):
+
+```
+VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
+```
+
+**In die bestehende `docker-compose.yaml` der DSA-Instanz** unter `services:` (der Ordner `vtf-sync/` aus `dist/vtf-sync.zip` liegt daneben):
+
+```yaml
+  vtf-sync:
+    build: ./vtf-sync
+    container_name: vtf-sync-dsa
+    user: 1001:1001
+    restart: unless-stopped
+    environment:
+      - VTF_TOKEN=${VTF_TOKEN}
+    volumes:
+      - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry
+    ports:
+      - 127.0.0.1:8787:8787      # nur lokal, nach außen geht es über den Reverse Proxy
+```
+
+Weitere Instanzen: gleicher Block mit anderem `container_name`, eigenem Mount auf deren Datenordner, Port `127.0.0.1:8788:8787` usw.
+
+**Reverse Proxy** (das Token darf nur über HTTPS laufen):
+
+- nginx im `server { … }` der Foundry-Domain:
+  ```nginx
+  location /vtf-sync/ {
+      proxy_pass http://127.0.0.1:8787/;
+      client_max_body_size 512m;
+      proxy_request_buffering off;
+  }
+  ```
+  Plugin-Adresse dann `https://<foundry-domain>/vtf-sync`.
+- Alternativ Caddy mit eigener Subdomain (Caddyfile-Schreibweise):
+  ```
+  vtf-sync.manic-gaming.de {
+      reverse_proxy 127.0.0.1:8787
+  }
+  ```
+  Plugin-Adresse dann `https://vtf-sync.manic-gaming.de`.
+
+Starten und prüfen:
+
+```bash
+docker compose up -d --build vtf-sync
+curl -s http://127.0.0.1:8787/health          # auf dem Server
+curl -s https://<domain>/vtf-sync/health       # von außen, über den Proxy
+```
