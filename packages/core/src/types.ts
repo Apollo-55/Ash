@@ -43,7 +43,48 @@ export interface BundleJournal {
   hash: string
 }
 
-export type BundleDocument = BundleJournal
+/** An embedded item the importer should put on an actor. */
+export interface BundleItem {
+  /** stable id of the embedded item */
+  id: string
+  name: string
+  /** Foundry item types that may satisfy this entry, in order of preference */
+  types: string[]
+  /** compendium hint from the offline catalog (pack name without system prefix) */
+  source?: { pack: string; sid: string; type: string }
+  /** values written below item.system (dot paths) after copying/creating */
+  system: Record<string, unknown>
+  /** used when the item exists nowhere (world, compendia): created from scratch */
+  fallback: { type: string; system: Record<string, unknown> }
+  /** weapons: target values the importer adjusts the combat talent / weapon to */
+  combat?: { talentSid: string; AT?: number; PA?: number; FK?: number; INI?: number }
+}
+
+export interface BundleActor {
+  kind: 'actor'
+  id: string
+  sourcePath: string
+  /** name of the block inside the note */
+  blockName: string
+  folder: string | null
+  name: string
+  /** Foundry system id this actor is meant for */
+  system: string
+  img?: string
+  tokenImg?: string
+  /** prototype token linked to the actor (unique NSC) */
+  linked: boolean
+  /** journal of the note the block lives in */
+  journal?: string
+  /** dot paths below actor.system, written on create and update */
+  data: Record<string, unknown>
+  /** dot paths below actor.system, written only when the actor is created (current LeP etc.) */
+  dataOnCreate: Record<string, unknown>
+  items: BundleItem[]
+  hash: string
+}
+
+export type BundleDocument = BundleJournal | BundleActor
 
 export interface BundleAsset {
   /** Path inside the ZIP and below assetsBase, e.g. "Asasets/Token/token_viper.png" */
@@ -62,6 +103,8 @@ export type WarningCode =
   | 'unsupported-embed'
   | 'invalid-frontmatter'
   | 'note-type-pending'
+  | 'nsc-error'
+  | 'nsc-warning'
 
 export interface BundleWarning {
   code: WarningCode
@@ -74,6 +117,8 @@ export interface Bundle {
   generator: { name: string; version: string }
   vault: { name: string; slug: string }
   generatedAt: string
+  /** Foundry system the actor data is meant for (e.g. "dsa-41"); absent when the bundle has no actors */
+  system?: string
   /** Data-relative base directory of uploaded assets, e.g. "vault-to-foundry/uthuria-ob/assets" */
   assetsBase: string
   folders: BundleFolder[]
@@ -93,3 +138,6 @@ export interface DocumentFlags {
   /** Marks embedded documents (pages, items) the importer owns. */
   managed?: boolean
 }
+
+export const journalsOf = (b: Pick<Bundle, 'documents'>): BundleJournal[] => b.documents.filter((d): d is BundleJournal => d.kind === 'journal')
+export const actorsOf = (b: Pick<Bundle, 'documents'>): BundleActor[] => b.documents.filter((d): d is BundleActor => d.kind === 'actor')

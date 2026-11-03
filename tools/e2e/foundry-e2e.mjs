@@ -244,6 +244,106 @@ const steps = {
     })
   },
 
+  async actors() {
+    // inspect imported NSCs: base values, items, AT/PA as the sheet computes them
+    await withPage(async (page) => {
+      const r = await page.evaluate(() => {
+        const out = {}
+        for (const a of game.actors.filter((x) => x.flags['vault-to-foundry'])) {
+          const s = a.system
+          const act = s.base.combatAttributes.active
+          const weapons = a.items.filter((i) => ['meleeWeapon', 'rangedWeapon'].includes(i.type)).map((w) => {
+            const t = a.items.find((i) => i.type === 'combatTalent' && i.system.sid === w.system.talent)
+            const sheetAT = t ? act.baseAttack.value + t.system.combat.attack : null
+            const sheetPA = t ? act.baseParry.value + t.system.combat.parry : null
+            return `${w.name}[${t?.name ?? '?'} TaW ${t?.system.value}] Bogen ${sheetAT}/${sheetPA} Wurf ${sheetAT + w.system.weaponMod.attack}/${sheetPA + w.system.weaponMod.parry} TP ${w.system.damage} INI-Mod ${w.system.initiativeMod}`
+          })
+          const origin = {}
+          for (const i of a.items) {
+            const f = i.flags['vault-to-foundry']?.from ?? 'neu'
+            const k = f.startsWith('Compendium') ? 'kompendium' : f === 'neu' ? 'neu' : 'welt'
+            origin[k] = (origin[k] ?? 0) + 1
+          }
+          out[a.name] = {
+            attr: Object.values(s.base.basicAttributes).map((x) => x.value).join(' '),
+            LeP: `${s.base.resources.vitality.value}/${s.base.resources.vitality.max}`,
+            AsP: `${s.base.resources.astralEnergy.value}/${s.base.resources.astralEnergy.max} tab=${s.settings.showAstralTab}`,
+            MR: `${s.base.combatAttributes.passive.magicResistance.value} auto=${s.settings.autoCalcMagicResistance}`,
+            INI: `${act.baseInitiative.value} auto=${s.settings.autoCalcInitiative}`,
+            AW: `${act.dodge.value} auto=${s.settings.autoCalcDodge}`,
+            basis: `AT ${act.baseAttack.value} PA ${act.baseParry.value}`,
+            RS: `+${s.modifiers.additionalRS}`, WS: Object.values(s.base.combatAttributes.passive.woundThresholds).join('/'),
+            GS: s.base.movement.speed.value,
+            weapons, armed: `${s.base.combatState.isArmed} ${a.items.get(s.base.combatState.primaryHand)?.name}`,
+            items: a.items.size, origin,
+            neu: a.items.filter((i) => !i.flags['vault-to-foundry']?.from).map((i) => i.name),
+            img: a.img.split('/').pop(), token: a.prototypeToken.texture.src?.split('/').pop(), linked: a.prototypeToken.actorLink,
+            folder: a.folder?.name, bio: /@UUID\[JournalEntry\./.test(s.background.description),
+          }
+        }
+        return out
+      })
+      console.log(JSON.stringify(r, null, 1))
+    })
+  },
+
+  async play() {
+    // simulate game state on Shahane: damage, a hand-added item, an effect
+    await withPage(async (page) => {
+      const r = await page.evaluate(async () => {
+        const a = game.actors.getName('Shahane ay Zedrakin')
+        await a.update({ 'system.base.resources.vitality.value': 20, 'system.base.resources.endurance.value': 11 })
+        await a.createEmbeddedDocuments('Item', [{ name: 'Beutel mit Gift', type: 'genericItem' }])
+        await a.createEmbeddedDocuments('ActiveEffect', [{ name: 'Vergiftet', changes: [] }])
+        return { items: a.items.size, effects: a.effects.size }
+      })
+      console.log(JSON.stringify(r))
+    })
+  },
+
+  async playcheck() {
+    await withPage(async (page) => {
+      const r = await page.evaluate(() => {
+        const a = game.actors.getName('Shahane ay Zedrakin')
+        const s = a.system
+        const t = a.items.find((i) => i.system.sid === 'talent-saebel')
+        return {
+          LeP: `${s.base.resources.vitality.value}/${s.base.resources.vitality.max}`,
+          AuP: `${s.base.resources.endurance.value}/${s.base.resources.endurance.max}`,
+          handItem: !!a.items.getName('Beutel mit Gift'), effect: !!a.effects.getName('Vergiftet'),
+          saebelAT: s.base.combatAttributes.active.baseAttack.value + t.system.combat.attack,
+          finte: !!a.items.getName('Finte'), neid: a.items.getName('Neid')?.system.value, items: a.items.size,
+          actors: game.actors.size,
+        }
+      })
+      console.log(JSON.stringify(r))
+    })
+  },
+
+  async actorshots() {
+    await withPage(async (page) => {
+      await page.evaluate(() => game.journal.getName('Sabotage NSC').sheet.render(true))
+      await page.waitForTimeout(2000)
+      let sel = await page.evaluate(() => `#${game.journal.getName('Sabotage NSC').sheet.id}`)
+      await page.locator(sel).screenshot({ path: `${OUT}/30-journal-statblock.png` })
+      await page.evaluate(() => game.journal.getName('Sabotage NSC').sheet.close())
+      for (const [name, file] of [['Shahane ay Zedrakin', '31-shahane'], ['Die Viper', '32-viper']]) {
+        await page.evaluate((n) => game.actors.getName(n).sheet.render(true), name)
+        await page.waitForTimeout(2500)
+        sel = await page.evaluate((n) => `#${game.actors.getName(n).sheet.id}`, name)
+        await page.locator(sel).screenshot({ path: `${OUT}/${file}.png` })
+        // combat tab if present
+        const tab = page.locator(`${sel} [data-tab="combat"], ${sel} a:has-text("Kampf")`).first()
+        if (await tab.count()) {
+          await tab.click()
+          await page.waitForTimeout(1000)
+          await page.locator(sel).screenshot({ path: `${OUT}/${file}-kampf.png` })
+        }
+        await page.evaluate((n) => game.actors.getName(n).sheet.close(), name)
+      }
+    })
+  },
+
   async eval() {
     // run an expression in the GM client: node foundry-e2e.mjs eval "game.folders.map(f=>f.name)"
     await withPage(async (page) => console.log(JSON.stringify(await page.evaluate(`(async () => (${arg}))()`), null, 1)))

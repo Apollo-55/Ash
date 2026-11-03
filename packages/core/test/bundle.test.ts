@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { folderLevels, isExcluded, matchesPattern, planSync, preserveRevealedSecrets, revealedSecretIds, sortFoldersByDepth } from '../src/index.ts'
+import { journalsOf } from '../src/types.ts'
 import { build } from './helpers.ts'
 
 describe('Ordner', () => {
   it('folgen der Vault-Struktur', () => {
     const { bundle } = build({ 'NPC/Besatzung/Ebba.md': 'x', 'NPC/Topasa.md': 'y', 'Welcome.md': 'z' })
     expect(bundle.folders.map((f) => f.sourcePath)).toEqual(['NPC', 'NPC/Besatzung'])
-    const ebba = bundle.documents.find((d) => d.name === 'Ebba')!
+    const ebba = journalsOf(bundle).find((d) => d.name === 'Ebba')!
     const besatzung = bundle.folders.find((f) => f.name === 'Besatzung')!
     expect(ebba.folder).toBe(besatzung.id)
     expect(besatzung.parent).toBe(bundle.folders.find((f) => f.name === 'NPC')!.id)
-    expect(bundle.documents.find((d) => d.name === 'Welcome')!.folder).toBeNull()
+    expect(journalsOf(bundle).find((d) => d.name === 'Welcome')!.folder).toBeNull()
   })
 
   it('fasst Ebenen tiefer als 4 zusammen', () => {
@@ -41,14 +42,14 @@ describe('Ausschlüsse und Frontmatter', () => {
 
   it('ausgeschlossene Notizen erscheinen nicht und Links darauf werden Text', () => {
     const { bundle } = build({ 'A.md': '[[Geheim]]', '_privat/Geheim.md': 'x' }, [], { excludePatterns: ['_privat/'] })
-    expect(bundle.documents.map((d) => d.sourcePath)).toEqual(['A.md'])
-    expect(bundle.documents[0].pages[0].html).toContain('vtf-unresolved')
+    expect(journalsOf(bundle).map((d) => d.sourcePath)).toEqual(['A.md'])
+    expect(journalsOf(bundle)[0].pages[0].html).toContain('vtf-unresolved')
     expect(bundle.skipped).toEqual([{ sourcePath: '_privat/Geheim.md', reason: 'Ausschlussmuster' }])
   })
 
   it('foundry.typ: ignorieren', () => {
     const { bundle } = build({ 'A.md': '---\nfoundry:\n  typ: ignorieren\n---\nx' })
-    expect(bundle.documents).toHaveLength(0)
+    expect(journalsOf(bundle)).toHaveLength(0)
   })
 
   it('sichtbar setzt Berechtigung nur wenn angegeben', () => {
@@ -57,7 +58,7 @@ describe('Ausschlüsse und Frontmatter', () => {
       'B.md': 'x',
       'C.md': '---\nfoundry:\n  sichtbar: gm\n---\nx',
     })
-    const by = Object.fromEntries(bundle.documents.map((d) => [d.name, d.ownership]))
+    const by = Object.fromEntries(journalsOf(bundle).map((d) => [d.name, d.ownership]))
     expect(by).toEqual({ A: { default: 2 }, B: undefined, C: { default: 0 } })
   })
 
@@ -68,12 +69,21 @@ describe('Ausschlüsse und Frontmatter', () => {
 
   it('Frontmatter erscheint nicht im Journal', () => {
     const { bundle } = build({ 'A.md': '---\ntags: [npc]\n---\nText' })
-    expect(bundle.documents[0].pages[0].html).toBe('<p>Text</p>\n')
+    expect(journalsOf(bundle)[0].pages[0].html).toBe('<p>Text</p>\n')
   })
 
   it('.canvas/.base werden nicht als Anhang hochgeladen, alles andere schon', () => {
     const { bundle } = build({ 'A.md': 'x' }, ['Untitled.canvas', 'Untitled.base', 'Asasets/Tiles/Ship_full.png'])
     expect(bundle.assets.map((a) => a.sourcePath)).toEqual(['Asasets/Tiles/Ship_full.png'])
+  })
+
+  it('Dateitypen, die Foundry ablehnt, werden übersprungen und gemeldet', () => {
+    const { bundle } = build({ 'A.md': 'x' }, ['a.png', 'notiz.md.bak', 'Skript.exe', 'karte.webp'])
+    expect(bundle.assets.map((a) => a.sourcePath)).toEqual(['a.png', 'karte.webp'])
+    expect(bundle.skipped).toEqual([
+      { sourcePath: 'Skript.exe', reason: 'Dateityp „.exe“ nimmt Foundry nicht an' },
+      { sourcePath: 'notiz.md.bak', reason: 'Dateityp „.bak“ nimmt Foundry nicht an' },
+    ])
   })
 
   it('nur verlinkte Anhänge, wenn eingestellt', () => {

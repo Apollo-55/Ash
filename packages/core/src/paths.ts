@@ -113,3 +113,13 @@ export function isVaultInternal(path: string): boolean {
   const ext = extname(path)
   return ext === 'canvas' || ext === 'base' || path.startsWith('.obsidian/') || path.startsWith('.trash/')
 }
+
+/** File extensions Foundry v13 accepts for uploads (from the server's upload validation). */
+export const FOUNDRY_UPLOAD_EXTENSIONS = new Set([
+  'apng', 'avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'tiff', 'webp',
+  'aac', 'flac', 'm4a', 'mid', 'mp3', 'ogg', 'opus', 'wav', 'webm', 'm4v', 'mp4', 'ogv',
+  'csv', 'json', 'md', 'pdf', 'tsv', 'txt', 'xml', 'yml', 'yaml',
+  'otf', 'ttf', 'woff', 'woff2', 'fbx', 'glb', 'gltf', 'mtl', 'obj', 'stl', 'usdz',
+])
+
+export const isUploadable = (path: string) => FOUNDRY_UPLOAD_EXTENSIONS.has(extname(path))

@@ -1,14 +1,17 @@
 import { hashObject, hashString, makeId } from './ids.ts'
-import { makeWarningCollector, type FenceHandler, type HeadingInfo, type LinkTarget, type RenderEnv } from './markdown/env.ts'
+import { makeWarningCollector, normalizeHeading, type FenceHandler, type HeadingInfo, type LinkTarget, type RenderEnv } from './markdown/env.ts'
 import { splitFrontmatter, stripBlockIds, stripComments } from './markdown/preprocess.ts'
 import { renderBody } from './markdown/render.ts'
 import { readNoteConfig } from './note-config.ts'
-import { assetKind, basename, dirname, extname, folderLevels, isExcluded, isVaultInternal, safePath, stripExtension, vaultSlug } from './paths.ts'
+import { assetKind, basename, dirname, extname, folderLevels, isExcluded, isUploadable, isVaultInternal, safePath, stripExtension, vaultSlug } from './paths.ts'
 import type { LinkResolver } from './resolver.ts'
+import type { ParsedBlock, SystemAdapter } from './systems/adapter.ts'
 import {
   BUNDLE_SCHEMA_VERSION,
   type Bundle,
+  type BundleActor,
   type BundleAsset,
+  type BundleDocument,
   type BundleFolder,
   type BundleJournal,
   type BundleWarning,
@@ -37,6 +40,8 @@ export interface BuildOptions {
   /** upload attachments even if no note references them (default true) */
   includeUnreferencedAttachments?: boolean
   fenceHandlers?: Record<string, FenceHandler>
+  /** game system adapter for NPC blocks (e.g. dsa41Adapter); without it NPC blocks stay code blocks */
+  system?: SystemAdapter<any>
   generator?: { name: string; version: string }
   now?: Date
 }
@@ -86,12 +91,21 @@ export function buildBundle(opts: BuildOptions): BuildResult {
   const skipped: Bundle['skipped'] = []
   const ids = new IdAllocator(vault, { ...(opts.idMap ?? {}) })
   const includeAll = opts.includeUnreferencedAttachments ?? true
+  const adapter = opts.system
 
   // ---- attachments → zip paths ------------------------------------------------------------
   const attachmentZipPath = new Map<string, string>()
   const takenZip = new Set<string>()
   for (const path of [...opts.attachments].sort()) {
-    if (isVaultInternal(path) || isExcluded(path, excludes)) continue
+    if (isVaultInternal(path)) continue
+    if (isExcluded(path, excludes)) {
+      skipped.push({ sourcePath: path, reason: 'Ausschlussmuster' })
+      continue
+    }
+    if (!isUploadable(path)) {
+      skipped.push({ sourcePath: path, reason: `Dateityp „.${extname(path) || '?'}“ nimmt Foundry nicht an` })
+      continue
+    }
     let zip = safePath(path)
     if (takenZip.has(zip.toLowerCase())) {
       const ext = extname(zip)
@@ -132,6 +146,8 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     pageId: string
     body: string
     ownership?: BundleJournal['ownership']
+    blocks: { name: string; actorId: string; parsed: ParsedBlock<unknown>; startLine: number }[]
+    images: { line: number; ref: string }[]
   }
   const prepared: Prepared[] = []
   const targets = new Map<string, LinkTarget>()
@@ -158,12 +174,35 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     const id = ids.get(note.path)
     const pageId = makeId(id, 'page', 'text')
     const name = stripExtension(basename(note.path))
-    prepared.push({ note, name, id, pageId, body, ownership: config.ownership })
-    targets.set(note.path, {
+    const target: LinkTarget = {
       uuid: `JournalEntry.${id}`,
       pageUuid: `JournalEntry.${id}.JournalEntryPage.${pageId}`,
       name,
-    })
+    }
+    const blocks: Prepared['blocks'] = []
+    if (adapter) {
+      const seenNames = new Map<string, number>()
+      for (const fence of findFences(body, adapter.blockLanguage)) {
+        const parsed = adapter.parse(fence.content)
+        const label = parsed.name ?? `Block ${blocks.length + 1}`
+        for (const issue of parsed.issues) {
+          if (issue.level === 'info') continue
+          warn(issue.level === 'error' ? 'nsc-error' : 'nsc-warning', `NSC „${label}“: ${issue.message}`)
+        }
+        if (!parsed.data || !parsed.name) {
+          blocks.push({ name: label, actorId: '', parsed, startLine: fence.startLine })
+          continue
+        }
+        const n = seenNames.get(parsed.name) ?? 0
+        seenNames.set(parsed.name, n + 1)
+        const actorId = ids.get(`${note.path}#${parsed.name}${n ? `#${n + 1}` : ''}`)
+        blocks.push({ name: parsed.name, actorId, parsed, startLine: fence.startLine })
+        target.anchors ??= new Map()
+        target.anchors.set(normalizeHeading(parsed.name), { uuid: `Actor.${actorId}`, name: parsed.name })
+      }
+    }
+    prepared.push({ note, name, id, pageId, body, ownership: config.ownership, blocks, images: findImageEmbeds(body) })
+    targets.set(note.path, target)
   }
 
   // PDFs become their own journal with a PDF page
@@ -180,7 +219,15 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     pdfJournals.push({ kind: 'journal', id, sourcePath: path, folder, name, pages, hash: hashObject({ v: BUNDLE_SCHEMA_VERSION, name, folder, pages }) })
   }
 
-  const fenceHandlers = opts.fenceHandlers ?? {}
+  const fenceHandlers: Record<string, FenceHandler> = { ...(opts.fenceHandlers ?? {}) }
+  const blocksByNote = new Map(prepared.map((p) => [p.note.path, p.blocks]))
+  if (adapter) {
+    fenceHandlers[adapter.blockLanguage] = (content, env) => {
+      const b = blocksByNote.get(env.sourcePath)?.[env.blockCount++]
+      const parsed = b?.parsed ?? adapter.parse(content)
+      return adapter.renderStatblock(parsed, { actorUuid: b?.actorId ? `Actor.${b.actorId}` : undefined })
+    }
+  }
   const makeEnv = (sourcePath: string, warn: RenderEnv['warn'], id: string, map: Map<string, LinkTarget>): RenderEnv => ({
     sourcePath,
     resolver: opts.resolver,
@@ -191,6 +238,7 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     fenceHandlers,
     headings: [],
     secretCount: 0,
+    blockCount: 0,
   })
 
   // headings of every note (for [[Note#Heading]]) – throwaway render without warnings
@@ -203,7 +251,7 @@ export function buildBundle(opts: BuildOptions): BuildResult {
   for (const pdf of pdfJournals) usedAssets.add(pdf.sourcePath)
 
   // ---- pass 2: render ---------------------------------------------------------------------
-  const documents: BundleJournal[] = []
+  const documents: BundleDocument[] = []
   for (const p of prepared) {
     const env = makeEnv(p.note.path, makeWarningCollector(warnings, p.note.path), p.id, targets)
     const html = renderBody(p.body, env)
@@ -213,6 +261,45 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     documents.push({ kind: 'journal', id: p.id, sourcePath: p.note.path, folder, name: p.name, ownership: p.ownership, pages, hash })
   }
   documents.push(...pdfJournals)
+
+  // ---- actors from NPC blocks ---------------------------------------------------------------
+  const actors: BundleActor[] = []
+  if (adapter) {
+    for (const p of prepared) {
+      const valid = p.blocks.filter((b) => b.actorId)
+      valid.forEach((b, i) => {
+        const next = valid[i + 1]?.startLine ?? Infinity
+        const from = i === 0 ? 0 : b.startLine
+        const near = p.images.filter((img) => img.line >= from && img.line < next)
+        const isToken = (ref: string) => /^token[_-]/i.test(basename(ref))
+        const resolveImage = (ref: string): string | null => {
+          const clean = ref.replace(/^!?\[\[|\]\]$/g, '').split('|')[0].trim()
+          const path = opts.resolver.resolve(clean, p.note.path)
+          if (!path) {
+            warnings.push({ code: 'nsc-warning', sourcePath: p.note.path, message: `NSC „${b.name}“: Bild „${clean}“ nicht gefunden.` })
+            return null
+          }
+          return assetUrl(path)
+        }
+        const partial = adapter.toActor(b.parsed.data, {
+          actorId: b.actorId,
+          sourcePath: p.note.path,
+          journalId: p.id,
+          journalName: p.name,
+          resolveImage,
+          nearbyImages: {
+            portrait: near.find((img) => !isToken(img.ref) && assetKind(img.ref) === 'image')?.ref,
+            token: near.find((img) => isToken(img.ref))?.ref,
+          },
+          linkedDefault: valid.length === 1,
+        })
+        const folder = folderFor('Actor', dirname(p.note.path))
+        const actor: Omit<BundleActor, 'hash'> = { kind: 'actor', id: b.actorId, sourcePath: p.note.path, blockName: b.name, folder, ...partial }
+        actors.push({ ...actor, hash: hashObject({ v: BUNDLE_SCHEMA_VERSION, ...actor }) })
+      })
+    }
+  }
+  documents.push(...actors)
 
   // ---- assets -----------------------------------------------------------------------------
   const assetFiles = new Map<string, string>()
@@ -228,6 +315,7 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     generator: opts.generator ?? { name: 'vault-to-foundry', version: '0.0.0' },
     vault: { name: vault, slug },
     generatedAt: (opts.now ?? new Date()).toISOString(),
+    ...(actors.length && adapter ? { system: adapter.foundrySystem } : {}),
     assetsBase,
     folders: [...folders.values()].sort((a, b) => a.sourcePath.localeCompare(b.sourcePath)),
     documents,
@@ -236,4 +324,35 @@ export function buildBundle(opts: BuildOptions): BuildResult {
     skipped,
   }
   return { bundle, idMap: ids.result(), assetFiles }
+}
+
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)/
+
+/** Top-level fenced code blocks of one language (line-based, like Obsidian). */
+export function findFences(body: string, lang: string): { content: string; startLine: number }[] {
+  const lines = body.split('\n')
+  const out: { content: string; startLine: number }[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const m = FENCE_OPEN.exec(lines[i])
+    if (!m) continue
+    const marker = m[1]
+    let j = i + 1
+    const isClose = (line: string) => {
+      const t = line.trim()
+      return t.length >= marker.length && /^(`+|~+)$/.test(t) && t[0] === marker[0]
+    }
+    while (j < lines.length && !isClose(lines[j])) j++
+    if (m[2].toLowerCase() === lang) out.push({ content: lines.slice(i + 1, j).join('\n'), startLine: i })
+    i = j
+  }
+  return out
+}
+
+/** Image embeds with their line numbers ("![[x.png]]", "![](x.png)"). */
+export function findImageEmbeds(body: string): { line: number; ref: string }[] {
+  const out: { line: number; ref: string }[] = []
+  body.split('\n').forEach((line, i) => {
+    for (const m of line.matchAll(/!\[\[([^\]|#]+)[^\]]*\]\]|!\[[^\]]*\]\(([^)\s]+)\)/g)) out.push({ line: i, ref: (m[1] ?? decodeURIComponent(m[2])).trim() })
+  })
+  return out
 }

@@ -5,4 +5,5 @@ export const SUPPORTED_SCHEMA = 1
 export const SETTINGS = {
   assetManifest: 'assetManifest',
   lastReport: 'lastReport',
+  extraPacks: 'extraPacks',
 } as const

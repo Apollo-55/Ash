@@ -3,14 +3,16 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import JSZip from 'jszip'
-import { buildBundle, createSimpleResolver, hashBytes } from '../packages/core/src/index.ts'
+import { actorsOf, buildBundle, createSimpleResolver, dsa41Adapter, hashBytes, journalsOf } from '../packages/core/src/index.ts'
 
 const args = process.argv.slice(2)
 const positional: string[] = []
 const excludes: string[] = []
 let name: string | undefined
+let withSystem = true
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--name') name = args[++i]
+  else if (args[i] === '--no-system') withSystem = false
   else if (args[i] === '--exclude') excludes.push(args[++i])
   else positional.push(args[i])
 }
@@ -42,6 +44,7 @@ const { bundle, assetFiles } = buildBundle({
   resolver: createSimpleResolver(files),
   excludePatterns: excludes,
   generator: { name: 'vault-to-foundry-cli', version: '0.1.0' },
+  system: withSystem ? dsa41Adapter : undefined,
 })
 
 const zip = new JSZip()
@@ -58,6 +61,6 @@ const buf = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE'
 writeFileSync(outFile, buf)
 
 console.log(`Vault „${vaultName}“ → ${outFile} (${(buf.length / 1048576).toFixed(1)} MB)`)
-console.log(`  ${bundle.documents.length} Journale, ${bundle.folders.length} Ordner, ${bundle.assets.length} Anhänge, ${bundle.skipped.length} übersprungen`)
+console.log(`  ${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${bundle.folders.length} Ordner, ${bundle.assets.length} Anhänge, ${bundle.skipped.length} übersprungen`)
 console.log(`  ${bundle.warnings.length} Warnungen`)
 for (const w of bundle.warnings) console.log(`   - [${w.code}] ${w.sourcePath}: ${w.message}`)

@@ -1,4 +1,4 @@
-# Testcheckliste Foundry (M1: Journale)
+# Testcheckliste Foundry (M1: Journale, M2: NSCs)
 
 Die Import-Logik ist dreifach getestet:
 
@@ -78,3 +78,17 @@ LIST
 
 - [ ] **[auto]** Beliebige andere ZIP wählen → Meldung „enthält keine bundle.json“.
 - [ ] Als Spieler (Nicht-GM): kein Knopf sichtbar.
+
+## NSCs (M2)
+
+Testdaten: `tools/e2e/fixtures/Sabotage NSC.md` (Viper, Schattenweber, Vollstrecker, Riff-Hydra) und der Block in „Shahane ay Zedrakin“. `npm run e2e` kopiert sie in die Test-Vault.
+
+- [ ] **[auto]** Jeder Block wird ein Actor (Typ `character`) im Actor-Ordner wie in der Vault.
+- [ ] **[auto]** Eigenschaften, LeP/AuP/AsP (Maximum und beim Anlegen aktuell), feste Werte mit ausgeschalteter Automatik, sonst Automatik an.
+- [ ] **[auto]** Items aus den Kompendien (per sid), eigene/unbekannte neu angelegt und im Bericht gewarnt.
+- [ ] **[auto]** AT/PA auf dem Bogen = Werte aus dem Block, zweite Waffe mit demselben Talent über den Waffenmodifikator.
+- [ ] **[auto]** Porträt, Token, Verknüpfung (einzelner NSC verknüpft, mehrere pro Notiz nicht), Biografie mit Link aufs Journal.
+- [ ] **[auto]** Erneuter Import nach Änderung: Maximum neu, aktuelle LeP bleiben, Hand-Item und Effekt bleiben, entfernte SF verschwinden.
+- [ ] **[auto]** Unverändert erneut: alles übersprungen. Verwaiste NSCs löschbar.
+- [ ] Von Hand: Würfe vom Bogen (Talentprobe, Attacke mit Säbel, Zauber) funktionieren.
+- [ ] Von Hand in Obsidian: Wertekasten wird angezeigt, Fehler (z. B. `KK: 1a`) erscheinen rot, „gerechnet“ steht neben MR/INI/WS. Befehl „DSA-NSC-Vorlage einfügen“.

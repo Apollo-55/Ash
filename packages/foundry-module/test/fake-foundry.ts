@@ -187,6 +187,8 @@ export function installFakeFoundry(): FakeWorld {
   g.game = {
     journal: world.journal,
     folders: world.folders,
+    actors: new Collection(),
+    system: { id: 'dsa-41' },
     user: { isGM: true },
     settings: {
       get: (_m: string, k: string) => structuredClone(world.settings.get(k) ?? (k === 'assetManifest' ? {} : null)),

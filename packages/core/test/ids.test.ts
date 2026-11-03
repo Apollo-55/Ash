@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FOUNDRY_ID_PATTERN, hashObject, makeId } from '../src/index.ts'
+import { journalsOf } from '../src/types.ts'
 import { build } from './helpers.ts'
 
 describe('makeId', () => {
@@ -35,32 +36,32 @@ describe('ID-Stabilität im Bundle', () => {
     const notes = { 'A/Eins.md': 'Hallo [[Zwei]]', 'Zwei.md': '# Zwei' }
     const r1 = build(notes)
     const r2 = build(notes)
-    expect(r2.bundle.documents.map((d) => [d.id, d.hash])).toEqual(r1.bundle.documents.map((d) => [d.id, d.hash]))
+    expect(journalsOf(r2.bundle).map((d) => [d.id, d.hash])).toEqual(journalsOf(r1.bundle).map((d) => [d.id, d.hash]))
   })
 
   it('Umbenennen mit Zuordnung behält die ID', () => {
     const first = build({ 'NPC/Ebba.md': 'Text' })
-    const oldId = first.bundle.documents[0].id
+    const oldId = journalsOf(first.bundle)[0].id
     // plugin rename handler moves the key
     const idMap = { 'NPC/Besatzung/Ebba Sturmfels.md': first.idMap['NPC/Ebba.md'] }
     const second = build({ 'NPC/Besatzung/Ebba Sturmfels.md': 'Text' }, [], { idMap })
-    expect(second.bundle.documents[0].id).toBe(oldId)
-    expect(second.bundle.documents[0].name).toBe('Ebba Sturmfels')
+    expect(journalsOf(second.bundle)[0].id).toBe(oldId)
+    expect(journalsOf(second.bundle)[0].name).toBe('Ebba Sturmfels')
   })
 
   it('neue Notiz am alten Pfad bekommt keine doppelte ID', () => {
     const first = build({ 'Ebba.md': 'alt' })
     const idMap = { 'Neu/Ebba.md': first.idMap['Ebba.md'] }
     const second = build({ 'Neu/Ebba.md': 'alt', 'Ebba.md': 'neu' }, [], { idMap })
-    const ids = second.bundle.documents.map((d) => d.id)
+    const ids = journalsOf(second.bundle).map((d) => d.id)
     expect(new Set(ids).size).toBe(2)
-    expect(second.bundle.documents.find((d) => d.sourcePath === 'Neu/Ebba.md')!.id).toBe(first.bundle.documents[0].id)
+    expect(journalsOf(second.bundle).find((d) => d.sourcePath === 'Neu/Ebba.md')!.id).toBe(journalsOf(first.bundle)[0].id)
   })
 
   it('Seiten- und Secret-IDs sind stabil und gültig', () => {
     const notes = { 'S.md': '> [!geheim]\n> Der Kapitän lügt.\n\n> [!secret] Zweites\n> x' }
-    const a = build(notes).bundle.documents[0]
-    const b = build(notes).bundle.documents[0]
+    const a = journalsOf(build(notes).bundle)[0]
+    const b = journalsOf(build(notes).bundle)[0]
     expect(a.pages[0].id).toMatch(FOUNDRY_ID_PATTERN)
     expect(a.pages[0].html).toBe(b.pages[0].html)
     const secretIds = [...a.pages[0].html!.matchAll(/id="secret-([A-Za-z0-9]+)"/g)].map((m) => m[1])

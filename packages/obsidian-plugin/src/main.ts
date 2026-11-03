@@ -1,12 +1,16 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, type TAbstractFile } from 'obsidian'
+import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { buildBundle, hashBytes, vaultSlug, type Bundle, type LinkResolver, type NoteInput } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, vaultSlug, type Bundle, type LinkResolver, type NoteInput, type SystemAdapter } from '../../core/src/index.ts'
+
+const ADAPTERS: Record<string, SystemAdapter<any>> = { dsa41: dsa41Adapter }
 
 interface VtfSettings {
   outputDir: string
   excludePatterns: string[]
   rootFolder: string
   includeUnreferencedAttachments: boolean
+  /** game system adapter for NPC blocks ("dsa41") or "" for none */
+  system: string
   /** sourcePath → Foundry id; kept up to date on rename so ids survive moves */
   idMap: Record<string, string>
 }
@@ -26,6 +30,7 @@ const DEFAULTS: VtfSettings = {
   excludePatterns: [],
   rootFolder: '',
   includeUnreferencedAttachments: true,
+  system: 'dsa41',
   idMap: {},
 }
 
@@ -42,13 +47,35 @@ export default class VaultToFoundryPlugin extends Plugin {
     })
     this.addRibbonIcon('package', 'Vault to Foundry: exportieren', () => this.exportZip())
 
+    // NPC blocks: rendered as stat box with validation and calculated values
+    for (const adapter of Object.values(ADAPTERS)) {
+      this.registerMarkdownCodeBlockProcessor(adapter.blockLanguage, (source, el) => {
+        const html = adapter.renderStatblock(adapter.parse(source), { showIssues: true, showCalculated: true })
+        el.appendChild(sanitizeHTMLToDom(html))
+      })
+    }
+    this.addCommand({
+      id: 'insert-nsc-template',
+      name: 'DSA-NSC-Vorlage einfügen',
+      editorCallback: (editor: Editor) => {
+        const adapter = ADAPTERS[this.settings.system] ?? dsa41Adapter
+        const cursor = editor.getCursor()
+        const prefix = cursor.ch > 0 ? '\n\n' : ''
+        editor.replaceSelection(prefix + adapter.template())
+        // place the cursor behind "name: "
+        const line = cursor.line + (prefix ? 2 : 0) + 1
+        editor.setCursor({ line, ch: editor.getLine(line).length })
+      },
+    })
+
     // Keep ids stable when notes or folders are renamed/moved
     this.registerEvent(
       this.app.vault.on('rename', async (file: TAbstractFile, oldPath: string) => {
         const map = this.settings.idMap
         let changed = false
         for (const key of Object.keys(map)) {
-          if (key === oldPath || key.startsWith(oldPath + '/')) {
+          // "note.md", "folder/…" and NPC keys "note.md#Name"
+          if (key === oldPath || key.startsWith(oldPath + '/') || key.startsWith(oldPath + '#')) {
             const newKey = file.path + key.slice(oldPath.length)
             map[newKey] = map[key]
             delete map[key]
@@ -105,6 +132,7 @@ export default class VaultToFoundryPlugin extends Plugin {
         rootFolder: this.settings.rootFolder.trim() || undefined,
         includeUnreferencedAttachments: this.settings.includeUnreferencedAttachments,
         generator: { name: 'vault-to-foundry-obsidian', version: this.manifest.version },
+        system: ADAPTERS[this.settings.system],
       })
 
       const zip = new JSZip()
@@ -158,7 +186,7 @@ class ExportResultModal extends Modal {
     this.titleEl.setText('Export für Foundry')
     contentEl.addClass('vtf-export-result')
     contentEl.createEl('p', {
-      text: `${bundle.documents.length} Journale, ${bundle.folders.length} Ordner, ${bundle.assets.length} Dateien (${(this.size / 1048576).toFixed(1)} MB).`,
+      text: `${journalsOf(bundle).length} Journale, ${actorsOf(bundle).length} NSCs, ${bundle.folders.length} Ordner, ${bundle.assets.length} Dateien (${(this.size / 1048576).toFixed(1)} MB).`,
     })
     const p = contentEl.createEl('p')
     p.createSpan({ text: 'Gespeichert unter: ' })
@@ -256,6 +284,20 @@ class VtfSettingTab extends PluginSettingTab {
           s.includeUnreferencedAttachments = v
           await this.plugin.saveSettings()
         })
+      )
+
+    new Setting(containerEl)
+      .setName('Spielsystem für NSC-Blöcke')
+      .setDesc('Welche Codeblöcke als NSC gelten und wie sie nach Foundry übertragen werden.')
+      .addDropdown((d) =>
+        d
+          .addOption('dsa41', 'DSA 4.1 (dsa-41) – ```dsa-nsc')
+          .addOption('', 'keins (NSC-Blöcke bleiben Codeblöcke)')
+          .setValue(s.system)
+          .onChange(async (v) => {
+            s.system = v
+            await this.plugin.saveSettings()
+          })
       )
 
     new Setting(containerEl)

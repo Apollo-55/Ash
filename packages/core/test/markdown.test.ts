@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseWikilinkInner, splitFrontmatter, stripBlockIds, stripComments } from '../src/index.ts'
+import { journalsOf } from '../src/types.ts'
 import { html } from './helpers.ts'
 
 describe('Kommentare %%…%%', () => {
@@ -81,14 +82,14 @@ describe('Wikilinks', () => {
 
   it('wird zu @UUID mit Label', () => {
     const { html: out, bundle } = html(notes, 'Start.md')
-    const target = bundle.documents.find((d) => d.sourcePath === 'NPC/Sir Rondrigo.md')!
+    const target = journalsOf(bundle).find((d) => d.sourcePath === 'NPC/Sir Rondrigo.md')!
     expect(out).toContain(`@UUID[JournalEntry.${target.id}]{Sir Rondrigo}`)
     expect(out).toContain(`@UUID[JournalEntry.${target.id}]{der Ritter}`)
   })
 
   it('Überschriften-Links zeigen auf Seite + Anker', () => {
     const { html: out, bundle } = html(notes, 'Start.md')
-    const target = bundle.documents.find((d) => d.sourcePath === 'NPC/Sir Rondrigo.md')!
+    const target = journalsOf(bundle).find((d) => d.sourcePath === 'NPC/Sir Rondrigo.md')!
     const page = target.pages[0].id
     expect(out).toContain(`@UUID[JournalEntry.${target.id}.JournalEntryPage.${page}#der-hintergrund-(der-skandal):]{Sir Rondrigo › Der Hintergrund (Der Skandal):}`)
     expect(target.pages[0].html).toContain('id="der-hintergrund-(der-skandal):"')
@@ -129,7 +130,7 @@ describe('Wikilinks', () => {
       const r = html({ 'A.md': '[[Geheim]]', '_privat/Geheim.md': 'x' }, 'A.md')
       return r
     })()
-    expect(bundle.documents.length).toBe(2) // without excludes both are exported
+    expect(journalsOf(bundle).length).toBe(2) // without excludes both are exported
   })
 })
 
@@ -155,7 +156,7 @@ describe('Embeds', () => {
 
   it('PDF mit Seite → PDF-Journal + Direktlink', () => {
     const { html: out, bundle } = html({ 'N.md': '![[Q02 - Efferds Wogen.pdf#page=181]]' }, 'N.md', att)
-    const pdf = bundle.documents.find((d) => d.sourcePath === 'Q02 - Efferds Wogen.pdf')!
+    const pdf = journalsOf(bundle).find((d) => d.sourcePath === 'Q02 - Efferds Wogen.pdf')!
     expect(pdf.pages[0]).toMatchObject({ type: 'pdf', src: 'vault-to-foundry/test_vault/assets/Q02_-_Efferds_Wogen.pdf' })
     expect(out).toContain(`@UUID[JournalEntry.${pdf.id}.JournalEntryPage.${pdf.pages[0].id}]{Q02 - Efferds Wogen, S. 181}`)
     expect(out).toContain('Q02_-_Efferds_Wogen.pdf#page=181')

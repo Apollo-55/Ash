@@ -8,6 +8,14 @@ Hooks.once('init', () => {
     type: Object,
     default: {},
   })
+  game.settings.register(MODULE_ID, SETTINGS.extraPacks, {
+    name: 'Zusätzliche Kompendien für NSC-Items',
+    hint: 'Kompendium-IDs, durch Komma getrennt (z. B. world.hausregeln). Werden vor den System-Kompendien durchsucht, nach den Gegenständen der Welt.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default: '',
+  })
   game.settings.register(MODULE_ID, SETTINGS.lastReport, {
     scope: 'world',
     config: false,

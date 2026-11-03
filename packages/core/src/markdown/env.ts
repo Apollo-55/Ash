@@ -36,6 +36,8 @@ export interface RenderEnv {
   /** filled during parsing */
   headings: HeadingInfo[]
   secretCount: number
+  /** index of the next NPC block in this note (fence handlers) */
+  blockCount: number
 }
 
 export function makeWarningCollector(list: BundleWarning[], sourcePath: string) {

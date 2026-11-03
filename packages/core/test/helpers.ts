@@ -1,4 +1,5 @@
 import { buildBundle, createSimpleResolver, type BuildOptions, type NoteInput } from '../src/index.ts'
+import { journalsOf } from '../src/types.ts'
 
 export function build(
   notes: Record<string, string>,
@@ -19,6 +20,6 @@ export function build(
 
 export function html(notes: Record<string, string>, path: string, attachments: string[] = []) {
   const { bundle } = build(notes, attachments)
-  const doc = bundle.documents.find((d) => d.sourcePath === path)!
+  const doc = journalsOf(bundle).find((d) => d.sourcePath === path)!
   return { html: doc.pages[0].html!, bundle, doc }
 }
