@@ -14,7 +14,8 @@
     "typecheck": "tsc -p packages/core && tsc -p packages/obsidian-plugin && tsc -p packages/foundry-module",
     "export:test": "node --experimental-strip-types tools/export-cli.ts",
     "foundry": "tools/foundry-local.sh",
-    "e2e": "tools/e2e/run-all.sh"
+    "e2e": "tools/e2e/run-all.sh",
+    "sync-local": "tools/sync-local.sh"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
