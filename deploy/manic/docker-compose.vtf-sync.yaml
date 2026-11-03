@@ -1,0 +1,15 @@
+# Ergänzung für die docker-compose.yaml der DSA-Instanz (felddy, user 1001:1001).
+# Diesen Dienst unter „services:“ einfügen; Ordner ./vtf-sync aus dist/vtf-sync.zip daneben entpacken;
+# VTF_TOKEN in .env (Rechte 600) neben der Compose-Datei.
+services:
+  vtf-sync:
+    build: ./vtf-sync
+    container_name: vtf-sync-dsa
+    user: 1001:1001
+    restart: unless-stopped
+    environment:
+      - VTF_TOKEN=${VTF_TOKEN}
+    volumes:
+      - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry
+    ports:
+      - 127.0.0.1:8787:8787
