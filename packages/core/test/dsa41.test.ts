@@ -242,6 +242,12 @@ describe('Bundle mit NSCs', () => {
     expect(a.idMap['Abenteuer/Sabotage.md#Die Viper']).toBe(actorsOf(a.bundle)[0].id)
   })
 
+  it('Bild aus dem Netz wird direkt verwendet', () => {
+    const { bundle } = build({ 'D.md': '![Bild](https://example.org/d.jpg)\n```dsa-nsc\nname: D\n```' }, [], { system: dsa41Adapter })
+    expect(actorsOf(bundle)[0].img).toBe('https://example.org/d.jpg')
+    expect(bundle.warnings).toEqual([])
+  })
+
   it('ohne System-Adapter bleibt der Block ein Codeblock', () => {
     const { bundle } = build(notes, files)
     expect(actorsOf(bundle)).toEqual([])

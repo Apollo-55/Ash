@@ -274,6 +274,8 @@ export function buildBundle(opts: BuildOptions): BuildResult {
         const isToken = (ref: string) => /^token[_-]/i.test(basename(ref))
         const resolveImage = (ref: string): string | null => {
           const clean = ref.replace(/^!?\[\[|\]\]$/g, '').split('|')[0].trim()
+          // web images (e.g. ![](https://…)) are used directly
+          if (/^https?:\/\//i.test(clean)) return clean
           const path = opts.resolver.resolve(clean, p.note.path)
           if (!path) {
             warnings.push({ code: 'nsc-warning', sourcePath: p.note.path, message: `NSC „${b.name}“: Bild „${clean}“ nicht gefunden.` })

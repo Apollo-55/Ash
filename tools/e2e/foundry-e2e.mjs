@@ -37,7 +37,12 @@ async function launchWorld() {
 async function joinAsGM(page) {
   await page.goto(`${BASE}/join`)
   await page.waitForSelector('select[name="userid"]')
-  const gm = await page.$eval('select[name="userid"]', (sel) => [...sel.options].find((o) => /gamemaster/i.test(o.textContent))?.value)
+  // prefer an own account ("Claude"), so a GM who is logged in by hand is not blocked; options of logged-in users are disabled
+  const gm = await page.$eval('select[name="userid"]', (sel) => {
+    const free = [...sel.options].filter((o) => !o.disabled && o.value)
+    return (free.find((o) => /^claude$/i.test(o.textContent.trim())) ?? free.find((o) => /gamemaster/i.test(o.textContent)))?.value
+  })
+  if (!gm) throw new Error('Kein freier GM-Benutzer: In vtf-test einen Benutzer „Claude“ (Rolle Spielleiter, ohne Passwort) anlegen oder als Gamemaster abmelden.')
   await page.selectOption('select[name="userid"]', gm)
   await page.click('button[name="join"]')
   await page.waitForFunction(() => window.game?.ready === true, null, { timeout: 60000 })
