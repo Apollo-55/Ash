@@ -27,8 +27,26 @@ export interface IndexFile {
   sfVoraussetzungen: Record<string, string>
 }
 
+/** every readable page, for full-text search and page lookup (cloud mode of the generator) */
+export interface PagesFile {
+  erstellt: string
+  buecher: { kurz: string; titel: string; datei: string; seiten: number }[]
+  seiten: { buch: string; seite: number; text: string }[]
+}
+
 const root = resolve(process.argv[2] ?? 'Regelwerke')
 const out = resolve(process.argv[3] ?? '.llm/regelwerk-index.json')
+const pagesOut = join(dirname(out), 'regelwerk-seiten.json')
+
+/** short name for citations: "DSA 4.1 - Wege der Helden.pdf" → "WdH" */
+function shortName(datei: string): { kurz: string; titel: string } {
+  const titel = datei.replace(/\.pdf$/i, '').replace(/^DSA\s*[\d.]+\s*-\s*/i, '').replace(/\s*\(\d+\)$/, '').trim()
+  const kurz = titel
+    .split(/\s+/)
+    .map((w) => (/^(der|des|die|das)$/i.test(w) ? w[0].toLowerCase() : w[0].toUpperCase()))
+    .join('')
+  return { kurz, titel }
+}
 
 const ART_NACH_TITEL: [RegExp, Art][] = [
   [/wege der helden/i, 'professionen'],
@@ -138,6 +156,7 @@ function main() {
   }
   const overrides: { datei: string; art: Art }[] = existsSync(join(root, 'regelwerke.json')) ? JSON.parse(readFileSync(join(root, 'regelwerke.json'), 'utf8')) : []
   const index: IndexFile = { erstellt: new Date().toISOString(), buecher: [], professionen: [], liturgien: {}, sfVoraussetzungen: {} }
+  const pagesFile: PagesFile = { erstellt: index.erstellt, buecher: [], seiten: [] }
   for (const datei of readdirSync(root).filter((f) => f.toLowerCase().endsWith('.pdf')).sort()) {
     const art: Art = overrides.find((o) => o.datei === datei)?.art ?? ART_NACH_TITEL.find(([re]) => re.test(datei))?.[1] ?? 'unbekannt'
     const entry: IndexFile['buecher'][number] = { datei, art, seiten: 0, lesbar: false, gelesen: {} }
@@ -152,6 +171,12 @@ function main() {
       console.log('✗ nicht lesbar')
       continue
     }
+    const { kurz, titel } = shortName(datei)
+    pagesFile.buecher.push({ kurz, titel, datei, seiten: pages.length })
+    pages.forEach((text, i) => {
+      const t = clean(text).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+      if (t.length > 40) pagesFile.seiten.push({ buch: kurz, seite: i + 1, text: t })
+    })
     if (art === 'professionen') {
       const p = extractProfessions(pages, datei)
       index.professionen.push(...p)
@@ -175,6 +200,8 @@ function main() {
   }
   mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, JSON.stringify(index))
+  writeFileSync(pagesOut, JSON.stringify(pagesFile))
+  console.log(`Seiten: ${pagesOut} (${pagesFile.seiten.length} Seiten aus ${pagesFile.buecher.map((b) => b.kurz).join(', ')}, ${(statSync(pagesOut).size / 1024 / 1024).toFixed(1)} MB)`)
   console.log(`\nIndex: ${out} (${(statSync(out).size / 1024).toFixed(0)} KB)`)
   console.log(`  ${index.professionen.length} Professionen/Varianten, ${Object.keys(index.liturgien).length} Gottheiten, ${Object.keys(index.sfVoraussetzungen).length} SF-Voraussetzungen`)
   for (const b of index.buecher.filter((b) => !b.lesbar && b.art !== 'ignorieren')) console.log(`  ⚠ ${b.datei}: ${b.hinweis ?? b.art}`)

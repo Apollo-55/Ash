@@ -1,9 +1,27 @@
 import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, requestUrl, sanitizeHTMLToDom, type Editor } from 'obsidian'
 import { dsa41, type HttpFn } from '../../core/src/index.ts'
-import { generateNpc, Knowledge, LEVELS, OllamaClient, type GenerateResult, type Level } from '../../nsc-generator/src/index.ts'
+import {
+  CLAUDE_MODELS,
+  checkClaude,
+  claudeClient,
+  generateNpc,
+  generateNpcClaude,
+  Knowledge,
+  LEVELS,
+  OllamaClient,
+  PageStore,
+  type CloudResult,
+  type Effort,
+  type GenerateResult,
+  type Level,
+} from '../../nsc-generator/src/index.ts'
 
 interface GenSettings {
-  provider: 'ollama'
+  provider: 'claude' | 'ollama'
+  /** Anthropic API key (stored in the plugin's data.json inside the vault – user's choice) */
+  claudeKey: string
+  claudeModel: string
+  claudeEffort: Effort
   ollamaUrl: string
   model: string
   /** absolute path of .llm/regelwerk-index.json */
@@ -23,7 +41,10 @@ const home = () => {
 }
 
 const DEFAULTS = (): GenSettings => ({
-  provider: 'ollama',
+  provider: 'claude',
+  claudeKey: '',
+  claudeModel: 'claude-opus-5-5',
+  claudeEffort: 'medium',
   ollamaUrl: 'http://127.0.0.1:11434',
   model: 'qwen3:14b',
   indexPath: `${home()}/Projekt/Ash/.llm/regelwerk-index.json`,
@@ -36,9 +57,24 @@ const http: HttpFn = async (req) => {
   return { status: res.status, text: res.text }
 }
 
+/** fetch for the Anthropic SDK over Obsidian's requestUrl (no CORS in the app) */
+const obsidianFetch = (async (url: string | URL | Request, init?: RequestInit) => {
+  const headers: Record<string, string> = {}
+  new Headers(init?.headers).forEach((v, k) => (headers[k] = v))
+  const res = await requestUrl({
+    url: typeof url === 'string' ? url : url instanceof URL ? url.href : url.url,
+    method: init?.method ?? 'GET',
+    headers,
+    body: typeof init?.body === 'string' ? init.body : undefined,
+    throw: false,
+  })
+  return new Response(res.arrayBuffer, { status: res.status, headers: res.headers })
+}) as typeof fetch
+
 export default class NscGeneratorPlugin extends Plugin {
   settings: GenSettings = DEFAULTS()
   private kb: Knowledge | null = null
+  private pageStore: PageStore | null = null
 
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS(), ...((await this.loadData()) ?? {}) }
@@ -87,8 +123,32 @@ export default class NscGeneratorPlugin extends Plugin {
     return this.kb
   }
 
+  /** full pages for the cloud mode, next to the index (.llm/regelwerk-seiten.json) */
+  pages(): PageStore {
+    if (this.pageStore) return this.pageStore
+    const fs = nodeRequire('fs')
+    const path = this.settings.indexPath.replace(/^~/, home()).replace(/[^/\\]+$/, 'regelwerk-seiten.json')
+    if (!fs.existsSync(path)) throw new Error(`Seiten-Index fehlt: ${path} – im Projekt „npm run regelwerke“ ausführen.`)
+    this.pageStore = new PageStore(JSON.parse(fs.readFileSync(path, 'utf8')))
+    return this.pageStore
+  }
+
   resetKnowledge(): void {
     this.kb = null
+    this.pageStore = null
+  }
+
+  modelLabel(): string {
+    return CLAUDE_MODELS.find((m) => m.id === this.settings.claudeModel)?.label.replace(/ \(.*\)$/, '') ?? this.settings.claudeModel
+  }
+
+  async providerStatus(): Promise<{ ok: boolean; message: string }> {
+    if (this.settings.provider === 'claude') {
+      if (!this.settings.claudeKey) return { ok: false, message: 'Claude – API-Schlüssel fehlt (Einstellungen)' }
+      return { ok: true, message: `Claude (${this.modelLabel()})` }
+    }
+    const s = await this.llmStatus()
+    return { ok: s.ok, message: `lokal: ${s.message}` }
   }
 
   client(): OllamaClient {
@@ -131,9 +191,10 @@ class GeneratorModal extends Modal {
     this.titleEl.setText('NSC erzeugen')
     this.modalEl.addClass('dsa-gen-modal')
     const c = this.contentEl
-    const status = c.createDiv({ cls: 'dsa-gen-status', text: 'Prüfe lokales LLM …' })
-    this.plugin.llmStatus().then((s) => {
-      status.setText(`LLM: ${s.message}`)
+    const cloud = this.plugin.settings.provider === 'claude'
+    const status = c.createDiv({ cls: 'dsa-gen-status', text: 'Prüfe Sprachmodell …' })
+    this.plugin.providerStatus().then((s) => {
+      status.setText(`Sprachmodell: ${s.message}`)
       status.toggleClass('dsa-gen-bad', !s.ok)
     })
 
@@ -164,7 +225,7 @@ class GeneratorModal extends Modal {
     }
     new Setting(c)
       .setName('Profession')
-      .setDesc('Optional – sonst wählt das LLM aus „Wege der Helden“.')
+      .setDesc(cloud ? 'Optional – Claude orientiert sich daran, die Beschreibung hat aber Vorrang.' : 'Optional – sonst wählt das LLM aus „Wege der Helden“.')
       .addText((t) => {
         const list = c.createEl('datalist', { attr: { id: 'dsa-gen-professions' } })
         for (const n of names) list.createEl('option', { attr: { value: n } })
@@ -188,18 +249,34 @@ class GeneratorModal extends Modal {
       progress.setText('Starte …')
       if (insertBtn) insertBtn.disabled = true
       try {
-        const kb = this.plugin.knowledge()
-        const prof = profession && kb.profession(profession) ? profession : undefined
-        this.result = await generateNpc(
-          this.plugin.client(),
-          kb,
-          { description, name: name || undefined, level: level === 'auto' ? undefined : level, profession: prof },
-          (m) => progress.setText(m)
-        )
+        const input = { description, name: name || undefined, level: level === 'auto' ? undefined : level }
+        const st = this.plugin.settings
+        if (st.provider === 'claude') {
+          if (!st.claudeKey) throw new Error('Kein API-Schlüssel – in den Plugin-Einstellungen eintragen.')
+          this.result = await generateNpcClaude(
+            claudeClient(st.claudeKey, obsidianFetch),
+            this.plugin.pages(),
+            { ...input, profession: profession || undefined },
+            { model: st.claudeModel, effort: st.claudeEffort },
+            (m) => progress.setText(m)
+          )
+        } else {
+          const kb = this.plugin.knowledge()
+          const prof = profession && kb.profession(profession) ? profession : undefined
+          this.result = await generateNpc(this.plugin.client(), kb, { ...input, profession: prof }, (m) => progress.setText(m))
+        }
         const r = this.result
-        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name} (${r.profession.buch}, S. ${r.profession.seite}) · ${r.level}${r.god ? ` · ${r.god}` : ''}`)
+        const where = r.profession.buch ? ` (${r.profession.buch}, S. ${r.profession.seite})` : ''
+        const cost = 'dollars' in r ? ` · ${(r as CloudResult).lookups}× nachgeschlagen · ca. ${(r as CloudResult).dollars.toFixed(2).replace('.', ',')} $` : ''
+        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name}${where} · ${r.level}${r.god ? ` · ${r.god}` : ''}${cost}`)
         const parsed = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, ''))
         out.appendChild(sanitizeHTMLToDom(dsa41.renderStatblock(parsed, { showIssues: true, showCalculated: true })))
+        if ('quellen' in r && (r as CloudResult).quellen.length) {
+          const d = out.createEl('details')
+          d.createEl('summary', { text: `Quellen (${(r as CloudResult).quellen.length})` })
+          const ul = d.createEl('ul')
+          for (const x of (r as CloudResult).quellen) ul.createEl('li', { text: x })
+        }
         if (r.repairs.length) {
           const d = out.createEl('details')
           d.createEl('summary', { text: `${r.repairs.length} automatische Korrekturen` })
@@ -262,50 +339,117 @@ class GenSettingTab extends PluginSettingTab {
     containerEl.empty()
 
     new Setting(containerEl).setName('Sprachmodell').setHeading()
-    const status = containerEl.createEl('p', { cls: 'setting-item-description', text: 'Prüfe …' })
-    const refresh = () =>
-      this.plugin.llmStatus().then((r) => {
-        status.setText(`Status: ${r.message}`)
-        status.toggleClass('dsa-gen-bad', !r.ok)
-      })
-    refresh()
     new Setting(containerEl)
       .setName('Anbieter')
-      .setDesc('Vorerst nur lokal (Ollama). Ein Cloud-Anbieter kann später dazukommen.')
-      .addDropdown((d) => d.addOption('ollama', 'Lokal (Ollama)').setValue(s.provider))
-    new Setting(containerEl)
-      .setName('Adresse')
-      .addText((t) =>
-        t.setValue(s.ollamaUrl).onChange(async (v) => {
-          s.ollamaUrl = v.trim()
-          await save()
-        })
+      .setDesc('Claude (Cloud): beste Werte, kostet pro NSC ein paar Cent, Bücher bleiben lokal – nur nachgeschlagene Seiten werden gesendet. Lokal (Ollama): kostenlos, aber deutlich schwächer.')
+      .addDropdown((d) =>
+        d
+          .addOption('claude', 'Claude (Cloud)')
+          .addOption('ollama', 'Lokal (Ollama)')
+          .setValue(s.provider)
+          .onChange(async (v) => {
+            s.provider = v as GenSettings['provider']
+            await save()
+            this.display()
+          })
       )
-    new Setting(containerEl)
-      .setName('Modell')
-      .setDesc('Name wie in „npm run llm -- list“, z. B. qwen3:14b.')
-      .addText((t) =>
-        t.setValue(s.model).onChange(async (v) => {
-          s.model = v.trim()
-          await save()
+    const status = containerEl.createEl('p', { cls: 'setting-item-description', text: '' })
+    if (s.provider === 'claude') {
+      const check = async () => {
+        if (!s.claudeKey) {
+          status.setText('Status: kein API-Schlüssel')
+          status.addClass('dsa-gen-bad')
+          return
+        }
+        status.setText('Prüfe …')
+        try {
+          status.setText(`Status: ${await checkClaude(s.claudeKey, s.claudeModel, obsidianFetch)}`)
+          status.removeClass('dsa-gen-bad')
+        } catch (e) {
+          status.setText(`Status: ${(e as Error).message}`)
+          status.addClass('dsa-gen-bad')
+        }
+      }
+      new Setting(containerEl)
+        .setName('API-Schlüssel')
+        .setDesc('Von console.anthropic.com → API Keys (Abrechnung pro Nutzung; ein Claude.ai-Abo enthält keinen API-Zugang). Wird in den Plugin-Daten dieser Vault gespeichert – Vault nicht mit diesem Ordner teilen.')
+        .addText((t) => {
+          t.inputEl.type = 'password'
+          t.setPlaceholder('sk-ant-…')
+            .setValue(s.claudeKey)
+            .onChange(async (v) => {
+              s.claudeKey = v.trim()
+              await save()
+            })
         })
-      )
-      .addButton((b) => b.setButtonText('Prüfen').onClick(refresh))
-    new Setting(containerEl)
-      .setName('Startbefehl')
-      .setDesc('Das LLM läuft nur bei Bedarf und beendet sich nach 15 Minuten Leerlauf selbst. Diesen Befehl im Terminal ausführen, wenn es nicht läuft.')
-      .addText((t) =>
-        t.setValue(s.startCommand).onChange(async (v) => {
-          s.startCommand = v
-          await save()
+        .addButton((b) => b.setButtonText('Prüfen').onClick(check))
+      new Setting(containerEl)
+        .setName('Modell')
+        .setDesc('Opus: beste Qualität (ca. 0,20–0,40 $ pro NSC). Sonnet: gut und günstiger. Haiku: sehr günstig, für einfache Gegner.')
+        .addDropdown((d) => {
+          for (const m of CLAUDE_MODELS) d.addOption(m.id, m.label)
+          if (!CLAUDE_MODELS.some((m) => m.id === s.claudeModel)) d.addOption(s.claudeModel, s.claudeModel)
+          d.setValue(s.claudeModel).onChange(async (v) => {
+            s.claudeModel = v
+            await save()
+          })
         })
-      )
-      .addButton((b) =>
-        b.setButtonText('Kopieren').onClick(() => {
-          navigator.clipboard.writeText(s.startCommand)
-          new Notice('Startbefehl kopiert.')
+      new Setting(containerEl)
+        .setName('Gründlichkeit')
+        .setDesc('Wie viel Claude nachdenkt und nachschlägt. Höher = sorgfältiger, langsamer und teurer.')
+        .addDropdown((d) =>
+          d
+            .addOption('low', 'niedrig')
+            .addOption('medium', 'mittel')
+            .addOption('high', 'hoch')
+            .setValue(s.claudeEffort)
+            .onChange(async (v) => {
+              s.claudeEffort = v as Effort
+              await save()
+            })
+        )
+      check()
+    } else {
+      const refresh = () =>
+        this.plugin.llmStatus().then((r) => {
+          status.setText(`Status: ${r.message}`)
+          status.toggleClass('dsa-gen-bad', !r.ok)
         })
-      )
+      refresh()
+      new Setting(containerEl)
+        .setName('Adresse')
+        .addText((t) =>
+          t.setValue(s.ollamaUrl).onChange(async (v) => {
+            s.ollamaUrl = v.trim()
+            await save()
+          })
+        )
+      new Setting(containerEl)
+        .setName('Modell')
+        .setDesc('Name wie in „npm run llm -- list“, z. B. qwen3:14b.')
+        .addText((t) =>
+          t.setValue(s.model).onChange(async (v) => {
+            s.model = v.trim()
+            await save()
+          })
+        )
+        .addButton((b) => b.setButtonText('Prüfen').onClick(refresh))
+      new Setting(containerEl)
+        .setName('Startbefehl')
+        .setDesc('Das LLM läuft nur bei Bedarf und beendet sich nach 15 Minuten Leerlauf selbst. Diesen Befehl im Terminal ausführen, wenn es nicht läuft.')
+        .addText((t) =>
+          t.setValue(s.startCommand).onChange(async (v) => {
+            s.startCommand = v
+            await save()
+          })
+        )
+        .addButton((b) =>
+          b.setButtonText('Kopieren').onClick(() => {
+            navigator.clipboard.writeText(s.startCommand)
+            new Notice('Startbefehl kopiert.')
+          })
+        )
+    }
 
     new Setting(containerEl).setName('Regelwerke').setHeading()
     const idx = containerEl.createEl('p', { cls: 'setting-item-description' })

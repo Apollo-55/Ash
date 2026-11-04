@@ -1,5 +1,11 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- **NSC-Generator, Cloud-Modus (Claude):** Claude schlägt über Werkzeuge in einem lokalen Seiten-Index der Regelwerke nach (Suche, Seiten lesen, offizielle Namen im dsa-41-Katalog) und gibt den NSC ab; der Code prüft und meldet Probleme zurück. Modell (Opus/Sonnet/Haiku 5.5) und Gründlichkeit einstellbar, Quellen und ungefähre Kosten im Ergebnis. Nur nachgeschlagene Seiten verlassen den PC.
+- **NSC-Generator, lokal:** Profession zweistufig mit Vorauswahl nach Stichworten, Weihe nur nach Profession, Mindestwerte und SF je Erfahrung, Sprach-/Schriftnamen, Vor-/Nachteile umsortieren; Modellvergleich (qwen3:14b bleibt).
+- `npm run regelwerke` schreibt zusätzlich `.llm/regelwerk-seiten.json` (Volltext pro Seite).
+
 ## 1.0.0 (2026-11-03)
 
 Erste vollständige Fassung.

@@ -1,11 +1,12 @@
 // Compares local models on the hand-made Uthuria NSCs (docs/nsc-umwandlung.md).
 // Usage: node tools/nsc-generator/eval.ts <vault> --models qwen3:14b,gemma3:12b [--only Aschanka,Praiodan] [--out dist/eval.json]
+// Claude models (claude-…) use the cloud mode and COST MONEY – key from ANTHROPIC_API_KEY or `ant auth login`.
 // The description is the note text WITHOUT its dsa-nsc block; the existing block is the reference.
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { dsa41, fetchHttp, findFences } from '../../packages/core/src/index.ts'
 import { normalizeName } from '../../packages/core/src/systems/dsa41/catalog.ts'
-import { generateNpc, Knowledge, OllamaClient } from '../../packages/nsc-generator/src/index.ts'
+import { claudeClient, generateNpc, generateNpcClaude, Knowledge, OllamaClient, PageStore, type CloudResult } from '../../packages/nsc-generator/src/index.ts'
 
 const args = process.argv.slice(2)
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }
@@ -14,6 +15,7 @@ const models = (opt('--models') ?? 'qwen3:14b').split(',')
 const only = opt('--only')?.split(',').map((s) => s.toLowerCase())
 const out = opt('--out') ?? 'dist/eval.json'
 const kb = new Knowledge(JSON.parse(readFileSync('.llm/regelwerk-index.json', 'utf8')))
+const pages = models.some((m) => m.startsWith('claude-')) ? new PageStore(JSON.parse(readFileSync('.llm/regelwerk-seiten.json', 'utf8'))) : null
 
 /** expected profession (word in the chosen name) per NSC, from docs/nsc-umwandlung.md */
 const EXPECT: Record<string, RegExp> = {
@@ -63,12 +65,16 @@ const jaccard = (a: string[], b: string[]) => {
 
 const results: any[] = []
 for (const model of models) {
+  const cloud = model.startsWith('claude-')
   const llm = new OllamaClient({ model, http: fetchHttp })
+  const create = cloud ? claudeClient(undefined) : null
   console.log(`\n=== ${model} (${cases.length} NSCs)`)
   for (const c of cases) {
     process.stdout.write(`  ${c.name.padEnd(30)} `)
     try {
-      const r = await generateNpc(llm, kb, { description: c.description, name: c.name })
+      const r = cloud
+        ? await generateNpcClaude(create!, pages!, { description: c.description, name: c.name }, { model, effort: (opt('--effort') as any) ?? 'medium' })
+        : await generateNpc(llm, kb, { description: c.description, name: c.name })
       const gen = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, '')).data!
       const ref = c.reference.data!
       const row = {
@@ -78,6 +84,8 @@ for (const model of models) {
         openIssues: r.issues.length, repairs: r.repairs.length, rounds: r.rounds, seconds: Math.round(r.seconds),
         talente: Math.round(jaccard(gen.talente.map((t) => t.name), ref.talente.map((t) => t.name)) * 100),
         sf: Math.round(jaccard(gen.sonderfertigkeiten.map((t) => t.name), ref.sonderfertigkeiten.map((t) => t.name)) * 100),
+        dollars: (r as CloudResult).dollars ?? 0,
+        quellen: (r as CloudResult).quellen ?? [],
         block: r.block,
       }
       results.push(row)
@@ -94,6 +102,6 @@ console.log('\n=== Zusammenfassung')
 for (const model of models) {
   const rs = results.filter((r) => r.model === model && !r.error)
   const avg = (k: string) => Math.round(rs.reduce((s, r) => s + r[k], 0) / Math.max(1, rs.length))
-  console.log(`  ${model.padEnd(18)} Profession ${rs.filter((r) => r.professionOk).length}/${rs.length}, gültig ${rs.filter((r) => r.valid).length}/${rs.length}, Talente Ø ${avg('talente')}%, SF Ø ${avg('sf')}%, Ø ${avg('seconds')} s, Fehler ${results.filter((r) => r.model === model && r.error).length}`)
+  console.log(`  ${model.padEnd(18)} Profession ${rs.filter((r) => r.professionOk).length}/${rs.length}, gültig ${rs.filter((r) => r.valid).length}/${rs.length}, Talente Ø ${avg('talente')}%, SF Ø ${avg('sf')}%, Ø ${avg('seconds')} s${rs.some((r) => r.dollars) ? `, Kosten ${rs.reduce((s, r) => s + r.dollars, 0).toFixed(2)} $` : ''}, Fehler ${results.filter((r) => r.model === model && r.error).length}`)
 }
 console.log(`Details mit allen Blöcken: ${out}`)

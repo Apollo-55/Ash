@@ -257,6 +257,38 @@ export interface GenerateResult {
   seconds: number
 }
 
+/**
+ * Repairs a generated NPC and lists what is still wrong. needsFix = problems only the LLM can solve
+ * (unknown names, values too low for the level, missing liturgies/SF, block errors).
+ */
+export function review(
+  npc: NpcJson,
+  o: { level: Level; consecrated: boolean; spellcaster: boolean; god: string | null }
+): { npc: NpcJson; repairs: string[]; issues: string[]; needsFix: boolean } {
+  const hint = LEVEL_HINT[o.level]
+  const r = repair(npc, o.level, o.consecrated, o.spellcaster)
+  const fixed = r.npc
+  const parsed = dsa41.parseNscBlock(toBlock(fixed))
+  const issues = [...parsed.issues.filter((i) => i.level !== 'info').map((i) => i.message), ...r.unknown.map((u) => `${u} gibt es in DSA 4.1 nicht`)]
+  const minMain = Number(hint.taw.match(/(\d+)–/)?.[1] ?? 0)
+  const top = [...fixed.talente].sort((a, b) => b.wert - a.wert).slice(0, 3)
+  if (top.length && top.reduce((sum, t) => sum + t.wert, 0) / top.length < minMain) {
+    issues.push(`Talentwerte zu niedrig für „${o.level}“: die wichtigsten Talente (${top.map((t) => `${t.name} ${t.wert}`).join(', ')}) sollten bei ${hint.taw.split(',')[0].replace('Haupttalente ', '')} liegen – die Paketzahlen sind nur Startboni`)
+  }
+  if (o.consecrated && !fixed.liturgien.length) issues.push(`Geweihte brauchen Liturgien: 4–12 aus der Liste des ${o.god ?? 'Gottes'} wählen`)
+  const sfRange = /(\d+)–(\d+)/.exec(hint.ap)
+  if (sfRange && fixed.sonderfertigkeiten.length < Number(sfRange[1])) {
+    issues.push(
+      `Zu wenige Sonderfertigkeiten für „${o.level}“ (${fixed.sonderfertigkeiten.length}, erwartet ${sfRange[0]}): ergänze passende aus Paket und Beschreibung – ` +
+        'Kampf-SF (z. B. Finte, Wuchtschlag, Ausweichen I, Kampfreflexe, Rüstungsgewöhnung I), Geländekunde, Kulturkunde, Ortskenntnis usw.; Voraussetzungen beachten'
+    )
+  }
+  const needsFix = r.unknown.length > 0 || issues.some((i) => /zu niedrig|brauchen Liturgien|Zu wenige Sonderfertigkeiten/.test(i)) || parsed.issues.some((i) => i.level === 'error')
+  return { npc: fixed, repairs: r.repairs, issues, needsFix }
+}
+
+export { LEVEL_HINT }
+
 const SPELLCASTER_RE = /magier|druide|hexe|geode|schelm|elf|scharlatan|kristallomant|alchimist|zibilja|majuna|derwisch|tänzer|zauber/i
 
 export async function generateNpc(llm: LlmClient, kb: Knowledge, input: GenerateInput, onStep?: (msg: string) => void): Promise<GenerateResult> {
@@ -360,25 +392,11 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     const raw = await llm.chat(messages, { schema: npcSchema(), temperature: rounds === 0 ? 0.5 : 0.2 })
     npc = JSON.parse(raw) as NpcJson
     if (input.name) npc.name = input.name
-    const r = repair(npc, level, consecrated, spellcaster)
+    const r = review(npc, { level, consecrated, spellcaster, god })
     npc = r.npc
     repairs = [...repairs, ...r.repairs]
-    const parsed = dsa41.parseNscBlock(toBlock(npc))
-    issues = [...parsed.issues.filter((i) => i.level !== 'info').map((i) => i.message), ...r.unknown.map((u) => `${u} gibt es in DSA 4.1 nicht`)]
-    const minMain = Number(hint.taw.match(/(\d+)–/)?.[1] ?? 0)
-    const top = [...npc.talente].sort((a, b) => b.wert - a.wert).slice(0, 3)
-    if (top.length && top.reduce((sum, t) => sum + t.wert, 0) / top.length < minMain) {
-      issues.push(`Talentwerte zu niedrig für „${level}“: die wichtigsten Talente (${top.map((t) => `${t.name} ${t.wert}`).join(', ')}) sollten bei ${hint.taw.split(',')[0].replace('Haupttalente ', '')} liegen – die Paketzahlen sind nur Startboni`)
-    }
-    if (consecrated && !npc.liturgien.length) issues.push(`Geweihte brauchen Liturgien: 4–12 aus der Liste des ${god ?? 'Gottes'} wählen`)
-    const sfRange = /(\d+)–(\d+)/.exec(hint.ap)
-    if (sfRange && npc.sonderfertigkeiten.length < Number(sfRange[1])) {
-      issues.push(
-        `Zu wenige Sonderfertigkeiten für „${level}“ (${npc.sonderfertigkeiten.length}, erwartet ${sfRange[0]}): ergänze passende aus Paket und Beschreibung – ` +
-          'Kampf-SF (z. B. Finte, Wuchtschlag, Ausweichen I, Kampfreflexe, Rüstungsgewöhnung I), Geländekunde, Kulturkunde, Ortskenntnis usw.; Voraussetzungen beachten'
-      )
-    }
-    const needsLlm = r.unknown.length || issues.some((i) => /zu niedrig|brauchen Liturgien|Zu wenige Sonderfertigkeiten/.test(i)) || parsed.issues.some((i) => i.level === 'error')
+    issues = r.issues
+    const needsLlm = r.needsFix
     if (!needsLlm) break
     messages.push({ role: 'assistant', content: JSON.stringify(npc) })
     messages.push({

@@ -91,6 +91,25 @@ export function findWeapon(name: string, talentName?: string): CatalogEntry | un
   return sameName ?? all[0]
 }
 
+/**
+ * Names of the given types that contain every word of the query (normalized), best first:
+ * whole-name match, then names starting with the query, then shorter names. For lookups by an LLM.
+ */
+export function searchNames(types: string[], query: string, max = 25): string[] {
+  const words = query.split(/\s+/).map(normalizeName).filter(Boolean)
+  const q = normalizeName(query)
+  if (!words.length) return []
+  const hits = new Map<string, number>()
+  for (const e of catalog.items) {
+    if (!types.includes(e.t) || hits.has(e.n)) continue
+    const m = normalizeName(e.n)
+    if (!words.every((w) => m.includes(w))) continue
+    hits.set(e.n, (m === q ? 0 : m.startsWith(q) ? 1 : 2) * 1000 + m.length + packRank(e.p) * 100)
+  }
+  const found = [...hits].sort((a, b) => a[1] - b[1]).map(([n]) => n)
+  return found.length ? found.slice(0, max) : suggest(types, query, Math.min(max, 5))
+}
+
 /** Closest catalog names (for "did you mean …") – cheap edit distance on normalized names. */
 export function suggest(types: string[], name: string, max = 3): string[] {
   const n = normalizeName(name)
