@@ -114,31 +114,37 @@ describe('Seitensuche', () => {
   })
 })
 
-describe('OpenAI-Modus (simuliert)', () => {
-  const completion = (message: any, finish = 'tool_calls') =>
-    ({ id: 'c', object: 'chat.completion', created: 0, model: 'gpt-x', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', content: null, refusal: null, ...message } }], usage: { prompt_tokens: 900, completion_tokens: 100, total_tokens: 1000, prompt_tokens_details: { cached_tokens: 400 } } }) as any
-  const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
+describe('OpenAI-Modus (simuliert, Responses-API)', () => {
+  const response = (output: any[], status = 'completed') =>
+    ({ id: 'r', object: 'response', status, error: null, incomplete_details: null, output, usage: { input_tokens: 900, output_tokens: 100, total_tokens: 1000, input_tokens_details: { cached_tokens: 400 }, output_tokens_details: { reasoning_tokens: 0 } } }) as any
+  const call = (id: string, name: string, args: unknown) => ({ type: 'function_call', id: 'fc_' + id, call_id: id, name, arguments: JSON.stringify(args), status: 'completed' })
 
-  it('gleiche Werkzeuge, Ergebnisse als tool-Nachrichten, reasoning_effort nur bei Reasoning-Modellen', async () => {
+  it('gleiche Werkzeuge, Verlauf zustandslos mitgeschickt, reasoning nur bei Reasoning-Modellen', async () => {
     const reqs: any[] = []
     const answers = [
-      completion({ tool_calls: [call('a', 'regelwerk_suchen', { anfrage: 'Handwerker', buch: null })] }),
-      completion({ tool_calls: [call('b', 'nsc_abgeben', { profession: 'Handwerker', erfahrung: 'erfahren', gottheit: null, zauberkundig: false, quellen: ['WdH 151'], npc: npc([{ name: 'Grobschmied', wert: 12 }, { name: 'Feinmechanik', wert: 10 }, { name: 'Hiebwaffen', wert: 9 }]) })] }),
+      response([{ type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'xyz' }, call('a', 'regelwerk_suchen', { anfrage: 'Handwerker', buch: null })]),
+      response([call('b', 'nsc_abgeben', { profession: 'Handwerker', erfahrung: 'erfahren', gottheit: null, zauberkundig: false, quellen: ['WdH 151'], npc: npc([{ name: 'Grobschmied', wert: 12 }, { name: 'Feinmechanik', wert: 10 }, { name: 'Hiebwaffen', wert: 9 }]) })]),
     ]
     const create = async (p: any) => (reqs.push(structuredClone(p)), answers.shift())
-    const r = await generateNpcOpenAI(create, pages, { description: 'Schmiedin', name: 'Topasa' }, { model: 'gpt-5-mini', effort: 'low' })
-    expect(reqs[0]).toMatchObject({ model: 'gpt-5-mini', reasoning_effort: 'low', parallel_tool_calls: true })
-    expect(reqs[0].tools.map((t: any) => t.function.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben'])
-    expect(reqs[0].tools.every((t: any) => t.function.strict)).toBe(true)
-    expect(reqs[1].messages.at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'a' })
-    expect(reqs[1].messages.at(-1).content).toContain('WdH S. 151')
+    const r = await generateNpcOpenAI(create, pages, { description: 'Schmiedin', name: 'Topasa' }, { model: 'gpt-6-sol', effort: 'low' })
+    expect(reqs[0]).toMatchObject({ model: 'gpt-6-sol', store: false, reasoning: { effort: 'low' }, include: ['reasoning.encrypted_content'] })
+    expect(reqs[0].tools.map((t: any) => t.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben'])
+    expect(reqs[0].tools.every((t: any) => t.strict && t.type === 'function')).toBe(true)
+    // second request carries reasoning item, the call and its output
+    expect(reqs[1].input.map((i: any) => i.type ?? i.role)).toEqual(['user', 'reasoning', 'function_call', 'function_call_output'])
+    expect(reqs[1].input.at(-1)).toMatchObject({ call_id: 'a' })
+    expect(reqs[1].input.at(-1).output).toContain('WdH S. 151')
     expect(r.lookups).toBe(1)
     expect(r.tokens).toMatchObject({ input: 1000, cacheRead: 800, output: 200 })
-    expect(r.dollars).toBeUndefined()
     expect(r.block).toContain('name: Topasa')
 
     const plain: any[] = []
-    await generateNpcOpenAI(async (p: any) => (plain.push(p), completion({ tool_calls: [call('x', 'nsc_abgeben', { profession: 'Wache', erfahrung: 'unerfahren', gottheit: null, zauberkundig: false, quellen: [], npc: npc([{ name: 'Hiebwaffen', wert: 6 }]) })] })), pages, { description: 'Wache' }, { model: 'gpt-4.1' })
-    expect(plain[0]).not.toHaveProperty('reasoning_effort')
+    await generateNpcOpenAI(async (p: any) => (plain.push(p), response([call('x', 'nsc_abgeben', { profession: 'Wache', erfahrung: 'unerfahren', gottheit: null, zauberkundig: false, quellen: [], npc: npc([{ name: 'Hiebwaffen', wert: 6 }]) })])), pages, { description: 'Wache' }, { model: 'gpt-4.1' })
+    expect(plain[0]).not.toHaveProperty('reasoning')
+  })
+
+  it('abgeschnittene oder gefilterte Antwort wird als Fehler gemeldet', async () => {
+    const create = async () => ({ ...response([], 'incomplete'), incomplete_details: { reason: 'content_filter' } })
+    await expect(generateNpcOpenAI(create as any, pages, { description: 'x' }, { model: 'gpt-5.5' })).rejects.toThrow(/gefiltert/)
   })
 })

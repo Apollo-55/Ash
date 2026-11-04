@@ -53,7 +53,7 @@ const DEFAULTS = (): GenSettings => ({
   claudeModel: 'claude-opus-5-5',
   claudeEffort: 'medium',
   openaiKey: '',
-  openaiModel: 'gpt-5',
+  openaiModel: 'gpt-6.1-sol',
   openaiModels: [],
   ollamaUrl: 'http://127.0.0.1:11434',
   model: 'qwen3:14b',
@@ -480,7 +480,7 @@ class GenSettingTab extends PluginSettingTab {
         .addButton((b) => b.setButtonText('Prüfen').onClick(check))
       new Setting(containerEl)
         .setName('Modell')
-        .setDesc('„Prüfen“ lädt die Modelle, die dein Schlüssel nutzen darf. Reasoning-Modelle (gpt-5…, o…) denken gründlicher und nutzen die Einstellung „Gründlichkeit“.')
+        .setDesc('„Prüfen“ lädt die Modelle, die dein Schlüssel nutzen darf. Getestet (Nov. 2026): gpt-6.1-sol (schnell, sehr gut), gpt-6-astra und gpt-5.5 (am gründlichsten), gpt-5.6-terra (gut). Nicht geeignet: gpt-5.4-mini (gibt nicht ab).')
         .addDropdown((d) => {
           modelDropdown = d
           fillModels()

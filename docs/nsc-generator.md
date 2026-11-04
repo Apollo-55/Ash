@@ -21,7 +21,21 @@ Der Schlüssel steht in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`.
 2. Index bauen wie oben (`npm run regelwerke`).
 3. Plugin-Einstellungen → Anbieter „OpenAI (Cloud)“ → Schlüssel eintragen → **Prüfen**: lädt die Modelle, die der Schlüssel nutzen darf (kostenlos), danach Modell wählen. Reasoning-Modelle (`gpt-5…`, `o…`) nutzen die *Gründlichkeit*, andere ignorieren sie.
 
-Technik: offizielles `openai`-SDK, Chat Completions mit Function Calling (`strict`), Anfragen über Obsidians `requestUrl`.
+Technik: offizielles `openai`-SDK, **Responses-API** mit Function Calling (`strict`) – neuere Modelle (gpt-5.4 bis gpt-6.1) erlauben Werkzeuge zusammen mit Nachdenken nur dort, nicht in Chat Completions. Zustandslos (`store: false`): der Verlauf samt verschlüsselter Denkschritte wird bei jedem Aufruf mitgeschickt, OpenAI speichert nichts. Anfragen über Obsidians `requestUrl`.
+
+### Modellvergleich OpenAI (November 2026, Topasa / Ralio / Haargh, Gründlichkeit mittel)
+
+| Modell | Profession/Weihe/Zauber richtig | Talente ≈ Referenz | SF ≈ Referenz | Ø Zeit | Anmerkung |
+|---|---|---|---|---|---|
+| **gpt-6.1-sol** (Standard) | 3/3 | 56 % | 38 % | 33 s | schnell, schlüssige Werte, gibt meist beim ersten Mal korrekt ab |
+| gpt-6-astra | 3/3 | 59 % | 44 % | 51 s | sehr gut, etwas langsamer |
+| gpt-5.5 | 3/3 | 60 % | 28 % | 78 s | am ausführlichsten (≈ 25–29 Talente, viele Quellen), langsam |
+| gpt-5.6-terra | 3/3 | 58 % | 30 % | 34 s | gut, braucht öfter Korrekturrunden |
+| gpt-6-luna | 3/3 | 47 % | 15 % | 39 s | dünner (13–15 Talente) |
+| gpt-5.4-mini | – | – | – | – | gibt den NSC nie ab (bricht nach 16 Runden ab) |
+| *zum Vergleich lokal qwen3:14b* | 3/3 | 25 % | 7 % | 68 s | |
+
+Alle funktionierenden Modelle setzten Weihe, KaP, Liturgien (nur Haargh/Kor) und AsP, Zauber (nur Ralio) richtig. Kosten zeigt das Plugin für OpenAI nicht an (Preise je Modell unbekannt) – siehe Nutzung im OpenAI-Dashboard; das Ergebnis nennt die Tokens.
 
 ### Wie die Cloud-Modi arbeiten
 
