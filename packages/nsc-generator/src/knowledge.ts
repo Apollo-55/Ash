@@ -17,7 +17,7 @@ const SYNONYMS: [RegExp, string][] = [
   [/^(geschütz|artiller)/, 'artillerist'],
   [/^(geschütz|artiller)/, 'söldner'],
   [/^(heiler|arzt|ärztin|medicus|feldscher)/, 'wundarzt'],
-  [/^(pirat|seeräuber|matros|kapitän|steuer|bootsmann)/, 'seefahrer'],
+  [/^(pirat|seeräuber|matros|kapitän|steuer|bootsmann|smutje|schiffskoch)/, 'seefahrer'],
   [/^(fährtenleser|waldläufer)/, 'jäger'],
 ]
 /** name words too generic to count on their own */

@@ -36,8 +36,8 @@ export class OllamaClient implements LlmClient {
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
     let res
-    try {
-      res = await this.http({
+    const request = () =>
+      this.http({
         method: 'POST',
         url: `${this.url}/api/chat`,
         headers: { 'Content-Type': 'application/json' },
@@ -50,8 +50,16 @@ export class OllamaClient implements LlmClient {
           options: { temperature: opts.temperature ?? 0.4, num_ctx: this.numCtx },
         }),
       })
-    } catch (e) {
-      throw new LlmError(`Lokales LLM nicht erreichbar (${(e as Error).message}). Läuft es? → npm run llm -- start`)
+    try {
+      res = await request()
+    } catch {
+      // one retry: a dropped connection (e.g. while the model is swapped in VRAM) is usually transient
+      try {
+        await new Promise((r) => setTimeout(r, 2000))
+        res = await request()
+      } catch (e) {
+        throw new LlmError(`Lokales LLM nicht erreichbar (${(e as Error).message}). Läuft es? → npm run llm -- start`)
+      }
     }
     if (res.status === 404) throw new LlmError(`Modell „${this.model}“ ist nicht geladen → npm run llm -- pull ${this.model}`)
     if (res.status >= 400) throw new LlmError(`LLM-Fehler HTTP ${res.status}: ${res.text.slice(0, 200)}`)

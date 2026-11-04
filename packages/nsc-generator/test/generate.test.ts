@@ -136,6 +136,28 @@ describe('Ablauf mit Fake-LLM', () => {
     expect(r.block).toContain('Wettervorhersage: 12')
   })
 
+  it('wählt zuerst aus der Vorauswahl, die volle Liste nur bei „keine davon passt“', async () => {
+    const sf = ['Ausweichen I', 'Aufmerksamkeit', 'Rüstungsgewöhnung I']
+    const values = JSON.stringify({ ...base(), sonderfertigkeiten: sf, talente: [{ name: 'Seefahrt', wert: 11 }, { name: 'Säbel', wert: 10 }, { name: 'Wettervorhersage', wert: 9 }] })
+    const prompts: string[] = []
+    const run = async (answers: string[]) => {
+      prompts.length = 0
+      const llm: LlmClient = { label: 'fake', chat: async (m) => (prompts.push(m.at(-1)!.content), answers.shift()!) }
+      return generateNpc(llm, kb, { description: '## Seefahrerin\nAlte Seebärin' })
+    }
+    const short = await run([JSON.stringify({ profession: 'Seefahrer / Seefahrerin', erfahrung: 'erfahren', gottheit: null }), values])
+    expect(prompts[0]).toContain('Kandidaten (nach Stichworten der Beschreibung):\n- Seefahrer / Seefahrerin: Kampf: Säbel')
+    expect(prompts[0]).not.toContain('Alle Professionen')
+    expect(short.profession.name).toBe('Seefahrer / Seefahrerin')
+    const full = await run([
+      JSON.stringify({ profession: 'keine davon passt', erfahrung: 'erfahren', gottheit: null }),
+      JSON.stringify({ profession: 'Seefahrer / Seefahrerin', erfahrung: 'erfahren', gottheit: null }),
+      values,
+    ])
+    expect(prompts[1]).toContain('Alle Professionen:\nSeefahrer / Seefahrerin; Geweihter des Praios')
+    expect(full.profession.name).toBe('Seefahrer / Seefahrerin')
+  })
+
   it('Geweihte bekommen Liturgien ihres Gottes bis zum Grad der Erfahrung', async () => {
     const answers = [
       JSON.stringify({ profession: 'Geweihter des Praios', erfahrung: 'erfahren', gottheit: 'Praios' }),
