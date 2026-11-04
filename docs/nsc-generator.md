@@ -61,8 +61,8 @@ Vor einem Vergleich die Modelle laden (`npm run llm -- pull <modell>`), danach w
 
 | Modell | Profession richtig | gültige Blöcke | Talente ≈ Referenz | Ø Zeit |
 |---|---|---|---|---|
-| **qwen3:14b** (gewählt) | 16/17 | 17/17 | 44 % | 66 s |
-| gemma3:12b | 9/13 (Lauf abgebrochen) | 13/13 | 30 % | 48 s |
+| **qwen3:14b** (gewählt) | 16/17 | 17/17 | 42 % | 64 s |
+| gemma3:12b | 9/13 (Lauf abgebrochen) | 13/13 | 28 % | 47 s |
 | mistral-nemo:12b (erster Lauf, ohne Vorauswahl) | 11/18 | 18/18 | 28 % | 46 s |
 
 qwen3:14b trifft Profession, Weihe (Kor, Nandus, Praios) und Magier-Akademie am zuverlässigsten und vergibt die meisten und höchsten Talente; gemma3 ist schneller, wählt aber öfter falsch (Haargh als Söldnerin ohne Weihe, Dioptus als Schreiber). Nur qwen3:14b bleibt installiert (≈ 9 GB in `.llm/ollama`).
