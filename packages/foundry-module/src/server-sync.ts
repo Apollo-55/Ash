@@ -25,6 +25,16 @@ async function fetchJson(path: string): Promise<any | null> {
 
 const applied = (): Record<string, number> => game.settings.get(MODULE_ID, SETTINGS.syncRevisions) ?? {}
 
+/** The vault this world is connected to ("" = none yet). Set by the first apply, cleared in the module settings. */
+export const boundVault = (): string => String(game.settings.get(MODULE_ID, SETTINGS.boundVault) ?? '').trim()
+
+/** Which vaults a world offers: only its own once connected; missing = its vault is not on the server. */
+export function vaultsForWorld(vaults: ServerVault[], bound: string): { vaults: ServerVault[]; missing: boolean } {
+  if (!bound) return { vaults, missing: false }
+  const own = vaults.filter((v) => v.slug === bound)
+  return { vaults: own, missing: !own.length }
+}
+
 /** Vaults the sync service has delivered (folders with revision.json). */
 export async function listServerVaults(): Promise<ServerVault[]> {
   let dirs: string[] = []
@@ -44,7 +54,7 @@ export async function listServerVaults(): Promise<ServerVault[]> {
 
 /** Number of vaults with changes that were not applied yet (for the button marker). */
 export async function pendingCount(): Promise<number> {
-  return (await listServerVaults()).filter((v) => v.revision > v.applied).length
+  return vaultsForWorld(await listServerVaults(), boundVault()).vaults.filter((v) => v.revision > v.applied).length
 }
 
 export async function applyServerVault(slug: string, opts: { forceDocuments?: boolean; onProgress?: (pct: number, msg: string) => void } = {}): Promise<ImportReport> {
@@ -54,6 +64,7 @@ export async function applyServerVault(slug: string, opts: { forceDocuments?: bo
   const bundle = validateBundle(raw)
   const report = await importBundle(null, bundle, { ...opts, revision: rev?.revision })
   if (rev?.revision) await game.settings.set(MODULE_ID, SETTINGS.syncRevisions, { ...applied(), [slug]: rev.revision })
+  if (!boundVault() && !report.errors.length) await game.settings.set(MODULE_ID, SETTINGS.boundVault, slug)
   return report
 }
 
@@ -67,9 +78,15 @@ const ago = (iso: string) => {
 
 /** Dialog: which vault, what changed since the last apply; nothing happens without the button. */
 export async function openSyncDialog(run: (slug: string, forceDocuments: boolean) => Promise<unknown>): Promise<void> {
-  const vaults = await listServerVaults()
-  if (!vaults.length) {
+  const all = await listServerVaults()
+  if (!all.length) {
     ui.notifications.warn('Auf dem Server liegt noch kein Vault. Obsidian synchronisiert nach dem Speichern automatisch, sobald im Plugin Server-Adresse und Token eingetragen sind.')
+    return
+  }
+  const bound = boundVault()
+  const { vaults, missing } = vaultsForWorld(all, bound)
+  if (missing) {
+    ui.notifications.warn(`Diese Welt ist mit der Vault „${bound}“ verbunden, die liegt aber nicht auf dem Server. Verbindung lösen: Einstellungen → Vault to Foundry.`)
     return
   }
   const esc = (s: unknown) => foundry.utils.escapeHTML(String(s))
@@ -84,6 +101,7 @@ export async function openSyncDialog(run: (slug: string, forceDocuments: boolean
     window: { title: 'Vault synchronisieren', icon: 'fa-solid fa-rotate' },
     position: { width: 520 },
     content: `<p>Übernimmt den Stand, den Obsidian auf den Server geschickt hat. Bilder liegen schon auf dem Server.</p>
+      <p class="hint">${bound ? 'Diese Welt ist mit dieser Vault verbunden. Lösen: Einstellungen → Vault to Foundry.' : 'Die erste Übernahme verbindet diese Welt mit der gewählten Vault.'}</p>
       <div class="vtf-vaults">${rows}</div>
       <div class="form-group"><label>Alle Journale neu schreiben</label><div class="form-fields"><input type="checkbox" name="forceDocuments"></div>
       <p class="hint">Sonst werden unveränderte Notizen übersprungen.</p></div>`,

@@ -36,6 +36,19 @@ Journal-Seitenleiste:
 - ZIP-Symbol: der bisherige ZIP-Import als Backup.
 - Listen-Symbol: letzter Bericht.
 
+## Mehrere Kampagnen
+
+Ein Dienst versorgt beliebig viele Vaults einer Foundry-Installation gleichzeitig; jede bekommt ihren eigenen Ordner `Data/vault-to-foundry/<vault>/`.
+
+- **Jede Vault braucht einen eigenen Vault-Namen** (Plugin-Einstellungen). Zwei Vaults mit demselben Namen überschreiben sich gegenseitig.
+- **Eine Welt merkt sich ihre Vault:** Die erste Übernahme verbindet die Welt mit der gewählten Vault, danach zeigen Dialog und Hinweispunkt nur noch diese. Lösen: Einstellungen → Vault to Foundry → „Verbundene Vault dieser Welt“ leeren und speichern.
+- **Mehrere Foundry-Installationen:** Ein Dienst schreibt in genau einen Datenordner. Pro Instanz einen eigenen `vtf-sync`-Container mit eigenem Port und eigener nginx-Adresse starten.
+- Der Token gilt für alle Vaults eines Dienstes.
+
+## Speicherplatz
+
+Der Dienst legt die echten Dateien direkt in Foundrys Datenordner. Genau von dort zeigt Foundry sie an, es gibt auf dem Server also **nur eine Kopie**; die Hashes in der Statusdatei dienen nur dazu, unveränderte Dateien nicht erneut zu übertragen. Mehrere Welten mit derselben Vault teilen sich diese Kopie. Dazu kommt je Vault eine `bundle.json` (Text). Dateien, die in der Vault gelöscht wurden, bleiben liegen, bis du sie in Obsidian mit dem Befehl zum Aufräumen entfernst.
+
 ## Sicherheit
 
 - Ohne gültiges Token nimmt der Dienst nichts an. Das Token läuft über HTTPS (nginx).

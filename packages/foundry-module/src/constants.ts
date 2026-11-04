@@ -7,4 +7,5 @@ export const SETTINGS = {
   lastReport: 'lastReport',
   extraPacks: 'extraPacks',
   syncRevisions: 'syncRevisions',
+  boundVault: 'boundVault',
 } as const

@@ -34,7 +34,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 **Mit Sync-Dienst (Normalfall)**
 
 1. In Obsidian schreiben und speichern. Kurz danach (Standard 10 s) gehen geänderte Notizen und Bilder an den Server. Die Statusleiste unten rechts zeigt `Foundry ⏳` (wartet), `Foundry ⟳ 3/12` (lädt), `Foundry ✓` (fertig) oder `Foundry ✗` (Fehler, Maus drüber zeigt den Grund). Ein Klick darauf synchronisiert sofort.
-2. In Foundry (als Spielleitung): Journal-Seitenleiste → **„Vault synchronisieren“**. Ein orangefarbener Punkt zeigt, dass neue Änderungen bereitliegen. Erst „Übernehmen“ im Dialog ändert die Welt – nie automatisch, also auch nicht mitten in der Sitzung.
+2. In Foundry (als Spielleitung): Journal-Seitenleiste → **„Vault synchronisieren“**. Ein orangefarbener Punkt zeigt, dass neue Änderungen bereitliegen. Erst „Übernehmen“ im Dialog ändert die Welt – nie automatisch, also auch nicht mitten in der Sitzung. Die erste Übernahme verbindet die Welt mit dieser Vault, danach zeigt sie nur noch diese (lösen: Modul-Einstellungen).
 3. Der Importbericht zeigt Angelegtes, Aktualisiertes, Übersprungenes, Verwaistes und Warnungen, jeweils mit Link auf das Dokument und die Notiz in Obsidian. Verwaiste Dokumente (Notiz in Obsidian gelöscht) lassen sich dort nach Rückfrage löschen.
 
 **Per ZIP (Backup)**

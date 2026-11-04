@@ -23,6 +23,15 @@ Hooks.once('init', () => {
     type: Object,
     default: {},
   })
+  game.settings.register(MODULE_ID, SETTINGS.boundVault, {
+    name: 'Verbundene Vault dieser Welt',
+    hint: 'Wird beim ersten „Vault synchronisieren“ gesetzt; danach zeigt die Welt nur noch diese Vault. Feld leeren und speichern, um die Verbindung zu lösen.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default: '',
+    onChange: () => refreshPending(),
+  })
   game.settings.register(MODULE_ID, SETTINGS.lastReport, {
     scope: 'world',
     config: false,
