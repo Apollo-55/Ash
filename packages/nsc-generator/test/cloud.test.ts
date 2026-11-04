@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BetaMessage, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { dsa41 } from '../../core/src/index.ts'
-import { generateNpcClaude, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
+import { bookAbbreviations, bookTitle, generateNpcClaude, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
 
 const pages = new PageStore({
   erstellt: '',
@@ -102,6 +102,17 @@ describe('Cloud-Modus (simuliertes Claude)', () => {
     const r = await generateNpcClaude(create, pages, { description: 'Einfache Wache' }, { model: 'claude-sonnet-5-5' })
     expect(r.level).toBe('unerfahren')
     expect(r.issues.filter((i) => /gibt es in DSA 4.1 nicht/.test(i))).toEqual([])
+  })
+})
+
+describe('Buchkürzel', () => {
+  it('Initialen, bei Gleichstand längere Form für alle Beteiligten, sonst Nummern', () => {
+    expect(bookAbbreviations(['Wege der Helden', 'Liber Liturgium', 'Wege der Zauberei', 'Wege des Schwerts', 'Liber Cantiones'])).toEqual(['WdH', 'LL', 'WdZ', 'WdS', 'LC'])
+    expect(bookAbbreviations(['Aventurische Magie', 'Wege der Helden', 'Aventurische Meisterschaft'])).toEqual(['AvMa', 'WdH', 'AvMe'])
+    expect(bookAbbreviations(['Wege der Helden', 'Wege der Heiligen', 'Wege der Helden'])).toEqual(['WedHe', 'WedHe2', 'WedHe3'])
+    expect(bookTitle('DSA 4.1 - Wege des Schwerts (1).pdf')).toBe('Wege des Schwerts')
+    const dupe = { erstellt: '', buecher: [{ kurz: 'AM', titel: 'A', datei: 'a.pdf', seiten: 1 }, { kurz: 'AM', titel: 'B', datei: 'b.pdf', seiten: 1 }], seiten: [] }
+    expect(() => new PageStore(dupe)).toThrow(/doppelte Buchkürzel \(am\)/)
   })
 })
 

@@ -9,6 +9,37 @@ export interface PagesFile {
   seiten: { buch: string; seite: number; text: string }[]
 }
 
+/** "DSA 4.1 - Wege der Helden.pdf" → "Wege der Helden" */
+export function bookTitle(file: string): string {
+  return file.replace(/\.pdf$/i, '').replace(/^DSA\s*[\d.]+\s*-\s*/i, '').replace(/\s*\(\d+\)$/, '').trim()
+}
+
+const ARTICLE = /^(der|des|die|das|dem|den|und|von|vom|zu|zur|zum|im|in|am|an|auf)$/i
+
+/**
+ * Unique short names for citations and tool calls. Normally initials ("Wege der Helden" → "WdH").
+ * Books that would share one ALL get a longer form ("Aventurische Magie" → "AvMa",
+ * "Aventurische Meisterschaft" → "AvMe"), so the result does not depend on the order of the files;
+ * if those still collide, they are numbered (in the given order).
+ */
+export function bookAbbreviations(titles: string[]): string[] {
+  const words = (t: string) => t.split(/[\s\-–:,]+/).filter(Boolean)
+  const short = (t: string) => words(t).map((w) => (ARTICLE.test(w) ? w[0].toLowerCase() : w[0].toUpperCase())).join('')
+  const long = (t: string) => words(t).map((w) => (ARTICLE.test(w) ? w[0].toLowerCase() : w[0].toUpperCase() + (w[1] ?? '').toLowerCase())).join('')
+  const count = (list: string[]) => list.reduce((m, k) => m.set(k.toLowerCase(), (m.get(k.toLowerCase()) ?? 0) + 1), new Map<string, number>())
+  const first = titles.map(short)
+  const firstCount = count(first)
+  const second = titles.map((t, i) => (firstCount.get(first[i].toLowerCase())! > 1 ? long(t) : first[i]))
+  const secondCount = count(second)
+  const seen = new Map<string, number>()
+  return second.map((k) => {
+    if (secondCount.get(k.toLowerCase())! === 1) return k
+    const n = (seen.get(k.toLowerCase()) ?? 0) + 1
+    seen.set(k.toLowerCase(), n)
+    return n === 1 ? k : `${k}${n}`
+  })
+}
+
 export interface PageHit {
   buch: string
   seite: number
@@ -25,6 +56,8 @@ export class PageStore {
   private register: boolean[]
 
   constructor(file: PagesFile) {
+    const dup = file.buecher.map((b) => b.kurz.toLowerCase()).filter((k, i, all) => all.indexOf(k) !== i)
+    if (dup.length) throw new Error(`Seiten-Index hat doppelte Buchkürzel (${[...new Set(dup)].join(', ')}) – im Projekt „npm run regelwerke“ erneut ausführen.`)
     this.file = file
     this.lower = file.seiten.map((p) => p.text.toLowerCase())
     for (const text of this.lower) for (const w of new Set(words(text))) this.df.set(w, (this.df.get(w) ?? 0) + 1)

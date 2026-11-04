@@ -7,6 +7,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
+import { bookAbbreviations, bookTitle, type PagesFile } from '../../packages/nsc-generator/src/pages.ts'
 
 type Art = 'professionen' | 'liturgien' | 'zauber' | 'kampf' | 'magie' | 'ignorieren' | 'unbekannt'
 
@@ -27,26 +28,9 @@ export interface IndexFile {
   sfVoraussetzungen: Record<string, string>
 }
 
-/** every readable page, for full-text search and page lookup (cloud mode of the generator) */
-export interface PagesFile {
-  erstellt: string
-  buecher: { kurz: string; titel: string; datei: string; seiten: number }[]
-  seiten: { buch: string; seite: number; text: string }[]
-}
-
 const root = resolve(process.argv[2] ?? 'Regelwerke')
 const out = resolve(process.argv[3] ?? '.llm/regelwerk-index.json')
 const pagesOut = join(dirname(out), 'regelwerk-seiten.json')
-
-/** short name for citations: "DSA 4.1 - Wege der Helden.pdf" → "WdH" */
-function shortName(datei: string): { kurz: string; titel: string } {
-  const titel = datei.replace(/\.pdf$/i, '').replace(/^DSA\s*[\d.]+\s*-\s*/i, '').replace(/\s*\(\d+\)$/, '').trim()
-  const kurz = titel
-    .split(/\s+/)
-    .map((w) => (/^(der|des|die|das)$/i.test(w) ? w[0].toLowerCase() : w[0].toUpperCase()))
-    .join('')
-  return { kurz, titel }
-}
 
 const ART_NACH_TITEL: [RegExp, Art][] = [
   [/wege der helden/i, 'professionen'],
@@ -157,7 +141,11 @@ function main() {
   const overrides: { datei: string; art: Art }[] = existsSync(join(root, 'regelwerke.json')) ? JSON.parse(readFileSync(join(root, 'regelwerke.json'), 'utf8')) : []
   const index: IndexFile = { erstellt: new Date().toISOString(), buecher: [], professionen: [], liturgien: {}, sfVoraussetzungen: {} }
   const pagesFile: PagesFile = { erstellt: index.erstellt, buecher: [], seiten: [] }
-  for (const datei of readdirSync(root).filter((f) => f.toLowerCase().endsWith('.pdf')).sort()) {
+  const dateien = readdirSync(root).filter((f) => f.toLowerCase().endsWith('.pdf')).sort()
+  // short names over ALL books (also unreadable/ignored ones), so adding a book never makes two share one
+  const abbr = bookAbbreviations(dateien.map(bookTitle))
+  const kurzOf = new Map(dateien.map((d, i) => [d, abbr[i]]))
+  for (const datei of dateien) {
     const art: Art = overrides.find((o) => o.datei === datei)?.art ?? ART_NACH_TITEL.find(([re]) => re.test(datei))?.[1] ?? 'unbekannt'
     const entry: IndexFile['buecher'][number] = { datei, art, seiten: 0, lesbar: false, gelesen: {} }
     index.buecher.push(entry)
@@ -171,7 +159,8 @@ function main() {
       console.log('✗ nicht lesbar')
       continue
     }
-    const { kurz, titel } = shortName(datei)
+    const kurz = kurzOf.get(datei)!
+    const titel = bookTitle(datei)
     pagesFile.buecher.push({ kurz, titel, datei, seiten: pages.length })
     pages.forEach((text, i) => {
       const t = clean(text).replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
