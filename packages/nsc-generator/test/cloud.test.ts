@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BetaMessage, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { dsa41 } from '../../core/src/index.ts'
-import { generateNpcClaude, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
+import { generateNpcClaude, generateNpcOpenAI, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
 
 const pages = new PageStore({
   erstellt: '',
@@ -111,5 +111,34 @@ describe('Seitensuche', () => {
     expect(pages.search('handwerker voraussetzungen', 'WdH')[0].seite).toBe(151)
     expect(pages.search('Handwerker', 'LL')).toEqual([])
     expect(pages.read('wdh', 151)).toContain('Grobschmied')
+  })
+})
+
+describe('OpenAI-Modus (simuliert)', () => {
+  const completion = (message: any, finish = 'tool_calls') =>
+    ({ id: 'c', object: 'chat.completion', created: 0, model: 'gpt-x', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', content: null, refusal: null, ...message } }], usage: { prompt_tokens: 900, completion_tokens: 100, total_tokens: 1000, prompt_tokens_details: { cached_tokens: 400 } } }) as any
+  const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
+
+  it('gleiche Werkzeuge, Ergebnisse als tool-Nachrichten, reasoning_effort nur bei Reasoning-Modellen', async () => {
+    const reqs: any[] = []
+    const answers = [
+      completion({ tool_calls: [call('a', 'regelwerk_suchen', { anfrage: 'Handwerker', buch: null })] }),
+      completion({ tool_calls: [call('b', 'nsc_abgeben', { profession: 'Handwerker', erfahrung: 'erfahren', gottheit: null, zauberkundig: false, quellen: ['WdH 151'], npc: npc([{ name: 'Grobschmied', wert: 12 }, { name: 'Feinmechanik', wert: 10 }, { name: 'Hiebwaffen', wert: 9 }]) })] }),
+    ]
+    const create = async (p: any) => (reqs.push(structuredClone(p)), answers.shift())
+    const r = await generateNpcOpenAI(create, pages, { description: 'Schmiedin', name: 'Topasa' }, { model: 'gpt-5-mini', effort: 'low' })
+    expect(reqs[0]).toMatchObject({ model: 'gpt-5-mini', reasoning_effort: 'low', parallel_tool_calls: true })
+    expect(reqs[0].tools.map((t: any) => t.function.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben'])
+    expect(reqs[0].tools.every((t: any) => t.function.strict)).toBe(true)
+    expect(reqs[1].messages.at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'a' })
+    expect(reqs[1].messages.at(-1).content).toContain('WdH S. 151')
+    expect(r.lookups).toBe(1)
+    expect(r.tokens).toMatchObject({ input: 1000, cacheRead: 800, output: 200 })
+    expect(r.dollars).toBeUndefined()
+    expect(r.block).toContain('name: Topasa')
+
+    const plain: any[] = []
+    await generateNpcOpenAI(async (p: any) => (plain.push(p), completion({ tool_calls: [call('x', 'nsc_abgeben', { profession: 'Wache', erfahrung: 'unerfahren', gottheit: null, zauberkundig: false, quellen: [], npc: npc([{ name: 'Hiebwaffen', wert: 6 }]) })] })), pages, { description: 'Wache' }, { model: 'gpt-4.1' })
+    expect(plain[0]).not.toHaveProperty('reasoning_effort')
   })
 })

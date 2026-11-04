@@ -1,8 +1,9 @@
 # DSA-NSC-Generator (M6)
 
-Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block. Zwei Anbieter, in den Plugin-Einstellungen umschaltbar:
+Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block. Drei Anbieter, in den Plugin-Einstellungen umschaltbar:
 
 - **Claude (Cloud, Standard):** beste Werte. Claude schlägt wie ein Spielleiter in deinen Regelwerken nach und gibt den NSC ab. Kostet pro NSC einige Cent (Anzeige nach jedem Lauf). Die PDFs bleiben auf deinem PC – nur die Seiten, die Claude nachschlägt, werden an Anthropic gesendet.
+- **OpenAI (Cloud):** gleiche Arbeitsweise wie Claude (dieselben Werkzeuge und Prüfungen), mit deinem OpenAI-API-Guthaben. Statt Kosten zeigt das Ergebnis die verbrauchten Tokens.
 - **Lokal (Ollama):** kostenlos, nichts verlässt den PC, aber deutlich schwächer (erfindet öfter Namen, wählt manchmal die falsche Profession).
 
 ## Cloud-Modus (Claude) einrichten
@@ -14,9 +15,17 @@ Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block. Zwei Anbieter, in den Plug
 
 Der Schlüssel steht in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`. Diese Datei nicht weitergeben und die Vault nicht mit diesem Ordner teilen (z. B. Vault-Sync mit anderen).
 
-### Wie Claude arbeitet
+## OpenAI-Modus einrichten
 
-Claude bekommt deine Beschreibung und vier Werkzeuge:
+1. API-Schlüssel: [platform.openai.com](https://platform.openai.com) → *API keys* (Abrechnung pro Nutzung; ein ChatGPT-Abo enthält keinen API-Zugang).
+2. Index bauen wie oben (`npm run regelwerke`).
+3. Plugin-Einstellungen → Anbieter „OpenAI (Cloud)“ → Schlüssel eintragen → **Prüfen**: lädt die Modelle, die der Schlüssel nutzen darf (kostenlos), danach Modell wählen. Reasoning-Modelle (`gpt-5…`, `o…`) nutzen die *Gründlichkeit*, andere ignorieren sie.
+
+Technik: offizielles `openai`-SDK, Chat Completions mit Function Calling (`strict`), Anfragen über Obsidians `requestUrl`.
+
+### Wie die Cloud-Modi arbeiten
+
+Claude bzw. das OpenAI-Modell bekommt deine Beschreibung und vier Werkzeuge:
 
 | Werkzeug | Was es tut |
 |---|---|
@@ -80,7 +89,7 @@ Bücher werden am Dateinamen erkannt. Anders benannte Bücher in `Regelwerke/reg
 node tools/nsc-generator/eval.ts ~/Obsidian/uthuria-ob --models qwen3:14b,gemma3:12b
 ```
 
-Mit Claude-Modellen (`--models claude-opus-5-5`, optional `--effort high`) läuft der Cloud-Modus; Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`. **Das kostet Geld** (≈ 17 NSCs × Preis pro NSC).
+Mit Claude-Modellen (`--models claude-opus-5-5`, optional `--effort high`) läuft der Cloud-Modus; Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`. OpenAI-Modelle als `--models openai:<modell>`, Schlüssel aus `OPENAI_API_KEY`. **Das kostet Geld** (≈ 17 NSCs × Preis pro NSC).
 
 Erzeugt jeden NSC deiner Vault aus seiner Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit). Die Vault wird nur gelesen.
 

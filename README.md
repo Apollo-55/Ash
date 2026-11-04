@@ -42,7 +42,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 1. Obsidian: Befehl „Nach Foundry exportieren (ZIP)“ (oder Paket-Symbol links) → `~/Downloads/<vault>-foundry.zip`.
 2. Foundry: ZIP-Symbol neben „Vault synchronisieren“ → Datei wählen → Importieren.
 
-**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude (Cloud, eigener API-Schlüssel) oder ein lokales Sprachmodell schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
+**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (Cloud, eigener API-Schlüssel) oder ein lokales Sprachmodell schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
 **Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „DSA-NSC-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
@@ -183,7 +183,7 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 | `packages/obsidian-plugin` | Obsidian-Plugin |
 | `packages/foundry-module` | Foundry-Modul `vault-to-foundry` (v13) |
 | `packages/sync-service` | Sync-Dienst `vtf-sync` (Node, ohne Abhängigkeiten, Docker) |
-| `packages/nsc-generator` | NSC-Generator: Regelwerk- und Seiten-Index, Claude (Anthropic-SDK, Werkzeuge) und Ollama, Reparaturen |
+| `packages/nsc-generator` | NSC-Generator: Regelwerk- und Seiten-Index, Claude (Anthropic-SDK) und OpenAI mit gemeinsamen Werkzeugen, Ollama, Reparaturen |
 | `packages/nsc-generator-plugin` | Obsidian-Plugin „DSA-NSC-Generator“ |
 
 ```bash

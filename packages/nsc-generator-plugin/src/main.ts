@@ -3,7 +3,10 @@ import { dsa41, type HttpFn } from '../../core/src/index.ts'
 import {
   CLAUDE_MODELS,
   checkClaude,
+  checkOpenAI,
   claudeClient,
+  generateNpcOpenAI,
+  openaiClient,
   generateNpc,
   generateNpcClaude,
   Knowledge,
@@ -17,11 +20,15 @@ import {
 } from '../../nsc-generator/src/index.ts'
 
 interface GenSettings {
-  provider: 'claude' | 'ollama'
+  provider: 'claude' | 'openai' | 'ollama'
   /** Anthropic API key (stored in the plugin's data.json inside the vault – user's choice) */
   claudeKey: string
   claudeModel: string
   claudeEffort: Effort
+  openaiKey: string
+  openaiModel: string
+  /** models the key can use, from the last "Prüfen" */
+  openaiModels: string[]
   ollamaUrl: string
   model: string
   /** absolute path of .llm/regelwerk-index.json */
@@ -45,6 +52,9 @@ const DEFAULTS = (): GenSettings => ({
   claudeKey: '',
   claudeModel: 'claude-opus-5-5',
   claudeEffort: 'medium',
+  openaiKey: '',
+  openaiModel: 'gpt-5',
+  openaiModels: [],
   ollamaUrl: 'http://127.0.0.1:11434',
   model: 'qwen3:14b',
   indexPath: `${home()}/Projekt/Ash/.llm/regelwerk-index.json`,
@@ -147,6 +157,10 @@ export default class NscGeneratorPlugin extends Plugin {
       if (!this.settings.claudeKey) return { ok: false, message: 'Claude – API-Schlüssel fehlt (Einstellungen)' }
       return { ok: true, message: `Claude (${this.modelLabel()})` }
     }
+    if (this.settings.provider === 'openai') {
+      if (!this.settings.openaiKey) return { ok: false, message: 'OpenAI – API-Schlüssel fehlt (Einstellungen)' }
+      return { ok: true, message: `OpenAI (${this.settings.openaiModel})` }
+    }
     const s = await this.llmStatus()
     return { ok: s.ok, message: `lokal: ${s.message}` }
   }
@@ -191,7 +205,7 @@ class GeneratorModal extends Modal {
     this.titleEl.setText('NSC erzeugen')
     this.modalEl.addClass('dsa-gen-modal')
     const c = this.contentEl
-    const cloud = this.plugin.settings.provider === 'claude'
+    const cloud = this.plugin.settings.provider !== 'ollama'
     const status = c.createDiv({ cls: 'dsa-gen-status', text: 'Prüfe Sprachmodell …' })
     this.plugin.providerStatus().then((s) => {
       status.setText(`Sprachmodell: ${s.message}`)
@@ -260,6 +274,15 @@ class GeneratorModal extends Modal {
             { model: st.claudeModel, effort: st.claudeEffort },
             (m) => progress.setText(m)
           )
+        } else if (st.provider === 'openai') {
+          if (!st.openaiKey) throw new Error('Kein OpenAI-Schlüssel – in den Plugin-Einstellungen eintragen.')
+          this.result = await generateNpcOpenAI(
+            openaiClient(st.openaiKey, obsidianFetch),
+            this.plugin.pages(),
+            { ...input, profession: profession || undefined },
+            { model: st.openaiModel, effort: st.claudeEffort },
+            (m) => progress.setText(m)
+          )
         } else {
           const kb = this.plugin.knowledge()
           const prof = profession && kb.profession(profession) ? profession : undefined
@@ -267,7 +290,11 @@ class GeneratorModal extends Modal {
         }
         const r = this.result
         const where = r.profession.buch ? ` (${r.profession.buch}, S. ${r.profession.seite})` : ''
-        const cost = 'dollars' in r ? ` · ${(r as CloudResult).lookups}× nachgeschlagen · ca. ${(r as CloudResult).dollars.toFixed(2).replace('.', ',')} $` : ''
+        const c = 'lookups' in r ? (r as CloudResult) : null
+        const cost = c
+          ? ` · ${c.lookups}× nachgeschlagen · ` +
+            (c.dollars != null ? `ca. ${c.dollars.toFixed(2).replace('.', ',')} $` : `${Math.round((c.tokens.input + c.tokens.cacheRead) / 1000)}k Tokens rein, ${Math.round(c.tokens.output / 1000)}k raus`)
+          : ''
         progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name}${where} · ${r.level}${r.god ? ` · ${r.god}` : ''}${cost}`)
         const parsed = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, ''))
         out.appendChild(sanitizeHTMLToDom(dsa41.renderStatblock(parsed, { showIssues: true, showCalculated: true })))
@@ -345,6 +372,7 @@ class GenSettingTab extends PluginSettingTab {
       .addDropdown((d) =>
         d
           .addOption('claude', 'Claude (Cloud)')
+          .addOption('openai', 'OpenAI (Cloud)')
           .addOption('ollama', 'Lokal (Ollama)')
           .setValue(s.provider)
           .onChange(async (v) => {
@@ -409,6 +437,73 @@ class GenSettingTab extends PluginSettingTab {
             })
         )
       check()
+    } else if (s.provider === 'openai') {
+      let modelDropdown: import('obsidian').DropdownComponent | null = null
+      const fillModels = () => {
+        if (!modelDropdown) return
+        modelDropdown.selectEl.empty()
+        const list = s.openaiModels.length ? s.openaiModels : [s.openaiModel]
+        for (const m of list.includes(s.openaiModel) ? list : [s.openaiModel, ...list]) modelDropdown.addOption(m, m)
+        modelDropdown.setValue(s.openaiModel)
+      }
+      const check = async () => {
+        if (!s.openaiKey) {
+          status.setText('Status: kein API-Schlüssel')
+          status.addClass('dsa-gen-bad')
+          return
+        }
+        status.setText('Prüfe …')
+        try {
+          s.openaiModels = await checkOpenAI(s.openaiKey, obsidianFetch)
+          await save()
+          fillModels()
+          const has = s.openaiModels.includes(s.openaiModel)
+          status.setText(`Status: verbunden, ${s.openaiModels.length} Modelle verfügbar${has ? '' : ` – „${s.openaiModel}“ ist nicht dabei, bitte eins wählen`}`)
+          status.toggleClass('dsa-gen-bad', !has)
+        } catch (e) {
+          status.setText(`Status: ${(e as Error).message}`)
+          status.addClass('dsa-gen-bad')
+        }
+      }
+      new Setting(containerEl)
+        .setName('API-Schlüssel')
+        .setDesc('Von platform.openai.com → API keys (Abrechnung pro Nutzung; ein ChatGPT-Abo enthält keinen API-Zugang). Wird in den Plugin-Daten dieser Vault gespeichert.')
+        .addText((t) => {
+          t.inputEl.type = 'password'
+          t.setPlaceholder('sk-…')
+            .setValue(s.openaiKey)
+            .onChange(async (v) => {
+              s.openaiKey = v.trim()
+              await save()
+            })
+        })
+        .addButton((b) => b.setButtonText('Prüfen').onClick(check))
+      new Setting(containerEl)
+        .setName('Modell')
+        .setDesc('„Prüfen“ lädt die Modelle, die dein Schlüssel nutzen darf. Reasoning-Modelle (gpt-5…, o…) denken gründlicher und nutzen die Einstellung „Gründlichkeit“.')
+        .addDropdown((d) => {
+          modelDropdown = d
+          fillModels()
+          d.onChange(async (v) => {
+            s.openaiModel = v
+            await save()
+          })
+        })
+      new Setting(containerEl)
+        .setName('Gründlichkeit')
+        .setDesc('Nur bei Reasoning-Modellen: wie viel das Modell nachdenkt. Höher = sorgfältiger, langsamer und teurer.')
+        .addDropdown((d) =>
+          d
+            .addOption('low', 'niedrig')
+            .addOption('medium', 'mittel')
+            .addOption('high', 'hoch')
+            .setValue(s.claudeEffort)
+            .onChange(async (v) => {
+              s.claudeEffort = v as Effort
+              await save()
+            })
+        )
+      if (s.openaiKey) check()
     } else {
       const refresh = () =>
         this.plugin.llmStatus().then((r) => {
