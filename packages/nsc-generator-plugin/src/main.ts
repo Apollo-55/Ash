@@ -1,4 +1,4 @@
-import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, requestUrl, sanitizeHTMLToDom, type Editor } from 'obsidian'
+import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, requestUrl, sanitizeHTMLToDom, type ButtonComponent, type Editor } from 'obsidian'
 import { dsa41, type HttpFn } from '../../core/src/index.ts'
 import {
   CLAUDE_MODELS,
@@ -250,7 +250,8 @@ class GeneratorModal extends Modal {
     const progress = c.createDiv({ cls: 'dsa-gen-progress' })
     const out = c.createDiv({ cls: 'dsa-gen-result' })
     const buttons = new Setting(c)
-    let insertBtn: HTMLButtonElement | null = null
+    // Obsidian's ButtonComponent ignores clicks while its own `disabled` flag is set – always toggle via setDisabled()
+    let insertBtn: ButtonComponent | null = null
 
     const run = async () => {
       if (this.running) return
@@ -261,7 +262,7 @@ class GeneratorModal extends Modal {
       this.running = true
       out.empty()
       progress.setText('Starte …')
-      if (insertBtn) insertBtn.disabled = true
+      insertBtn?.setDisabled(true)
       try {
         const input = { description, name: name || undefined, level: level === 'auto' ? undefined : level }
         const st = this.plugin.settings
@@ -310,7 +311,7 @@ class GeneratorModal extends Modal {
           const ul = d.createEl('ul')
           for (const x of r.repairs) ul.createEl('li', { text: x })
         }
-        if (insertBtn) insertBtn.disabled = false
+        insertBtn?.setDisabled(false)
       } catch (e) {
         progress.setText('')
         out.createDiv({ cls: 'dsa-gen-bad', text: (e as Error).message })
@@ -322,7 +323,7 @@ class GeneratorModal extends Modal {
     buttons
       .addButton((b) => b.setButtonText('Erzeugen').setCta().onClick(run))
       .addButton((b) => {
-        insertBtn = b.buttonEl
+        insertBtn = b
         b.setButtonText('Einfügen').setDisabled(true).onClick(() => {
           if (!this.result) return
           this.insert(this.result.block)
