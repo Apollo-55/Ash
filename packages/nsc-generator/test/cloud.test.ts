@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BetaMessage, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { dsa41 } from '../../core/src/index.ts'
-import { generateNpcClaude, generateNpcOpenAI, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
+import { generateNpcClaude, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
 
 const pages = new PageStore({
   erstellt: '',
@@ -102,6 +102,31 @@ describe('Cloud-Modus (simuliertes Claude)', () => {
     const r = await generateNpcClaude(create, pages, { description: 'Einfache Wache' }, { model: 'claude-sonnet-5-5' })
     expect(r.level).toBe('unerfahren')
     expect(r.issues.filter((i) => /gibt es in DSA 4.1 nicht/.test(i))).toEqual([])
+  })
+})
+
+describe('Seitensuche: Erklärseite vor Erwähnungen', () => {
+  const register = Array.from({ length: 20 }, (_, i) => `Eintrag ${i} (SF)\n${200 + i}`).join('\n') + '\nMeisterparade (SF)\n281'
+  const store = new PageStore({
+    erstellt: '',
+    buecher: [{ kurz: 'WdH', titel: 'Wege der Helden', datei: 'WdH.pdf', seiten: 400 }],
+    seiten: [
+      { buch: 'WdH', seite: 102, text: 'Söldner (GP je nach Einheit)\nSonderfertigkeiten: Meisterparade, Finte\nVerbilligt: Meisterparade, Binden, Meisterparade' },
+      { buch: 'WdH', seite: 213, text: 'Talente: Kochen +1; Sonderfertigkeiten:\nMeisterparade; Verbilligte Sonderfertigkeiten: Binden' },
+      { buch: 'WdH', seite: 281, text: 'Meisterparade: Erlaubt eine Parade mit Ansage. Voraussetzungen: PA-Basis 8' },
+      { buch: 'WdH', seite: 61, text: 'Handwerker, Handwerker und nochmals Handwerker. Grobschmied, Grobschmied.' },
+      { buch: 'WdH', seite: 151, text: 'Handwerker / Handwerkerin (1 GP)\nVoraussetzungen: FF 11\nGrobschmied +5' },
+      { buch: 'WdH', seite: 329, text: register },
+    ],
+  })
+  it('Regelseite mit „Begriff:“ und Professionskopf „Name (… GP)“ zuerst; Register und Aufzählungen dahinter', () => {
+    expect(store.search('Meisterparade')[0].seite).toBe(281)
+    expect(store.search('Handwerker Grobschmied')[0].seite).toBe(151)
+    expect(store.search('Meisterparade').map((h) => h.seite).indexOf(329)).toBeGreaterThan(0)
+  })
+  it('erkennt Registerseiten', () => {
+    expect(isRegister(register)).toBe(true)
+    expect(isRegister('Meisterparade: Erlaubt eine Parade.')).toBe(false)
   })
 })
 

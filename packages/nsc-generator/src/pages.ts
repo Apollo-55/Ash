@@ -21,11 +21,14 @@ export class PageStore {
   readonly file: PagesFile
   private lower: string[]
   private df = new Map<string, number>()
+  /** book index / register pages ("Kampf im Wasser (SF) 279") – they mention everything, explain nothing */
+  private register: boolean[]
 
   constructor(file: PagesFile) {
     this.file = file
     this.lower = file.seiten.map((p) => p.text.toLowerCase())
     for (const text of this.lower) for (const w of new Set(words(text))) this.df.set(w, (this.df.get(w) ?? 0) + 1)
+    this.register = file.seiten.map((p) => isRegister(p.text))
   }
 
   books() {
@@ -61,6 +64,10 @@ export class PageStore {
       if (!matched) return
       score *= matched / terms.length // pages with all words first
       if (terms.length > 1 && text.includes(q)) score *= 2
+      // the page that explains a term has it as a line heading with a colon: "Meisterparade: …"
+      if (definedOn(text, q)) score *= 3
+      else for (const [t] of weights) if (t.length >= 5 && definedOn(text, t)) score *= 1.6
+      if (this.register[i]) score *= 0.3
       hits.push({ i, score })
     })
     return hits
@@ -77,6 +84,24 @@ export class PageStore {
   read(book: string, page: number): string | undefined {
     return this.file.seiten.find((p) => p.buch.toLowerCase() === book.toLowerCase() && p.seite === page)?.text
   }
+}
+
+/**
+ * The page explains the term: it starts a line as a heading – "Meisterparade: …" (rules) or
+ * "Handwerker / Handwerkerin (1 GP)", "Akademie … zu Punin (… GP)" (professions) – not a word in running text.
+ */
+function definedOn(lowerText: string, term: string): boolean {
+  const t = escape(term)
+  return new RegExp(`(?:^|\\n)[ \\t]*${t}[^\\n:.;,]{0,40}:`).test(lowerText) || new RegExp(`(?:^|\\n)[^\\n]{0,40}${t}[^\\n]{0,40}\\([^)\\n]*\\b[ga]p\\b`).test(lowerText)
+}
+
+/** register pages: many "(SF)/(P)/(V)/(N)" markers or many lines that are only page numbers */
+export function isRegister(text: string): boolean {
+  const lines = text.split('\n').filter((l) => l.trim())
+  if (lines.length < 15) return false
+  const markers = (text.match(/\((?:SF|P|V|N|Z|L)\)/g) ?? []).length
+  const numbers = lines.filter((l) => /^\d{1,3}(?:,\s*\d{1,3})*$/.test(l.trim())).length
+  return markers >= 12 || numbers / lines.length > 0.25
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
