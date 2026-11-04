@@ -1,9 +1,7 @@
 import { dsa41 } from '../../core/src/index.ts'
-import { find, findWeapon, namesOf, normalizeName, searchNames, suggest } from '../../core/src/systems/dsa41/catalog.ts'
+import { find, findWeapon, normalizeName, searchNames, suggest } from '../../core/src/systems/dsa41/catalog.ts'
 import { SF_RULES } from '../../core/src/systems/dsa41/rules.ts'
 import { LIST_TYPES } from '../../core/src/systems/dsa41/schema.ts'
-import type { Knowledge } from './knowledge.ts'
-import type { ChatMessage, LlmClient } from './llm.ts'
 
 export const LEVELS = ['unerfahren', 'erfahren', 'kompetent', 'meisterlich', 'brillant'] as const
 export type Level = (typeof LEVELS)[number]
@@ -21,36 +19,6 @@ const ATTRS = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK'] as const
 // ---- JSON schemas for structured output --------------------------------------------------------
 
 const named = { type: 'object', properties: { name: { type: 'string' }, wert: { type: ['integer', 'null'] } }, required: ['name', 'wert'] }
-
-/**
- * Valid names from the dsa-41 catalog, shown to small local models in the prompt so they pick
- * official names. (As an enum in the output schema this would be exact, but Ollama's grammar
- * sampling with ~1000 alternatives runs on the CPU and takes minutes per answer.)
- */
-export interface Vocabulary {
-  talente: string[]
-  waffen: string[]
-  ruestung: string[]
-  vorteile: string[]
-  nachteile: string[]
-  sonderfertigkeiten: string[]
-  zauber: string[] | null
-  liturgien: string[] | null
-}
-
-export function vocabulary(o: { spellcaster: boolean; liturgies: string[] | null }): Vocabulary {
-  const lit = o.liturgies ? namesOf(LIST_TYPES.liturgien, false).filter((n) => o.liturgies!.some((l) => normalizeName(l) === normalizeName(n))) : null
-  return {
-    talente: namesOf(LIST_TYPES.talente),
-    waffen: namesOf(['meleeWeapon', 'rangedWeapon']),
-    ruestung: namesOf(['armor']),
-    vorteile: namesOf(LIST_TYPES.vorteile),
-    nachteile: namesOf(LIST_TYPES.nachteile),
-    sonderfertigkeiten: namesOf(LIST_TYPES.sonderfertigkeiten),
-    zauber: o.spellcaster ? namesOf(LIST_TYPES.zauber) : null,
-    liturgien: o.liturgies ? (lit!.length ? lit : o.liturgies) : null,
-  }
-}
 
 export function npcSchema() {
   return {
@@ -330,10 +298,10 @@ export function repair(
 export interface GenerateInput {
   description: string
   level?: Level
-  /** forces a profession from the index instead of letting the LLM choose */
+  /** profession the model should orient itself on (free text) */
   profession?: string
   name?: string
-  /** cloud modes: person (talents, energies by formula) or creature (fixed bestiary values); undefined = model decides */
+  /** person (talents, energies by formula) or creature (fixed bestiary values); undefined = model decides */
   art?: 'person' | 'kreatur'
 }
 
@@ -382,149 +350,3 @@ export function review(
 }
 
 export { LEVEL_HINT }
-
-/** "Vollzauberer" etc. in a package – but not as an exclusion ("keine der folgenden …: Halb-, Viertelzauberer", Kor) */
-export function mentionsSpellcasting(text: string): boolean {
-  for (const m of text.matchAll(/Vollzauberer|Halbzauberer|Viertelzauberer|Hauszauber/gi)) {
-    if (!/\bkeine?\b[^.;]{0,120}$/i.test(text.slice(Math.max(0, m.index! - 120), m.index))) return true
-  }
-  return false
-}
-
-const SPELLCASTER_RE = /magier|druide|hexe|geode|schelm|elf|scharlatan|kristallomant|alchimist|zibilja|majuna|derwisch|tänzer|zauber/i
-
-export async function generateNpc(llm: LlmClient, kb: Knowledge, input: GenerateInput, onStep?: (msg: string) => void): Promise<GenerateResult> {
-  const t0 = Date.now()
-  const step = (m: string) => onStep?.(m)
-
-  // 1. profession, level, god
-  let profession = input.profession ? kb.profession(input.profession) : undefined
-  let level: Level = input.level ?? 'erfahren'
-  let god: string | null = null
-  if (!profession) {
-    step('Profession wählen …')
-    const names = kb.professionNames()
-    const shortlist = kb.candidates(input.description)
-    const system =
-      'Du bist Spielleiter für Das Schwarze Auge 4.1. Ordne einen Nichtspielercharakter der passendsten Profession aus „Wege der Helden“ zu. ' +
-      'Geweihte nur, wenn die Figur heute geweiht ist (nicht bei ehemaligen Novizen/Akoluthen oder bloßer Verehrung); gottheit nur für Geweihte, sonst null. ' +
-      'Erfahrung: unerfahren = Anfänger; erfahren = solide im Beruf; kompetent = sehr gut, bekannt; meisterlich = Meister, berühmt, Lehrer oder Anführer seines Fachs; brillant = legendär. Alter und Ruf beachten. ' +
-      'Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr. ' +
-      'Überschrift und Zeilen wie „Profession:“ nennen meist die Rolle – nimm sie ernst (z. B. „Kor Geweit Söldner“ = Kor-Geweihter, „Akademiemagister“ = Magier dieser Akademie, „Geschützmeister“ = Söldner/Artillerist, „Smutje“ = Seefahrer). ' +
-      'Der Beruf zählt, nicht Charakterzüge (eine lüsterne Zimmerfrau ist Handwerkerin, keine Kurtisane). Antworte nur mit JSON.'
-    const ask = async (options: string[], list: string) =>
-      JSON.parse(
-        await llm.chat(
-          [
-            { role: 'system', content: system },
-            { role: 'user', content: `Beschreibung:\n${input.description}\n\n${list}\n\nGottheiten: ${kb.gods().join(', ')}` },
-          ],
-          {
-            schema: {
-              type: 'object',
-              properties: {
-                profession: { type: 'string', enum: options },
-                erfahrung: { type: 'string', enum: [...LEVELS] },
-                gottheit: { type: ['string', 'null'], enum: [...kb.gods(), null] },
-              },
-              required: ['profession', 'erfahrung', 'gottheit'],
-            },
-            temperature: 0.1,
-          }
-        )
-      )
-    // first a short choice (candidates with a snippet of their rulebook text), the full list only if none fits
-    const OTHER = 'keine davon passt'
-    let pick = shortlist.length
-      ? await ask(
-          [...shortlist, OTHER],
-          'Kandidaten (nach Stichworten der Beschreibung):\n' +
-            shortlist.map((n) => `- ${n}: ${kb.profession(n)!.text.replace(/\s+/g, ' ').slice(0, 220)}`).join('\n') +
-            `\n\nWähle den passendsten Kandidaten oder „${OTHER}“.`
-        )
-      : { profession: OTHER }
-    if (pick.profession === OTHER) {
-      step('Profession aus allen wählen …')
-      pick = await ask(names, `Alle Professionen:\n${names.join('; ')}`)
-    }
-    profession = kb.profession(pick.profession)
-    if (!input.level && LEVELS.includes(pick.erfahrung)) level = pick.erfahrung
-    god = pick.gottheit
-  }
-  if (!profession) throw new Error('Keine passende Profession gefunden.')
-  const consecrated = /geweiht|spätweihe/i.test(profession.name) || /Automatische[^\n]*Geweiht/i.test(profession.text.slice(0, 800))
-  god = consecrated ? (kb.godOf(profession.name) ?? god) : null
-  const spellcaster = SPELLCASTER_RE.test(profession.name) || mentionsSpellcasting(profession.text.slice(0, 1500))
-  const hint = LEVEL_HINT[level]
-  step(`Profession: ${profession.name} (${level}${god ? `, ${god}` : ''})`)
-
-  // 2. values
-  const liturgies = consecrated && god ? kb.liturgies(god, hint.litGrade) : {}
-  const system = [
-    'Du bist ein erfahrener Spielleiter für Das Schwarze Auge 4.1 und erstellst Werte für einen Nichtspielercharakter.',
-    'Regeln:',
-    '- Halte dich an das Professionspaket aus „Wege der Helden“ (unten): Talente, Kampftalente, Sonderfertigkeiten, Vor- und Nachteile von dort, angepasst an die Beschreibung.',
-    '- WICHTIG: Die Zahlen im Paket („Fechtwaffen +7“) sind nur Startboni bei Spielbeginn, KEINE Endwerte. Die Talentwerte (TaW) ergeben sich aus der Erfahrung (siehe unten) – das Paket sagt nur, welche Talente wichtig sind.',
-    '- Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr und dürfen die Werte nicht prägen. Als wahr markierte ((W), WAHR) schon.',
-    '- Verwende nur die offiziellen DSA-4.1-Namen (z. B. „Heilkunde Wunden“, „Sinnenschärfe“, „Ausweichen I“, „Zweihandschwerter/-säbel“).',
-    `- Erfahrung „${level}“: ${hint.taw}; ${hint.ap}; Summe der Eigenschaften ${hint.attrSum}. Eigenschaften 8–18, nur Ausnahmen höher.`,
-    '- Eigenschaften passend zu den Probenwerten wichtiger Talente (z. B. Seefahrt FF/GE/KK, Liturgiekenntnis MU/IN/CH).',
-    '- 12–25 Talente: Kampftalente der Waffen, Berufstalente, Sprachen (Talentname ist nur die Sprache, z. B. „Garethi“, „Tulamidya“; Schriften z. B. „Kusliker Zeichen“), Wissen. Keine Zauber ohne Zauberbegabung, keine Liturgien ohne Weihe (dann liturgien leer, KaP null).',
-    '- LeP und AuP als Gesamtwert (Mensch: LeP etwa (KO+KO+KK)/2 + 10 + Zukauf).',
-    '- Waffen: 1–3 passende Waffen mit Namen aus dem Arsenal (z. B. Säbel, Dolch, Kurzbogen). Keine AT/PA – das System rechnet sie aus dem Talentwert.',
-    '- notiz: 1–2 Sätze, was die Werte prägt (kein Ersatz für die Beschreibung).',
-    'Antworte nur mit JSON nach Schema.',
-  ].join('\n')
-  const vocab = vocabulary({ spellcaster, liturgies: null })
-  const user = [
-    `Beschreibung des NSC:\n${input.description}`,
-    input.name ? `Name: ${input.name}` : '',
-    `\nProfessionspaket „${profession.name}“ (${profession.buch}, S. ${profession.seite}):\n${profession.text.slice(0, 5000)}`,
-    consecrated && god
-      ? `\nDie Figur ist geweiht (${god}). Liturgien des ${god} bis Grad ${hint.litGrade}:\n${Object.entries(liturgies).map(([g, l]) => `Grad ${g}: ${l.join(', ')}`).join('\n')}\nWähle 4–12 passende davon für „liturgien“ (Pflicht). KaP: 12–40. Talent „Liturgiekenntnis (${god})“ nicht vergessen.`
-      : '\nDie Figur ist NICHT geweiht: liturgien leer, KaP null.',
-    `\nGültige Namen (nur diese verwenden, genau so geschrieben):\nTalente: ${vocab.talente.join(', ')}\nSonderfertigkeiten: ${vocab.sonderfertigkeiten.join(', ')}\nVorteile: ${vocab.vorteile.join(', ')}\nNachteile: ${vocab.nachteile.join(', ')}` +
-      (vocab.zauber ? `\nZauber: ${vocab.zauber.join(', ')}` : ''),
-  ].filter(Boolean).join('\n')
-
-  const messages: ChatMessage[] = [{ role: 'system', content: system }, { role: 'user', content: user }]
-  let npc: NpcJson | null = null
-  let repairs: string[] = []
-  let issues: string[] = []
-  let rounds = 0
-  for (; rounds < 3; rounds++) {
-    step(rounds === 0 ? 'Werte erzeugen …' : `Korrektur ${rounds} …`)
-    const raw = await llm.chat(messages, { schema: npcSchema(), temperature: rounds === 0 ? 0.5 : 0.2 })
-    npc = JSON.parse(raw) as NpcJson
-    if (input.name) npc.name = input.name
-    const r = review(npc, { level, consecrated, spellcaster, god })
-    npc = r.npc
-    repairs = [...repairs, ...r.repairs]
-    issues = r.issues
-    const needsLlm = r.needsFix
-    if (!needsLlm) break
-    if (rounds === 2) break
-    messages.push({ role: 'assistant', content: JSON.stringify(npc) })
-    messages.push({
-      role: 'user',
-      content: `Bitte korrigieren:\n- ${issues.join('\n- ')}\nErsetze unbekannte Namen durch offizielle DSA-4.1-Namen oder lass sie weg. Gib das vollständige JSON zurück.`,
-    })
-  }
-  // still invented names after the last round → drop them instead of creating custom items in Foundry
-  if (issues.some((i) => /gibt es in DSA 4\.1 nicht/.test(i))) {
-    const r = review(npc!, { level, consecrated, spellcaster, god, dropUnknown: true })
-    npc = r.npc
-    repairs = [...repairs, ...r.repairs.filter((x) => /entfernt \((kein DSA|nicht im Arsenal)/.test(x))]
-    issues = r.issues
-  }
-  return {
-    block: '```dsa-nsc\n' + toBlock(npc!) + '\n```',
-    profession: { name: profession.name, buch: profession.buch, seite: profession.seite },
-    level,
-    god,
-    repairs,
-    issues,
-    rounds: Math.min(rounds + 1, 3),
-    seconds: (Date.now() - t0) / 1000,
-  }
-}

@@ -42,7 +42,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 1. Obsidian: Befehl „Nach Foundry exportieren (ZIP)“ (oder Paket-Symbol links) → `~/Downloads/<vault>-foundry.zip`.
 2. Foundry: ZIP-Symbol neben „Vault synchronisieren“ → Datei wählen → Importieren.
 
-**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (Cloud, eigener API-Schlüssel) oder ein lokales Sprachmodell schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
+**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
 **Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „DSA-NSC-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
@@ -183,7 +183,7 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 | `packages/obsidian-plugin` | Obsidian-Plugin |
 | `packages/foundry-module` | Foundry-Modul `vault-to-foundry` (v13) |
 | `packages/sync-service` | Sync-Dienst `vtf-sync` (Node, ohne Abhängigkeiten, Docker) |
-| `packages/nsc-generator` | NSC-Generator: Regelwerk- und Seiten-Index, Claude (Anthropic-SDK) und OpenAI mit gemeinsamen Werkzeugen, Ollama, Reparaturen |
+| `packages/nsc-generator` | NSC-Generator: Regelwerk- und Seiten-Index, Claude (Anthropic-SDK) und OpenAI mit gemeinsamen Werkzeugen, Prüfung und Reparatur, Kreaturen |
 | `packages/nsc-generator-plugin` | Obsidian-Plugin „DSA-NSC-Generator“ |
 
 ```bash
@@ -198,7 +198,6 @@ npm run foundry       # lokale Test-Foundry auf http://localhost:30013 (.foundry
 npm run sync-local    # lokaler vtf-sync vor der Test-Foundry (Token in .foundry/sync-token)
 npm run e2e           # kompletter Durchlauf im Browser (Playwright), Screenshots in dist/e2e/
 npm run regelwerke    # Regelwerk-Index aus Regelwerke/*.pdf → .llm/regelwerk-index.json
-npm run llm -- start  # lokales LLM (stop | status | pull <modell> | list)
 ```
 
 Weitere Werkzeuge: `tools/export-cli.ts` (Export ohne Obsidian), `tools/sync-cli.ts` (Push ohne Obsidian), `tools/gen-dsa41-catalog.mjs` (Namenskatalog aus den dsa-41-Quellen), `tools/nsc-umwandlung/` (einmalige Umwandlung der Uthuria-NSCs).

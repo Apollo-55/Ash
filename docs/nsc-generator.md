@@ -1,132 +1,98 @@
-# DSA-NSC-Generator (M6)
+# DSA-NSC-Generator
 
-Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block. Drei Anbieter, in den Plugin-Einstellungen umschaltbar:
+Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block – für Personen (Talente, SF, Energien nach DSA-4.1-Formel) und für Kreaturen und einfache Gegner (feste Bestiarium-Werte). Ein Sprachmodell schlägt dabei wie ein Spielleiter in deinen Regelwerken nach. Zwei Anbieter, in den Plugin-Einstellungen umschaltbar:
 
-- **Claude (Cloud, Standard):** beste Werte. Claude schlägt wie ein Spielleiter in deinen Regelwerken nach und gibt den NSC ab. Kostet pro NSC einige Cent (Anzeige nach jedem Lauf). Die PDFs bleiben auf deinem PC – nur die Seiten, die Claude nachschlägt, werden an Anthropic gesendet.
-- **OpenAI (Cloud):** gleiche Arbeitsweise wie Claude (dieselben Werkzeuge und Prüfungen), mit deinem OpenAI-API-Guthaben. Statt Kosten zeigt das Ergebnis die verbrauchten Tokens.
-- **Lokal (Ollama):** kostenlos, nichts verlässt den PC, aber deutlich schwächer (erfindet öfter Namen, wählt manchmal die falsche Profession).
+- **Claude** (Anthropic, Standard `claude-opus-5-5`) – Kosten werden nach jedem Lauf angezeigt.
+- **OpenAI** (Standard `gpt-6.1-sol`) – das Ergebnis nennt die verbrauchten Tokens.
 
-## Cloud-Modus (Claude) einrichten
+Die PDFs bleiben auf deinem PC; an den Anbieter gehen die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt.
 
-1. API-Schlüssel anlegen: [console.anthropic.com](https://console.anthropic.com) → *API Keys*. Abrechnung pro Nutzung, Guthaben aufladen. Ein Claude.ai-Abo (Pro/Max) enthält **keinen** API-Zugang.
-2. Index bauen (einmalig und nach jedem PDF-Tausch): `cd ~/Projekt/Ash && npm run regelwerke`. Das erzeugt `.llm/regelwerk-index.json` und `.llm/regelwerk-seiten.json` (Volltext aller lesbaren Seiten, nur lokal).
-3. In Obsidian: `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken, Plugin einschalten. Einstellungen → Anbieter „Claude (Cloud)“ → API-Schlüssel eintragen → **Prüfen** (zeigt „verbunden, Modell … verfügbar“; die Prüfung kostet nichts).
-4. Modell wählen: **Opus 5.5** (beste Qualität, ca. 0,20–0,40 $ pro NSC), **Sonnet 5.5** (gut, etwa die Hälfte), **Haiku 5.5** (sehr günstig, für einfache Gegner). *Gründlichkeit* steuert, wie viel Claude nachdenkt (mittel ist Standard).
+Einen lokalen Modus (Ollama) gab es bis 2026-11-04; er ist pausiert – siehe [zukunft.md](zukunft.md).
 
-Der Schlüssel steht in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`. Diese Datei nicht weitergeben und die Vault nicht mit diesem Ordner teilen (z. B. Vault-Sync mit anderen).
+## Einrichten
 
-## OpenAI-Modus einrichten
+1. **Index bauen** (einmalig und nach jedem PDF-Tausch): `cd ~/Projekt/Ash && npm run regelwerke`. Das erzeugt `.llm/regelwerk-seiten.json` (Volltext aller lesbaren Seiten) und `.llm/regelwerk-index.json` (welche Bücher lesbar sind) – beides nur lokal.
+2. **Plugin:** `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken und „DSA-NSC-Generator“ einschalten.
+3. **Anbieter wählen** (Einstellungen → Sprachmodell):
+   - **Claude:** Schlüssel von [console.anthropic.com](https://console.anthropic.com) → *API Keys* (Abrechnung pro Nutzung; ein Claude.ai-Abo enthält keinen API-Zugang). **Prüfen** zeigt „verbunden, Modell … verfügbar“ und kostet nichts. Modelle: Opus 5.5 (beste Qualität, ca. 0,20–0,40 $ pro NSC), Sonnet 5.5 (etwa die Hälfte), Haiku 5.5 (sehr günstig, für einfache Gegner).
+   - **OpenAI:** Schlüssel von [platform.openai.com](https://platform.openai.com) → *API keys* (ein ChatGPT-Abo enthält keinen API-Zugang). **Prüfen** lädt kostenlos die Modelle, die der Schlüssel nutzen darf.
+   - *Gründlichkeit* (niedrig/mittel/hoch) steuert, wie viel das Modell nachdenkt; mittel ist Standard.
 
-1. API-Schlüssel: [platform.openai.com](https://platform.openai.com) → *API keys* (Abrechnung pro Nutzung; ein ChatGPT-Abo enthält keinen API-Zugang).
-2. Index bauen wie oben (`npm run regelwerke`).
-3. Plugin-Einstellungen → Anbieter „OpenAI (Cloud)“ → Schlüssel eintragen → **Prüfen**: lädt die Modelle, die der Schlüssel nutzen darf (kostenlos), danach Modell wählen. Reasoning-Modelle (`gpt-5…`, `o…`) nutzen die *Gründlichkeit*, andere ignorieren sie.
+Die Schlüssel stehen in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`. Diese Datei nicht weitergeben und die Vault nicht mit diesem Ordner teilen.
 
-Technik: offizielles `openai`-SDK, **Responses-API** mit Function Calling (`strict`) – neuere Modelle (gpt-5.4 bis gpt-6.1) erlauben Werkzeuge zusammen mit Nachdenken nur dort, nicht in Chat Completions. Zustandslos (`store: false`): der Verlauf samt verschlüsselter Denkschritte wird bei jedem Aufruf mitgeschickt, OpenAI speichert nichts. Anfragen über Obsidians `requestUrl`.
+## Benutzen
 
-### Modellvergleich OpenAI (November 2026, Topasa / Ralio / Haargh, Gründlichkeit mittel)
+1. Einer der Befehle (`Strg+P`):
+   - **„NSC aus Markierung erzeugen“** – Beschreibung markieren, Block kommt darunter.
+   - **„NSC aus dieser Notiz erzeugen“** – nimmt den Text der Notiz (ohne Bilder und Codeblöcke), Block kommt ans Ende.
+   - **„NSC-Generator öffnen“** – leeres Formular, Block kommt an die Cursorposition.
+2. Im Formular: Name, Beschreibung, **Art** (automatisch / Person / Kreatur), Erfahrung (oder automatisch), Profession (optional, freier Text) → **Erzeugen**. Der Fortschritt zeigt, was gerade nachgeschlagen wird (≈ 10–90 s).
+3. Vorschau als Wertekasten mit Quellen und automatischen Korrekturen → **Einfügen**. Nicht gefallen? Nochmal „Erzeugen“.
+
+Das Ergebnis ist ein Vorschlag. Prüf es wie jeden Wertekasten: Fehler rot, Warnungen orange.
+
+## Wie es arbeitet
+
+Das Modell bekommt deine Beschreibung, die Regeln des Generators und fünf Werkzeuge. Wie oft es nachschlägt, entscheidet es selbst – bei einfachen Gegnern kaum, bei einer Kor-Geweihten gezielt Spätweihe und Liturgien.
+
+| Werkzeug | Was es tut |
+|---|---|
+| `regelwerk_suchen` | Volltextsuche über alle lesbaren Seiten, bis zu 8 Treffer mit Auszug. Seiten, die einen Begriff erklären („Meisterparade: …“, „Handwerker / Handwerkerin (1 GP)“), stehen vor bloßen Erwähnungen; das Stichwortregister wird herabgestuft. |
+| `seiten_lesen` | bis zu 4 Seiten im Volltext (PDF-Seitenzahlen) |
+| `katalog_suchen` | offizielle Namen im dsa-41-Kompendium (nur die erkennt Foundry) |
+| `nsc_abgeben` | Person abgeben |
+| `kreatur_abgeben` | Kreatur oder einfachen Gegner mit festen Werten abgeben |
+
+Jede Abgabe wird geprüft und repariert; was nicht passt, geht mit Vorschlägen an das Modell zurück (höchstens 3 Abgaben, bei der dritten wird Unbekanntes entfernt).
+
+**Prüfung bei Personen:**
+
+- Namen: „Sinnenscharfe“ → „Sinnenschärfe“, „Sprachen Kennen [Garethi]“ → „Garethi“, „Kurzschwert (Schmiedewerk) +2“ → „Kurzschwert“; Unbekanntes mit Vorschlägen („meintest du: Grobschmied?“).
+- Kampftalente zu jeder Waffe, SF-Ketten (fehlende Voraussetzungen ergänzt, unerfüllbare SF entfernt).
+- LeP/AuP nach DSA-4.1-Formel plus Zukauf; AsP nur für Zauberkundige, KaP und Liturgien nur für Geweihte.
+- Vor-/Nachteile: falsche Liste umsortiert, Dubletten und Einheitswerte entfernt, höchstens sechs je Liste.
+- Zu niedrige Talentwerte oder zu wenige SF für die Erfahrung lösen eine Korrektur aus.
+
+## Kreaturen und einfache Gegner
+
+- **Person:** Eigenschaften, Talente, SF, Energien nach Formel.
+- **Kreatur:** feste Werte wie im Bestiarium – LeP, AuP, RS, MR, GS, INI, Ausweichen, Angriffe mit AT/PA (bzw. FK), TP und Distanzklasse; Kreaturfähigkeiten (Gift, Fliegen, Regeneration, Furcht …) mit kurzem Regeltext, die in Foundry als eigene Sonderfertigkeiten erscheinen. Eigenschaften nur, wenn bekannt oder für Proben nötig. Der Block bekommt `verknüpft: nein`, damit mehrere Tokens derselben Kreatur eigene Lebenspunkte haben. Natürliche Angriffe kämpfen mit Raufen.
+- **Automatisch:** Tiere, Monster, Dämonen und namenlose Gegner (Wache, Räuber) werden Kreaturen, benannte Figuren mit Geschichte Personen. Im Test (gpt-6.1-sol) wurden Hydra und Wegelagerer als Kreatur, ein Wachhauptmann als Person erkannt.
+
+Steht die Kreatur in einem deiner Regelwerke (z. B. einem Bestiarium in `Regelwerke/`), übernimmt das Modell die Werte mit Fundstelle. Die Prüfung achtet auf gültige TP („2d6“ wird „2W6“), echte Kampftalente, plausible AT/PA und offizielle Talentnamen; unbekannte SF werden Kreaturfähigkeiten.
+
+## Regelwerke
+
+Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein Commit-Hook verhindern das). Neues Buch dazulegen oder ersetzen → `npm run regelwerke` → in den Plugin-Einstellungen „Neu laden“.
+
+- **Jedes lesbare PDF** wird Seite für Seite durchsuchbar – auch unbekannte Bücher wie Bestiarien oder Regionalbände mit neuen Professionen.
+- **Kürzel:** Initialen des Titels (WdH, LL, WdZ). Teilen sich zwei Bücher Initialen, bekommen beide eine längere Form („Aventurische Magie“ → `AvMa`, „Aventurische Meisterschaft“ → `AvMe`).
+- **Nicht lesbar** sind derzeit *Wege des Schwerts* und *Liber Cantiones* (nur Bilder der Schrift). Dafür nutzen die Modelle ihr eigenes Regelwissen; Texterkennung steht in [zukunft.md](zukunft.md).
+- Bücher auslassen: `Regelwerke/regelwerke.json` mit `[{ "datei": "Altes Buch.pdf", "art": "ignorieren" }]`.
+
+## Technik
+
+- **Claude:** offizielles Anthropic-SDK, Anfragen über Obsidians `requestUrl`, Prompt-Caching für Regeltext und Gesprächsverlauf, bei Opus/Sonnet automatisches Ausweichmodell, falls eine Anfrage abgelehnt wird (`fallbacks: "default"`).
+- **OpenAI:** offizielles `openai`-SDK, Responses-API mit Function Calling (`strict`) – neuere Modelle (gpt-5.4 bis gpt-6.1) erlauben Werkzeuge zusammen mit Nachdenken nur dort. Zustandslos (`store: false`): OpenAI speichert nichts.
+- Werkzeuge, Regeltext und Prüfung sind für beide Anbieter dieselben (`agent.ts`).
+
+## Modelle vergleichen
+
+```bash
+OPENAI_API_KEY=… node systems/dsa41/tools/eval.ts ~/Obsidian/uthuria-ob --models openai:gpt-6.1-sol,claude-opus-5-5 --only Topasa,Ralio,Haargh
+```
+
+Erzeugt die NSCs deiner Vault aus ihrer Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit, Kosten). Die Vault wird nur gelesen. **Jeder Lauf kostet Geld.** Claude-Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`.
+
+### Ergebnis OpenAI (November 2026, Topasa / Ralio / Haargh, Gründlichkeit mittel)
 
 | Modell | Profession/Weihe/Zauber richtig | Talente ≈ Referenz | SF ≈ Referenz | Ø Zeit | Anmerkung |
 |---|---|---|---|---|---|
 | **gpt-6.1-sol** (Standard) | 3/3 | 56 % | 38 % | 33 s | schnell, schlüssige Werte, gibt meist beim ersten Mal korrekt ab |
 | gpt-6-astra | 3/3 | 59 % | 44 % | 51 s | sehr gut, etwas langsamer |
-| gpt-5.5 | 3/3 | 60 % | 28 % | 78 s | am ausführlichsten (≈ 25–29 Talente, viele Quellen), langsam |
+| gpt-5.5 | 3/3 | 60 % | 28 % | 78 s | am ausführlichsten (≈ 25–29 Talente), langsam |
 | gpt-5.6-terra | 3/3 | 58 % | 30 % | 34 s | gut, braucht öfter Korrekturrunden |
 | gpt-6-luna | 3/3 | 47 % | 15 % | 39 s | dünner (13–15 Talente) |
-| gpt-5.4-mini | – | – | – | – | gibt den NSC nie ab (bricht nach 16 Runden ab) |
-| *zum Vergleich lokal qwen3:14b* | 3/3 | 25 % | 7 % | 68 s | |
+| gpt-5.4-mini | – | – | – | – | gibt nie ab |
 
-Alle funktionierenden Modelle setzten Weihe, KaP, Liturgien (nur Haargh/Kor) und AsP, Zauber (nur Ralio) richtig. Kosten zeigt das Plugin für OpenAI nicht an (Preise je Modell unbekannt) – siehe Nutzung im OpenAI-Dashboard; das Ergebnis nennt die Tokens.
-
-### Wie die Cloud-Modi arbeiten
-
-Claude bzw. das OpenAI-Modell bekommt deine Beschreibung und vier Werkzeuge:
-
-| Werkzeug | Was es tut |
-|---|---|
-| `regelwerk_suchen` | Volltextsuche über alle lesbaren Seiten (WdH, Liber Liturgium, WdZ), liefert Seite + Auszug |
-| `seiten_lesen` | liest bis zu 4 Seiten im Volltext (PDF-Seitenzahlen) |
-| `katalog_suchen` | sucht offizielle Namen im dsa-41-Kompendium (nur die erkennt Foundry) |
-| `nsc_abgeben` | gibt den NSC ab; der Code prüft und repariert wie im lokalen Modus und meldet Probleme zurück (bis zu 3 Abgaben) |
-
-Die Beschreibung hat Vorrang, eine Profession ist nur Orientierung; einfache Gegner brauchen kaum Nachschlagen. Im Ergebnis stehen die genutzten **Quellen**, die Zahl der Nachschlage-Schritte und die ungefähren Kosten. *Wege des Schwerts* und *Liber Cantiones* sind nicht lesbar – dafür nutzt Claude sein eigenes Regelwissen.
-
-Technik: offizielles Anthropic-SDK, Anfragen über Obsidians `requestUrl`, Prompt-Caching für Systemtext und Gesprächsverlauf, bei Opus/Sonnet automatisches Ausweichmodell, falls eine Anfrage abgelehnt wird (`fallbacks: "default"`).
-
-## Lokalen Modus einrichten
-
-```bash
-cd ~/Projekt/Ash
-npm run regelwerke                 # Index aus den PDFs in Regelwerke/ bauen (≈10 s)
-npm run llm -- start               # lokales LLM starten (Podman-Container, ROCm)
-npm run llm -- pull qwen3:14b      # Modell laden (einmalig, ≈9 GB)
-```
-
-In Obsidian: `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken, Plugin „DSA-NSC-Generator“ einschalten. In den Einstellungen das Modell prüfen (Status zeigt „läuft, Modell … vorhanden“).
-
-## Benutzen
-
-1. Nur im lokalen Modus: LLM starten mit `npm run llm -- start` (der Startbefehl steht auch in den Plugin-Einstellungen zum Kopieren).
-2. In Obsidian einer der Befehle:
-   - **„NSC aus Markierung erzeugen“** – Beschreibung markieren, Block kommt darunter.
-   - **„NSC aus dieser Notiz erzeugen“** – nimmt den Text der Notiz (ohne Bilder und Codeblöcke), Block kommt ans Ende.
-   - **„NSC-Generator öffnen“** – leeres Formular, Block kommt an die Cursorposition.
-3. Im Formular: Name, Beschreibung, Erfahrung (oder automatisch), Profession (oder automatisch) → **Erzeugen** (≈ 30–90 s; der Fortschritt zeigt, was Claude gerade nachschlägt) → Vorschau als Wertekasten mit den automatischen Korrekturen → **Einfügen**. Nicht gefallen? Einfach nochmal „Erzeugen“.
-4. Lokal: Das LLM beendet sich nach 15 Minuten ohne Anfrage selbst (`npm run llm -- stop` beendet es sofort). Ungenutzt braucht es keine Ressourcen.
-
-## Wie der lokale Modus arbeitet
-
-1. Das LLM wählt aus den Professionen des Index (Wege der Helden, 252 Einträge inkl. Akademien) die passendste, dazu Erfahrung und ggf. Gottheit.
-2. Es bekommt das Professionspaket aus dem Buch (und bei Geweihten die Liturgien ihres Gottes bis zum Grad der Erfahrung) und füllt die Werte als JSON nach festem Schema.
-3. Der Code korrigiert ohne LLM:
-   - Namen, die fast stimmen → offizieller Name („Sinnenscharfe“ → „Sinnenschärfe“),
-   - fehlende Kampftalente zu Waffen ergänzen,
-   - SF-Ketten: fehlende Voraussetzungs-SF ergänzen, unerfüllbare SF entfernen,
-   - LeP/AuP/AsP/KaP nach DSA-4.1-Formel plus Zukauf passend zur Erfahrung,
-   - Zauber nur für Zauberkundige, Liturgien nur für Geweihte.
-4. Bleiben unbekannte Namen, bekommt das LLM die Liste zurück (bis zu 3 Runden).
-
-Das Ergebnis ist ein Vorschlag. Prüf es wie jeden Wertekasten: Fehler rot, Warnungen orange.
-
-## Kreaturen und einfache Gegner (nur Claude/OpenAI)
-
-Im Formular gibt es das Feld **Art**: *automatisch*, *Person (NSC)* oder *Kreatur / einfacher Gegner*.
-
-- **Person:** Eigenschaften, Talente, SF, Energien nach DSA-4.1-Formel (wie bisher).
-- **Kreatur:** feste Werte wie im Bestiarium – LeP, AuP, RS, MR, GS, INI, Ausweichen, Angriffe mit AT/PA (bzw. FK), TP und Distanzklasse; Kreaturfähigkeiten (Gift, Fliegen, Regeneration, Furcht …) mit kurzem Regeltext. Eigenschaften nur, wenn sie bekannt oder für Proben nötig sind. Der Block bekommt `verknüpft: nein`, damit mehrere Tokens derselben Kreatur unabhängige Lebenspunkte haben. Natürliche Angriffe kämpfen mit Raufen.
-- **Automatisch:** das Modell entscheidet – Tiere, Monster, Dämonen und namenlose Gegner (Wache, Räuber) als Kreatur, benannte Figuren mit Geschichte als Person. Im Test (gpt-6.1-sol) wurden Hydra und Wegelagerer als Kreatur, ein Wachhauptmann als Person erkannt.
-
-Steht die Kreatur in einem deiner Regelwerke (z. B. einem Bestiarium im Ordner `Regelwerke/`), schlägt das Modell nach und übernimmt die Werte mit Fundstelle. Der lokale Modus kann keine Kreaturen.
-
-Die Prüfung achtet auf gültige TP-Ausdrücke („1W6+3“, „2d6“ wird zu „2W6“), echte Kampftalente, plausible AT/PA und offizielle Talentnamen; unbekannte SF werden zu Kreaturfähigkeiten.
-
-## Regelwerke tauschen
-
-Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein Commit-Hook verhindern das). Bessere PDF dazulegen oder alte ersetzen → `npm run regelwerke` → in den Plugin-Einstellungen „Neu laden“. Die Einstellungen zeigen, welche Bücher lesbar sind. Derzeit **nicht lesbar**: *Wege des Schwerts* und *Liber Cantiones* (die PDFs haben keinen Text, nur Bilder der Schrift).
-
-Jedes lesbare PDF landet im Seiten-Index und ist im Cloud-Modus sofort durchsuchbar – auch Bücher, die das Skript nicht kennt (Bestiarien, Regionalbände mit neuen Professionen). Jedes Buch bekommt ein eindeutiges Kürzel (Initialen; teilen sich zwei Bücher eines, bekommen beide eine längere Form, z. B. „AvMa“/„AvMe“). Die Professionsliste für den lokalen Modus und die Liturgien werden nur aus bekannten Büchern gelesen; diese werden am Dateinamen erkannt. Anders benannte Bücher in `Regelwerke/regelwerke.json` zuordnen:
-
-```json
-[{ "datei": "Mein WdH.pdf", "art": "professionen" }, { "datei": "Altes Buch.pdf", "art": "ignorieren" }]
-```
-
-## Modelle vergleichen
-
-```bash
-node tools/nsc-generator/eval.ts ~/Obsidian/uthuria-ob --models qwen3:14b,gemma3:12b
-```
-
-Mit Claude-Modellen (`--models claude-opus-5-5`, optional `--effort high`) läuft der Cloud-Modus; Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`. OpenAI-Modelle als `--models openai:<modell>`, Schlüssel aus `OPENAI_API_KEY`. **Das kostet Geld** (≈ 17 NSCs × Preis pro NSC).
-
-Erzeugt jeden NSC deiner Vault aus seiner Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit). Die Vault wird nur gelesen.
-
-Vor einem Vergleich die Modelle laden (`npm run llm -- pull <modell>`), danach wieder löschen (`podman exec vtf-ollama ollama rm <modell>`). Ein Vergleich lastet GPU und CPU für längere Zeit voll aus (≈ 1 Minute pro NSC und Modell).
-
-### Ergebnis (November 2026, 17 NSCs aus Uthuria, RX 6900 XT)
-
-| Modell | Profession richtig | gültige Blöcke | Talente ≈ Referenz | Ø Zeit |
-|---|---|---|---|---|
-| **qwen3:14b** (gewählt) | 16/17 | 17/17 | 42 % | 64 s |
-| gemma3:12b | 9/13 (Lauf abgebrochen) | 13/13 | 28 % | 47 s |
-| mistral-nemo:12b (erster Lauf, ohne Vorauswahl) | 11/18 | 18/18 | 28 % | 46 s |
-
-qwen3:14b trifft Profession, Weihe (Kor, Nandus, Praios) und Magier-Akademie am zuverlässigsten und vergibt die meisten und höchsten Talente; gemma3 ist schneller, wählt aber öfter falsch (Haargh als Söldnerin ohne Weihe, Dioptus als Schreiber). Nur qwen3:14b bleibt installiert (≈ 9 GB in `.llm/ollama`).
+Claude ist noch nicht mit echtem Schlüssel verglichen.

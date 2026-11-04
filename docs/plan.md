@@ -104,7 +104,9 @@ talente:
 
 Die Felder je Typ (Probe, Kosten, Reichweite, Wirkungsdauer usw.) lege ich in M2 anhand der DataModels fest. Was ich nicht kenne, landet in der Item-Beschreibung.
 
-## M6: NSC-Generator (Beschreibung → `dsa-nsc`-Block) – gebaut, Modellwahl läuft (Anleitung: docs/nsc-generator.md)
+## M6: NSC-Generator (Beschreibung → `dsa-nsc`-Block) – gebaut (Anleitung: docs/nsc-generator.md)
+
+> Stand 2026-11-04: Der ursprünglich bevorzugte lokale Modus (Ollama) ist pausiert, der Generator läuft mit Claude oder OpenAI. Die Entscheidungen unten beschreiben den ersten Entwurf; siehe docs/zukunft.md.
 
 Stand der Entscheidungen 2026-11-03:
 

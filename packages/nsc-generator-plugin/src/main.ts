@@ -1,5 +1,5 @@
 import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, requestUrl, sanitizeHTMLToDom, type ButtonComponent, type Editor } from 'obsidian'
-import { dsa41, type HttpFn } from '../../core/src/index.ts'
+import { dsa41 } from '../../core/src/index.ts'
 import {
   CLAUDE_MODELS,
   checkClaude,
@@ -7,20 +7,16 @@ import {
   claudeClient,
   generateNpcOpenAI,
   openaiClient,
-  generateNpc,
   generateNpcClaude,
-  Knowledge,
   LEVELS,
-  OllamaClient,
   PageStore,
   type CloudResult,
   type Effort,
-  type GenerateResult,
   type Level,
 } from '../../nsc-generator/src/index.ts'
 
 interface GenSettings {
-  provider: 'claude' | 'openai' | 'ollama'
+  provider: 'claude' | 'openai'
   /** Anthropic API key (stored in the plugin's data.json inside the vault – user's choice) */
   claudeKey: string
   claudeModel: string
@@ -29,12 +25,8 @@ interface GenSettings {
   openaiModel: string
   /** models the key can use, from the last "Prüfen" */
   openaiModels: string[]
-  ollamaUrl: string
-  model: string
-  /** absolute path of .llm/regelwerk-index.json */
+  /** absolute path of .llm/regelwerk-index.json (the pages file lies next to it) */
   indexPath: string
-  /** start command shown when the LLM is not running */
-  startCommand: string
   defaultLevel: Level | 'auto'
 }
 
@@ -55,19 +47,11 @@ const DEFAULTS = (): GenSettings => ({
   openaiKey: '',
   openaiModel: 'gpt-6.1-sol',
   openaiModels: [],
-  ollamaUrl: 'http://127.0.0.1:11434',
-  model: 'qwen3:14b',
   indexPath: `${home()}/Projekt/Ash/.llm/regelwerk-index.json`,
-  startCommand: 'cd ~/Projekt/Ash && npm run llm -- start',
   defaultLevel: 'auto',
 })
 
-const http: HttpFn = async (req) => {
-  const res = await requestUrl({ url: req.url, method: req.method, headers: req.headers, body: req.body as string | undefined, contentType: req.headers['Content-Type'], throw: false })
-  return { status: res.status, text: res.text }
-}
-
-/** fetch for the Anthropic SDK over Obsidian's requestUrl (no CORS in the app) */
+/** fetch for the Anthropic/OpenAI SDKs over Obsidian's requestUrl (no CORS in the app) */
 const obsidianFetch = (async (url: string | URL | Request, init?: RequestInit) => {
   const headers: Record<string, string> = {}
   new Headers(init?.headers).forEach((v, k) => (headers[k] = v))
@@ -83,11 +67,12 @@ const obsidianFetch = (async (url: string | URL | Request, init?: RequestInit) =
 
 export default class NscGeneratorPlugin extends Plugin {
   settings: GenSettings = DEFAULTS()
-  private kb: Knowledge | null = null
   private pageStore: PageStore | null = null
 
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS(), ...((await this.loadData()) ?? {}) }
+    // the local mode (Ollama) was removed – old settings fall back to Claude (docs/zukunft.md)
+    if (!['claude', 'openai'].includes(this.settings.provider)) this.settings.provider = 'claude'
     this.addSettingTab(new GenSettingTab(this.app, this))
 
     this.addCommand({
@@ -124,13 +109,12 @@ export default class NscGeneratorPlugin extends Plugin {
     await this.saveData(this.settings)
   }
 
-  knowledge(): Knowledge {
-    if (this.kb) return this.kb
+  /** books and whether they are readable (regelwerk-index.json) */
+  bookStatus(): { erstellt: string; buecher: { datei: string; kurz?: string; lesbar: boolean; ignoriert?: boolean }[] } {
     const fs = nodeRequire('fs')
     const path = this.settings.indexPath.replace(/^~/, home())
     if (!fs.existsSync(path)) throw new Error(`Regelwerk-Index fehlt: ${path} – im Projekt „npm run regelwerke“ ausführen.`)
-    this.kb = new Knowledge(JSON.parse(fs.readFileSync(path, 'utf8')))
-    return this.kb
+    return JSON.parse(fs.readFileSync(path, 'utf8'))
   }
 
   /** full pages for the cloud mode, next to the index (.llm/regelwerk-seiten.json) */
@@ -143,8 +127,7 @@ export default class NscGeneratorPlugin extends Plugin {
     return this.pageStore
   }
 
-  resetKnowledge(): void {
-    this.kb = null
+  resetPages(): void {
     this.pageStore = null
   }
 
@@ -157,26 +140,8 @@ export default class NscGeneratorPlugin extends Plugin {
       if (!this.settings.claudeKey) return { ok: false, message: 'Claude – API-Schlüssel fehlt (Einstellungen)' }
       return { ok: true, message: `Claude (${this.modelLabel()})` }
     }
-    if (this.settings.provider === 'openai') {
-      if (!this.settings.openaiKey) return { ok: false, message: 'OpenAI – API-Schlüssel fehlt (Einstellungen)' }
-      return { ok: true, message: `OpenAI (${this.settings.openaiModel})` }
-    }
-    const s = await this.llmStatus()
-    return { ok: s.ok, message: `lokal: ${s.message}` }
-  }
-
-  client(): OllamaClient {
-    return new OllamaClient({ url: this.settings.ollamaUrl, model: this.settings.model, http })
-  }
-
-  async llmStatus(): Promise<{ ok: boolean; models: string[]; message: string }> {
-    try {
-      const models = await this.client().models()
-      const has = models.includes(this.settings.model) || models.includes(`${this.settings.model}:latest`)
-      return { ok: has, models, message: has ? `läuft, Modell ${this.settings.model} vorhanden` : `läuft, aber Modell ${this.settings.model} fehlt (vorhanden: ${models.join(', ') || 'keins'})` }
-    } catch {
-      return { ok: false, models: [], message: `nicht erreichbar – starten mit: ${this.settings.startCommand}` }
-    }
+    if (!this.settings.openaiKey) return { ok: false, message: 'OpenAI – API-Schlüssel fehlt (Einstellungen)' }
+    return { ok: true, message: `OpenAI (${this.settings.openaiModel})` }
   }
 
   openForm(init: { description: string; name?: string; insertAt: 'selection' | 'end' | 'cursor' }): void {
@@ -190,7 +155,7 @@ export default class NscGeneratorPlugin extends Plugin {
 }
 
 class GeneratorModal extends Modal {
-  private result: GenerateResult | null = null
+  private result: CloudResult | null = null
   private running = false
   constructor(
     app: App,
@@ -205,7 +170,6 @@ class GeneratorModal extends Modal {
     this.titleEl.setText('NSC erzeugen')
     this.modalEl.addClass('dsa-gen-modal')
     const c = this.contentEl
-    const cloud = this.plugin.settings.provider !== 'ollama'
     const status = c.createDiv({ cls: 'dsa-gen-status', text: 'Prüfe Sprachmodell …' })
     this.plugin.providerStatus().then((s) => {
       status.setText(`Sprachmodell: ${s.message}`)
@@ -229,7 +193,7 @@ class GeneratorModal extends Modal {
       })
     new Setting(c)
       .setName('Art')
-      .setDesc(cloud ? 'Person: Talente und Werte nach Formel. Kreatur: feste Werte wie im Bestiarium (Tiere, Monster, namenlose Gegner).' : 'Kreaturen nur mit Claude oder OpenAI.')
+      .setDesc('Person: Talente und Werte nach Formel. Kreatur: feste Werte wie im Bestiarium (Tiere, Monster, namenlose Gegner).')
       .addDropdown((d) => {
         d.addOption('auto', 'automatisch').addOption('person', 'Person (NSC)').addOption('kreatur', 'Kreatur / einfacher Gegner')
         d.setValue(art).onChange((v) => (art = v as typeof art))
@@ -239,21 +203,10 @@ class GeneratorModal extends Modal {
       for (const l of LEVELS) d.addOption(l, l)
       d.setValue(level).onChange((v) => (level = v as Level | 'auto'))
     })
-    let names: string[] = []
-    try {
-      names = this.plugin.knowledge().professionNames()
-    } catch (e) {
-      c.createDiv({ cls: 'dsa-gen-bad', text: (e as Error).message })
-    }
     new Setting(c)
       .setName('Profession')
-      .setDesc(cloud ? 'Optional – Claude orientiert sich daran, die Beschreibung hat aber Vorrang.' : 'Optional – sonst wählt das LLM aus „Wege der Helden“.')
-      .addText((t) => {
-        const list = c.createEl('datalist', { attr: { id: 'dsa-gen-professions' } })
-        for (const n of names) list.createEl('option', { attr: { value: n } })
-        t.inputEl.setAttr('list', 'dsa-gen-professions')
-        t.setPlaceholder('automatisch').onChange((v) => (profession = v))
-      })
+      .setDesc('Optional, freier Text (z. B. „Söldner“, „Magier aus Punin“) – das Modell orientiert sich daran, die Beschreibung hat Vorrang.')
+      .addText((t) => t.setPlaceholder('automatisch').onChange((v) => (profession = v)))
 
     const progress = c.createDiv({ cls: 'dsa-gen-progress' })
     const out = c.createDiv({ cls: 'dsa-gen-result' })
@@ -283,7 +236,7 @@ class GeneratorModal extends Modal {
             { model: st.claudeModel, effort: st.claudeEffort },
             (m) => progress.setText(m)
           )
-        } else if (st.provider === 'openai') {
+        } else {
           if (!st.openaiKey) throw new Error('Kein OpenAI-Schlüssel – in den Plugin-Einstellungen eintragen.')
           this.result = await generateNpcOpenAI(
             openaiClient(st.openaiKey, obsidianFetch),
@@ -292,28 +245,18 @@ class GeneratorModal extends Modal {
             { model: st.openaiModel, effort: st.claudeEffort },
             (m) => progress.setText(m)
           )
-        } else {
-          if (art === 'kreatur') throw new Error('Kreaturen mit festen Werten gibt es nur mit Claude oder OpenAI (Einstellungen → Anbieter).')
-          const kb = this.plugin.knowledge()
-          const prof = profession && kb.profession(profession) ? profession : undefined
-          this.result = await generateNpc(this.plugin.client(), kb, { ...input, profession: prof }, (m) => progress.setText(m))
         }
-        const r = this.result
-        const where = r.profession.buch ? ` (${r.profession.buch}, S. ${r.profession.seite})` : ''
-        const c = 'lookups' in r ? (r as CloudResult) : null
-        const cost = c
-          ? ` · ${c.lookups}× nachgeschlagen · ` +
-            (c.dollars != null ? `ca. ${c.dollars.toFixed(2).replace('.', ',')} $` : `${Math.round((c.tokens.input + c.tokens.cacheRead) / 1000)}k Tokens rein, ${Math.round(c.tokens.output / 1000)}k raus`)
-          : ''
-        const what = c?.art === 'kreatur' ? 'Kreatur' : r.level
-        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name}${where} · ${what}${r.god ? ` · ${r.god}` : ''}${cost}`)
+        const r = this.result!
+        const cost = r.dollars != null ? `ca. ${r.dollars.toFixed(2).replace('.', ',')} $` : `${Math.round((r.tokens.input + r.tokens.cacheRead) / 1000)}k Tokens rein, ${Math.round(r.tokens.output / 1000)}k raus`
+        const what = r.art === 'kreatur' ? 'Kreatur' : r.level
+        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name} · ${what}${r.god ? ` · ${r.god}` : ''} · ${r.lookups}× nachgeschlagen · ${cost}`)
         const parsed = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, ''))
         out.appendChild(sanitizeHTMLToDom(dsa41.renderStatblock(parsed, { showIssues: true, showCalculated: true })))
-        if ('quellen' in r && (r as CloudResult).quellen.length) {
+        if (r.quellen.length) {
           const d = out.createEl('details')
-          d.createEl('summary', { text: `Quellen (${(r as CloudResult).quellen.length})` })
+          d.createEl('summary', { text: `Quellen (${r.quellen.length})` })
           const ul = d.createEl('ul')
-          for (const x of (r as CloudResult).quellen) ul.createEl('li', { text: x })
+          for (const x of r.quellen) ul.createEl('li', { text: x })
         }
         if (r.repairs.length) {
           const d = out.createEl('details')
@@ -379,12 +322,11 @@ class GenSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName('Sprachmodell').setHeading()
     new Setting(containerEl)
       .setName('Anbieter')
-      .setDesc('Claude (Cloud): beste Werte, kostet pro NSC ein paar Cent, Bücher bleiben lokal – nur nachgeschlagene Seiten werden gesendet. Lokal (Ollama): kostenlos, aber deutlich schwächer.')
+      .setDesc('Beide schlagen in deinen Regelwerken nach; die Bücher bleiben auf dem PC, nur nachgeschlagene Seiten werden gesendet. Abrechnung pro Nutzung über den eigenen API-Schlüssel.')
       .addDropdown((d) =>
         d
-          .addOption('claude', 'Claude (Cloud)')
-          .addOption('openai', 'OpenAI (Cloud)')
-          .addOption('ollama', 'Lokal (Ollama)')
+          .addOption('claude', 'Claude (Anthropic)')
+          .addOption('openai', 'OpenAI')
           .setValue(s.provider)
           .onChange(async (v) => {
             s.provider = v as GenSettings['provider']
@@ -448,7 +390,7 @@ class GenSettingTab extends PluginSettingTab {
             })
         )
       check()
-    } else if (s.provider === 'openai') {
+    } else {
       let modelDropdown: import('obsidian').DropdownComponent | null = null
       const fillModels = () => {
         if (!modelDropdown) return
@@ -515,57 +457,17 @@ class GenSettingTab extends PluginSettingTab {
             })
         )
       if (s.openaiKey) check()
-    } else {
-      const refresh = () =>
-        this.plugin.llmStatus().then((r) => {
-          status.setText(`Status: ${r.message}`)
-          status.toggleClass('dsa-gen-bad', !r.ok)
-        })
-      refresh()
-      new Setting(containerEl)
-        .setName('Adresse')
-        .addText((t) =>
-          t.setValue(s.ollamaUrl).onChange(async (v) => {
-            s.ollamaUrl = v.trim()
-            await save()
-          })
-        )
-      new Setting(containerEl)
-        .setName('Modell')
-        .setDesc('Name wie in „npm run llm -- list“, z. B. qwen3:14b.')
-        .addText((t) =>
-          t.setValue(s.model).onChange(async (v) => {
-            s.model = v.trim()
-            await save()
-          })
-        )
-        .addButton((b) => b.setButtonText('Prüfen').onClick(refresh))
-      new Setting(containerEl)
-        .setName('Startbefehl')
-        .setDesc('Das LLM läuft nur bei Bedarf und beendet sich nach 15 Minuten Leerlauf selbst. Diesen Befehl im Terminal ausführen, wenn es nicht läuft.')
-        .addText((t) =>
-          t.setValue(s.startCommand).onChange(async (v) => {
-            s.startCommand = v
-            await save()
-          })
-        )
-        .addButton((b) =>
-          b.setButtonText('Kopieren').onClick(() => {
-            navigator.clipboard.writeText(s.startCommand)
-            new Notice('Startbefehl kopiert.')
-          })
-        )
     }
 
     new Setting(containerEl).setName('Regelwerke').setHeading()
     const idx = containerEl.createEl('p', { cls: 'setting-item-description' })
     const showIndex = () => {
       try {
-        const kb = this.plugin.knowledge()
-        const b = kb.index.buecher
+        const st = this.plugin.bookStatus()
+        const pages = this.plugin.pages()
         idx.setText(
-          `Index vom ${new Date(kb.index.erstellt).toLocaleString('de-DE')}: ${kb.index.professionen.length} Professionen, ${Object.keys(kb.index.liturgien).length} Gottheiten. ` +
-            b.map((x) => `${x.datei.replace(/^DSA 4\.1 - |\.pdf$/g, '')}: ${x.lesbar ? '✓' : '✗ nicht lesbar'}`).join(' · ')
+          `Index vom ${new Date(st.erstellt).toLocaleString('de-DE')}, ${pages.file.seiten.length} durchsuchbare Seiten. ` +
+            st.buecher.map((x) => `${x.kurz ? `${x.kurz} ` : ''}${x.datei.replace(/^DSA 4\.1 - |\.pdf$/g, '')}: ${x.ignoriert ? 'ignoriert' : x.lesbar ? '✓' : '✗ nicht lesbar'}`).join(' · ')
         )
       } catch (e) {
         idx.setText((e as Error).message)
@@ -578,13 +480,13 @@ class GenSettingTab extends PluginSettingTab {
       .addText((t) =>
         t.setValue(s.indexPath).onChange(async (v) => {
           s.indexPath = v.trim()
-          this.plugin.resetKnowledge()
+          this.plugin.resetPages()
           await save()
         })
       )
       .addButton((b) =>
         b.setButtonText('Neu laden').onClick(() => {
-          this.plugin.resetKnowledge()
+          this.plugin.resetPages()
           showIndex()
         })
       )

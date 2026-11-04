@@ -16,7 +16,6 @@
     "foundry": "tools/foundry-local.sh",
     "e2e": "tools/e2e/run-all.sh",
     "sync-local": "tools/sync-local.sh",
-    "llm": "tools/llm.sh",
     "regelwerke": "node tools/regelwerke/index.ts"
   },
   "devDependencies": {

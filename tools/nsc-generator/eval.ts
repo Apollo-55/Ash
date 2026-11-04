@@ -1,22 +1,20 @@
-// Compares local models on the hand-made Uthuria NSCs (docs/nsc-umwandlung.md).
-// Usage: node tools/nsc-generator/eval.ts <vault> --models qwen3:14b,gemma3:12b [--only Aschanka,Praiodan] [--out dist/eval.json]
-// Claude models (claude-…) use the cloud mode and COST MONEY – key from ANTHROPIC_API_KEY or `ant auth login`.
-// OpenAI models as openai:<model> (e.g. openai:gpt-5-mini) – COST MONEY too, key from OPENAI_API_KEY.
+// Compares models on the hand-made Uthuria NSCs (docs/nsc-umwandlung.md). Every run COSTS MONEY.
+// Usage: node tools/nsc-generator/eval.ts <vault> --models claude-opus-5-5,openai:gpt-6.1-sol [--only Aschanka,Praiodan] [--effort medium] [--out dist/eval.json]
+// Claude models (claude-…): key from ANTHROPIC_API_KEY or `ant auth login`. OpenAI models as openai:<model>: key from OPENAI_API_KEY.
 // The description is the note text WITHOUT its dsa-nsc block; the existing block is the reference.
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
-import { dsa41, fetchHttp, findFences } from '../../packages/core/src/index.ts'
+import { dsa41, findFences } from '../../packages/core/src/index.ts'
 import { normalizeName } from '../../packages/core/src/systems/dsa41/catalog.ts'
-import { claudeClient, generateNpc, generateNpcClaude, generateNpcOpenAI, Knowledge, OllamaClient, openaiClient, PageStore, type CloudResult } from '../../packages/nsc-generator/src/index.ts'
+import { claudeClient, generateNpcClaude, generateNpcOpenAI, openaiClient, PageStore } from '../../packages/nsc-generator/src/index.ts'
 
 const args = process.argv.slice(2)
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }
 const vault = args[0]
-const models = (opt('--models') ?? 'qwen3:14b').split(',')
+const models = (opt('--models') ?? 'openai:gpt-6.1-sol').split(',')
 const only = opt('--only')?.split(',').map((s) => s.toLowerCase())
 const out = opt('--out') ?? 'dist/eval.json'
-const kb = new Knowledge(JSON.parse(readFileSync('.llm/regelwerk-index.json', 'utf8')))
-const pages = models.some((m) => m.startsWith('claude-') || m.startsWith('openai:')) ? new PageStore(JSON.parse(readFileSync('.llm/regelwerk-seiten.json', 'utf8'))) : null
+const pages = new PageStore(JSON.parse(readFileSync('.llm/regelwerk-seiten.json', 'utf8')))
 
 /** expected profession (word in the chosen name) per NSC, from docs/nsc-umwandlung.md */
 const EXPECT: Record<string, RegExp> = {
@@ -66,20 +64,17 @@ const jaccard = (a: string[], b: string[]) => {
 
 const results: any[] = []
 for (const model of models) {
-  const cloud = model.startsWith('claude-')
   const oai = model.startsWith('openai:')
-  const llm = new OllamaClient({ model, http: fetchHttp })
-  const create = cloud ? claudeClient(undefined) : null
+  if (!oai && !model.startsWith('claude-')) throw new Error(`Unbekanntes Modell „${model}“ – claude-… oder openai:<modell>`)
   console.log(`\n=== ${model} (${cases.length} NSCs)`)
   for (const c of cases) {
     process.stdout.write(`  ${c.name.padEnd(30)} `)
     try {
       const effort = (opt('--effort') as any) ?? 'medium'
-      const r = cloud
-        ? await generateNpcClaude(create!, pages!, { description: c.description, name: c.name }, { model, effort })
-        : oai
-          ? await generateNpcOpenAI(openaiClient(undefined), pages!, { description: c.description, name: c.name }, { model: model.slice(7), effort })
-          : await generateNpc(llm, kb, { description: c.description, name: c.name })
+      const input = { description: c.description, name: c.name }
+      const r = oai
+        ? await generateNpcOpenAI(openaiClient(undefined), pages, input, { model: model.slice(7), effort })
+        : await generateNpcClaude(claudeClient(undefined), pages, input, { model, effort })
       const gen = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, '')).data!
       const ref = c.reference.data!
       const row = {
@@ -89,8 +84,8 @@ for (const model of models) {
         openIssues: r.issues.length, repairs: r.repairs.length, rounds: r.rounds, seconds: Math.round(r.seconds),
         talente: Math.round(jaccard(gen.talente.map((t) => t.name), ref.talente.map((t) => t.name)) * 100),
         sf: Math.round(jaccard(gen.sonderfertigkeiten.map((t) => t.name), ref.sonderfertigkeiten.map((t) => t.name)) * 100),
-        dollars: (r as CloudResult).dollars ?? 0,
-        quellen: (r as CloudResult).quellen ?? [],
+        dollars: r.dollars ?? 0,
+        quellen: r.quellen,
         block: r.block,
       }
       results.push(row)
