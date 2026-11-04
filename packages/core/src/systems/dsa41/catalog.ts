@@ -91,6 +91,13 @@ export function findWeapon(name: string, talentName?: string): CatalogEntry | un
   return sameName ?? all[0]
 }
 
+/** All distinct names of the given types; baseOnly drops Myranor/Dark-Age/extra packs (Uthuria stays). */
+export function namesOf(types: string[], baseOnly = true): string[] {
+  const out = new Set<string>()
+  for (const e of catalog.items) if (types.includes(e.t) && (!baseOnly || packRank(e.p) < 2)) out.add(e.n)
+  return [...out].sort((a, b) => a.localeCompare(b, 'de'))
+}
+
 /**
  * Names of the given types that contain every word of the query (normalized), best first:
  * whole-name match, then names starting with the query, then shorter names. For lookups by an LLM.

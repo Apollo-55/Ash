@@ -1,17 +1,31 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildBundle, createSimpleResolver, fetchHttp, hashBytes, pushBundle, SyncClient } from '../../core/src/index.ts'
 
 const TOKEN = 'test-token-0123456789abcdef'
-const PORT = 18000 + Math.floor(Math.random() * 1000)
-const URL = `http://127.0.0.1:${PORT}`
+let PORT = 0
+let URL = ''
 let dir: string
 let proc: ChildProcess
 
+/** a port the OS reports as free – a random one could hit a leftover service from an earlier run */
+const freePort = () =>
+  new Promise<number>((resolve, reject) => {
+    const srv = createServer()
+    srv.once('error', reject)
+    srv.listen(0, '127.0.0.1', () => {
+      const port = (srv.address() as { port: number }).port
+      srv.close(() => resolve(port))
+    })
+  })
+
 beforeAll(async () => {
+  PORT = await freePort()
+  URL = `http://127.0.0.1:${PORT}`
   dir = mkdtempSync(join(tmpdir(), 'vtf-sync-'))
   proc = spawn(process.execPath, [join(__dirname, '..', 'server.mjs')], { env: { ...process.env, VTF_TOKEN: TOKEN, VTF_DATA_DIR: dir, VTF_PORT: String(PORT) }, stdio: 'ignore' })
   for (let i = 0; i < 50; i++) {

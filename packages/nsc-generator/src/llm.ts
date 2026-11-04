@@ -30,7 +30,7 @@ export class OllamaClient implements LlmClient {
     this.url = (opts.url ?? 'http://127.0.0.1:11434').replace(/\/+$/, '')
     this.model = opts.model
     this.http = opts.http
-    this.numCtx = opts.numCtx ?? 16384
+    this.numCtx = opts.numCtx ?? 24576 // room for name lists + 3 correction rounds; ≈13 GB VRAM with qwen3:14b
     this.label = `Ollama ${opts.model}`
   }
 

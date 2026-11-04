@@ -1,5 +1,5 @@
 import { dsa41 } from '../../core/src/index.ts'
-import { find, findWeapon, normalizeName, suggest } from '../../core/src/systems/dsa41/catalog.ts'
+import { find, findWeapon, namesOf, normalizeName, searchNames, suggest } from '../../core/src/systems/dsa41/catalog.ts'
 import { SF_RULES } from '../../core/src/systems/dsa41/rules.ts'
 import { LIST_TYPES } from '../../core/src/systems/dsa41/schema.ts'
 import type { Knowledge } from './knowledge.ts'
@@ -21,6 +21,36 @@ const ATTRS = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK'] as const
 // ---- JSON schemas for structured output --------------------------------------------------------
 
 const named = { type: 'object', properties: { name: { type: 'string' }, wert: { type: ['integer', 'null'] } }, required: ['name', 'wert'] }
+
+/**
+ * Valid names from the dsa-41 catalog, shown to small local models in the prompt so they pick
+ * official names. (As an enum in the output schema this would be exact, but Ollama's grammar
+ * sampling with ~1000 alternatives runs on the CPU and takes minutes per answer.)
+ */
+export interface Vocabulary {
+  talente: string[]
+  waffen: string[]
+  ruestung: string[]
+  vorteile: string[]
+  nachteile: string[]
+  sonderfertigkeiten: string[]
+  zauber: string[] | null
+  liturgien: string[] | null
+}
+
+export function vocabulary(o: { spellcaster: boolean; liturgies: string[] | null }): Vocabulary {
+  const lit = o.liturgies ? namesOf(LIST_TYPES.liturgien, false).filter((n) => o.liturgies!.some((l) => normalizeName(l) === normalizeName(n))) : null
+  return {
+    talente: namesOf(LIST_TYPES.talente),
+    waffen: namesOf(['meleeWeapon', 'rangedWeapon']),
+    ruestung: namesOf(['armor']),
+    vorteile: namesOf(LIST_TYPES.vorteile),
+    nachteile: namesOf(LIST_TYPES.nachteile),
+    sonderfertigkeiten: namesOf(LIST_TYPES.sonderfertigkeiten),
+    zauber: o.spellcaster ? namesOf(LIST_TYPES.zauber) : null,
+    liturgien: o.liturgies ? (lit!.length ? lit : o.liturgies) : null,
+  }
+}
 
 export function npcSchema() {
   return {
@@ -109,9 +139,29 @@ export interface Repair {
 }
 
 /** Replaces near-miss names by catalog names, fixes SF chains, keeps energies in a sane range. */
-export function repair(n: NpcJson, level: Level, consecrated: boolean, spellcaster: boolean): { npc: NpcJson; repairs: string[]; unknown: string[] } {
+/** Catalog names that could be meant (for correction prompts): containing a word of the name, then similar ones. */
+function alternatives(types: string[], name: string): string[] {
+  const words = name.split(/[\s()/,:-]+/).filter((w) => w.length >= 4)
+  // word stems too: "Schmieden" → "schmied" finds "Grobschmied"
+  const stems = words.map((w) => w.replace(/(ungen|ung|en|er|in|e|n|s)$/i, '')).filter((w) => w.length >= 4)
+  const hits = [...new Set([...[...words, ...stems].flatMap((w) => searchNames(types, w, 4)), ...suggest(types, name, 3)])]
+  return hits.slice(0, 5)
+}
+
+/**
+ * Replaces near-miss names by catalog names, fixes SF chains, keeps energies in a sane range.
+ * dropUnknown: names still unknown are removed (last round) instead of kept.
+ */
+export function repair(
+  n: NpcJson,
+  level: Level,
+  consecrated: boolean,
+  spellcaster: boolean,
+  opts: { dropUnknown?: boolean } = {}
+): { npc: NpcJson; repairs: string[]; unknown: string[]; hints: string[] } {
   const repairs: string[] = []
   const unknown: string[] = []
+  const hints: string[] = []
   const fixName = (types: string[], name: string, label: string): string | null => {
     if (find(types, name)) return find(types, name)!.n
     const s = suggest(types, name, 2)
@@ -119,7 +169,13 @@ export function repair(n: NpcJson, level: Level, consecrated: boolean, spellcast
       repairs.push(`${label} „${name}“ → „${s[0]}“`)
       return s[0]
     }
+    if (opts.dropUnknown) {
+      repairs.push(`${label} „${name}“ entfernt (kein DSA-4.1-Name)`)
+      return null
+    }
     unknown.push(`${label} „${name}“`)
+    const alt = alternatives(types, name)
+    hints.push(alt.length ? ` – meintest du: ${alt.join(', ')}? Sonst weglassen.` : ' – weglassen.')
     return name
   }
   // book notation → item names: "Sprachen Kennen [Garethi]" → Garethi, "Lesen/Schreiben [Garethi]" → Kusliker Zeichen
@@ -143,28 +199,61 @@ export function repair(n: NpcJson, level: Level, consecrated: boolean, spellcast
   swap('vorteile', 'nachteile', 'Nachteil')
   swap('nachteile', 'vorteile', 'Vorteil')
   const listFix = <T extends { name: string }>(arr: T[], types: string[], label: string) =>
-    arr.map((x) => ({ ...x, name: fixName(types, x.name, label) ?? x.name }))
+    arr.flatMap((x) => {
+      const name = fixName(types, x.name, label)
+      return name ? [{ ...x, name }] : []
+    })
+  const nameFix = (arr: string[], types: string[], label: string) => arr.flatMap((x) => fixName(types, x, label) ?? [])
   n.talente = listFix(n.talente, LIST_TYPES.talente, 'Talent')
   n.zauber = listFix(n.zauber, LIST_TYPES.zauber, 'Zauber')
   n.vorteile = listFix(n.vorteile, LIST_TYPES.vorteile, 'Vorteil')
   n.nachteile = listFix(n.nachteile, LIST_TYPES.nachteile, 'Nachteil')
-  n.liturgien = n.liturgien.map((l) => fixName(LIST_TYPES.liturgien, l, 'Liturgie') ?? l)
-  n.sonderfertigkeiten = n.sonderfertigkeiten.map((s) => fixName(LIST_TYPES.sonderfertigkeiten, s, 'SF') ?? s)
-  n.ruestung = n.ruestung.map((r) => fixName(['armor'], r, 'Rüstung') ?? r)
-  n.waffen = n.waffen.map((w) => {
-    if (findWeapon(w)) return findWeapon(w)!.n
-    const s = suggest(['meleeWeapon', 'rangedWeapon'], w, 1)
+  n.liturgien = nameFix(n.liturgien, LIST_TYPES.liturgien, 'Liturgie')
+  n.sonderfertigkeiten = nameFix(n.sonderfertigkeiten, LIST_TYPES.sonderfertigkeiten, 'SF')
+  n.ruestung = nameFix(n.ruestung, ['armor'], 'Rüstung')
+  n.waffen = n.waffen.flatMap((w) => {
+    if (findWeapon(w)) return [findWeapon(w)!.n]
+    // "Kurzschwert (Schmiedewerk) +2" → "Kurzschwert"
+    const base = w.replace(/\s*\(.*?\)|\s*[+-]\d+$/g, '').trim()
+    if (base !== w && findWeapon(base)) {
+      repairs.push(`Waffe „${w}“ → „${findWeapon(base)!.n}“`)
+      return [findWeapon(base)!.n]
+    }
+    const s = suggest(['meleeWeapon', 'rangedWeapon'], base, 1)
     if (s[0]) {
       repairs.push(`Waffe „${w}“ → „${s[0]}“`)
-      return s[0]
+      return [s[0]]
+    }
+    if (opts.dropUnknown) {
+      repairs.push(`Waffe „${w}“ entfernt (nicht im Arsenal)`)
+      return []
     }
     unknown.push(`Waffe „${w}“`)
-    return w
+    hints.push(' – Waffe aus dem Arsenal wählen (z. B. Dolch, Säbel, Streitkolben, Kurzbogen).')
+    return [w]
   })
   // dedupe
   const uniq = <T>(arr: T[], key: (x: T) => string) => arr.filter((x, i) => arr.findIndex((y) => key(y) === key(x)) === i)
   n.talente = uniq(n.talente, (t) => normalizeName(t.name))
   n.sonderfertigkeiten = uniq(n.sonderfertigkeiten, normalizeName)
+  n.vorteile = uniq(n.vorteile, (x) => normalizeName(x.name))
+  n.nachteile = uniq(n.nachteile, (x) => normalizeName(x.name))
+  n.liturgien = uniq(n.liturgien, normalizeName)
+  // small models give every advantage the same number ("Gebildet 12, Gut Aussehend 12, …") – that is no value
+  for (const key of ['vorteile', 'nachteile'] as const) {
+    const vals = n[key].map((x) => x.wert).filter((w) => w != null)
+    if (vals.length >= 3 && vals.every((w) => w === vals[0])) {
+      n[key] = n[key].map((x) => ({ ...x, wert: null }))
+      repairs.push(`${key === 'vorteile' ? 'Vorteile' : 'Nachteile'}: gleicher Wert ${vals[0]} bei allen entfernt`)
+    }
+  }
+  // NSCs rarely have more than a handful – keep the first ones the model named
+  for (const [key, max, label] of [['vorteile', 6, 'Vorteile'], ['nachteile', 6, 'Nachteile']] as const) {
+    if (n[key].length > max) {
+      repairs.push(`${label} auf ${max} gekürzt (${n[key].slice(max).map((x) => x.name).join(', ')} entfernt)`)
+      n[key] = n[key].slice(0, max)
+    }
+  }
 
   // every weapon's combat talent should be there (otherwise the weapon is "untrained")
   for (const w of n.waffen) {
@@ -233,7 +322,7 @@ export function repair(n: NpcJson, level: Level, consecrated: boolean, spellcast
     n.KaP = null
     n.liturgien = []
   }
-  return { npc: n, repairs, unknown }
+  return { npc: n, repairs, unknown, hints }
 }
 
 // ---- pipeline -------------------------------------------------------------------------------
@@ -263,13 +352,16 @@ export interface GenerateResult {
  */
 export function review(
   npc: NpcJson,
-  o: { level: Level; consecrated: boolean; spellcaster: boolean; god: string | null }
+  o: { level: Level; consecrated: boolean; spellcaster: boolean; god: string | null; dropUnknown?: boolean }
 ): { npc: NpcJson; repairs: string[]; issues: string[]; needsFix: boolean } {
   const hint = LEVEL_HINT[o.level]
-  const r = repair(npc, o.level, o.consecrated, o.spellcaster)
+  const r = repair(npc, o.level, o.consecrated, o.spellcaster, { dropUnknown: o.dropUnknown })
   const fixed = r.npc
   const parsed = dsa41.parseNscBlock(toBlock(fixed))
-  const issues = [...parsed.issues.filter((i) => i.level !== 'info').map((i) => i.message), ...r.unknown.map((u) => `${u} gibt es in DSA 4.1 nicht`)]
+  const issues = [
+    ...parsed.issues.filter((i) => i.level !== 'info' && !/steht in keinem dsa-41-Kompendium/.test(i.message)).map((i) => i.message),
+    ...r.unknown.map((u, i) => `${u} gibt es in DSA 4.1 nicht${r.hints[i] ?? ''}`),
+  ]
   const minMain = Number(hint.taw.match(/(\d+)–/)?.[1] ?? 0)
   const top = [...fixed.talente].sort((a, b) => b.wert - a.wert).slice(0, 3)
   if (top.length && top.reduce((sum, t) => sum + t.wert, 0) / top.length < minMain) {
@@ -288,6 +380,14 @@ export function review(
 }
 
 export { LEVEL_HINT }
+
+/** "Vollzauberer" etc. in a package – but not as an exclusion ("keine der folgenden …: Halb-, Viertelzauberer", Kor) */
+export function mentionsSpellcasting(text: string): boolean {
+  for (const m of text.matchAll(/Vollzauberer|Halbzauberer|Viertelzauberer|Hauszauber/gi)) {
+    if (!/\bkeine?\b[^.;]{0,120}$/i.test(text.slice(Math.max(0, m.index! - 120), m.index))) return true
+  }
+  return false
+}
 
 const SPELLCASTER_RE = /magier|druide|hexe|geode|schelm|elf|scharlatan|kristallomant|alchimist|zibilja|majuna|derwisch|tänzer|zauber/i
 
@@ -352,7 +452,7 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
   if (!profession) throw new Error('Keine passende Profession gefunden.')
   const consecrated = /geweiht|spätweihe/i.test(profession.name) || /Automatische[^\n]*Geweiht/i.test(profession.text.slice(0, 800))
   god = consecrated ? (kb.godOf(profession.name) ?? god) : null
-  const spellcaster = SPELLCASTER_RE.test(profession.name) || /Vollzauberer|Halbzauberer|Viertelzauberer|Hauszauber/i.test(profession.text.slice(0, 1500))
+  const spellcaster = SPELLCASTER_RE.test(profession.name) || mentionsSpellcasting(profession.text.slice(0, 1500))
   const hint = LEVEL_HINT[level]
   step(`Profession: ${profession.name} (${level}${god ? `, ${god}` : ''})`)
 
@@ -373,6 +473,7 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     '- notiz: 1–2 Sätze, was die Werte prägt (kein Ersatz für die Beschreibung).',
     'Antworte nur mit JSON nach Schema.',
   ].join('\n')
+  const vocab = vocabulary({ spellcaster, liturgies: null })
   const user = [
     `Beschreibung des NSC:\n${input.description}`,
     input.name ? `Name: ${input.name}` : '',
@@ -380,6 +481,8 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     consecrated && god
       ? `\nDie Figur ist geweiht (${god}). Liturgien des ${god} bis Grad ${hint.litGrade}:\n${Object.entries(liturgies).map(([g, l]) => `Grad ${g}: ${l.join(', ')}`).join('\n')}\nWähle 4–12 passende davon für „liturgien“ (Pflicht). KaP: 12–40. Talent „Liturgiekenntnis (${god})“ nicht vergessen.`
       : '\nDie Figur ist NICHT geweiht: liturgien leer, KaP null.',
+    `\nGültige Namen (nur diese verwenden, genau so geschrieben):\nTalente: ${vocab.talente.join(', ')}\nSonderfertigkeiten: ${vocab.sonderfertigkeiten.join(', ')}\nVorteile: ${vocab.vorteile.join(', ')}\nNachteile: ${vocab.nachteile.join(', ')}` +
+      (vocab.zauber ? `\nZauber: ${vocab.zauber.join(', ')}` : ''),
   ].filter(Boolean).join('\n')
 
   const messages: ChatMessage[] = [{ role: 'system', content: system }, { role: 'user', content: user }]
@@ -398,11 +501,19 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     issues = r.issues
     const needsLlm = r.needsFix
     if (!needsLlm) break
+    if (rounds === 2) break
     messages.push({ role: 'assistant', content: JSON.stringify(npc) })
     messages.push({
       role: 'user',
       content: `Bitte korrigieren:\n- ${issues.join('\n- ')}\nErsetze unbekannte Namen durch offizielle DSA-4.1-Namen oder lass sie weg. Gib das vollständige JSON zurück.`,
     })
+  }
+  // still invented names after the last round → drop them instead of creating custom items in Foundry
+  if (issues.some((i) => /gibt es in DSA 4\.1 nicht/.test(i))) {
+    const r = review(npc!, { level, consecrated, spellcaster, god, dropUnknown: true })
+    npc = r.npc
+    repairs = [...repairs, ...r.repairs.filter((x) => /entfernt \((kein DSA|nicht im Arsenal)/.test(x))]
+    issues = r.issues
   }
   return {
     block: '```dsa-nsc\n' + toBlock(npc!) + '\n```',

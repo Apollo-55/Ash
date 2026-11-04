@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dsa41 } from '../../core/src/index.ts'
-import { generateNpc, Knowledge, repair, toBlock, type LlmClient, type NpcJson, type RulebookIndex } from '../src/index.ts'
+import { generateNpc, Knowledge, mentionsSpellcasting, repair, toBlock, type LlmClient, type NpcJson, type RulebookIndex } from '../src/index.ts'
 
 const base = (): NpcJson => ({
   name: 'Testa',
@@ -53,6 +53,33 @@ describe('Reparaturen', () => {
     expect(r.npc.vorteile).toEqual([])
     expect(r.npc.nachteile.map((x) => x.name)).toEqual(['Jähzorn', 'Neugier'])
     expect(r.unknown).toEqual([])
+  })
+  it('unbekannte Namen: Vorschläge für die Korrektur, in der letzten Runde entfernt', () => {
+    const n = base()
+    n.talente.push({ name: 'Schmieden', wert: 12 }, { name: 'Common', wert: 10 })
+    n.waffen.push('Kurzschwert (Schmiedewerk) +2')
+    const r = repair(structuredClone(n), 'erfahren', false, false)
+    expect(r.repairs).toContain('Waffe „Kurzschwert (Schmiedewerk) +2“ → „Kurzschwert“')
+    expect(r.unknown).toContain('Talent „Schmieden“')
+    expect(r.hints[r.unknown.indexOf('Talent „Schmieden“')]).toMatch(/meintest du: Grobschmied/)
+    const d = repair(structuredClone(n), 'erfahren', false, false, { dropUnknown: true })
+    expect(d.unknown).toEqual([])
+    expect(d.npc.talente.map((t) => t.name)).not.toContain('Common')
+    expect(d.repairs).toContain('Talent „Common“ entfernt (kein DSA-4.1-Name)')
+  })
+  it('Vor-/Nachteile: Dubletten, Einheitswerte und zu viele werden bereinigt', () => {
+    const n = base()
+    n.vorteile = ['Gebildet', 'Gut Aussehend', 'Gutes Gedächtnis', 'Eidetisches Gedächtnis', 'Herausragendes Gehör', 'Magiegespür', 'Schutzgeist', 'Gebildet'].map((name) => ({ name, wert: 12 }))
+    n.nachteile.push({ name: 'Jähzorn', wert: 5 })
+    const r = repair(n, 'erfahren', false, false)
+    expect(r.npc.nachteile).toEqual([{ name: 'Jähzorn', wert: 5 }])
+    expect(r.npc.vorteile).toHaveLength(6)
+    expect(r.npc.vorteile.every((v) => v.wert === null)).toBe(true)
+  })
+  it('Zauberkunde im Paket erkennen, Ausschlüsse nicht', () => {
+    expect(mentionsSpellcasting('Automatische Vor- und Nachteile: Vollzauberer')).toBe(true)
+    expect(mentionsSpellcasting('Verbilligte SF: nicht Aura verhüllen\nHauszauber: Harmlose Gestalt +3')).toBe(true)
+    expect(mentionsSpellcasting('Voraussetzungen: MU 14; keine der folgenden Vor- und Nachteile: Halb-, Viertelzauberer')).toBe(false)
   })
   it('Kampftalent der Waffe wird ergänzt', () => {
     const r = repair(base(), 'erfahren', false, false)
