@@ -28,8 +28,8 @@ case "${1:-status}" in
       "$IMAGE" >/dev/null
     for i in $(seq 1 60); do curl -sf "$URL/api/version" >/dev/null && break; sleep 0.5; done
     echo "läuft auf $URL (beendet sich nach $IDLE_MIN Min. ohne Anfrage)"
-    # Leerlauf-Wächter (zählt Downloads und Rechenlast als Aktivität)
-    nohup setsid "$root/tools/llm-idle.sh" "$NAME" "$URL" "$IDLE_MIN" >/dev/null 2>&1 &
+    # Leerlauf-Wächter (zählt API-Anfragen und laufende Downloads als Aktivität)
+    nohup setsid "$root/tools/llm-idle.sh" "$NAME" "$URL" "$IDLE_MIN" "$root/.llm/ollama/models" >/dev/null 2>&1 &
     ;;
   stop)
     if running; then podman stop "$NAME" >/dev/null && echo "gestoppt"; else echo "lief nicht"; fi

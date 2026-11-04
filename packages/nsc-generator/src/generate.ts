@@ -122,6 +122,26 @@ export function repair(n: NpcJson, level: Level, consecrated: boolean, spellcast
     unknown.push(`${label} „${name}“`)
     return name
   }
+  // book notation → item names: "Sprachen Kennen [Garethi]" → Garethi, "Lesen/Schreiben [Garethi]" → Kusliker Zeichen
+  const SCRIPT_OF: Record<string, string> = { garethi: 'Kusliker Zeichen', bosparano: 'Kusliker Zeichen', 'muttersprache': 'Kusliker Zeichen' }
+  n.talente = n.talente.map((t) => {
+    const lang = /^Sprachen? Kennen\s*[[(](.+?)[\])]/i.exec(t.name)
+    if (lang) return { ...t, name: lang[1].trim() }
+    const script = /^Lesen\/Schreiben\s*[[(](.+?)[\])]/i.exec(t.name)
+    if (script) return { ...t, name: SCRIPT_OF[script[1].trim().toLowerCase()] ?? script[1].trim() }
+    return t
+  })
+  // advantages filed as disadvantages (and vice versa), e.g. Vorteil „Neugier“ → Nachteil
+  const swap = (from: 'vorteile' | 'nachteile', to: 'vorteile' | 'nachteile', label: string) => {
+    n[from] = n[from].filter((x) => {
+      if (find(LIST_TYPES[from], x.name) || !find(LIST_TYPES[to], x.name)) return true
+      n[to].push(x)
+      repairs.push(`„${x.name}“ ist ein ${label}`)
+      return false
+    })
+  }
+  swap('vorteile', 'nachteile', 'Nachteil')
+  swap('nachteile', 'vorteile', 'Vorteil')
   const listFix = <T extends { name: string }>(arr: T[], types: string[], label: string) =>
     arr.map((x) => ({ ...x, name: fixName(types, x.name, label) ?? x.name }))
   n.talente = listFix(n.talente, LIST_TYPES.talente, 'Talent')
@@ -257,7 +277,9 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
             role: 'system',
             content:
               'Du bist Spielleiter für Das Schwarze Auge 4.1. Ordne einen Nichtspielercharakter der passendsten Profession aus „Wege der Helden“ zu. ' +
-              'Geweihte nur, wenn die Beschreibung eine Weihe nennt. Antworte nur mit JSON.',
+              'Geweihte nur, wenn die Figur heute geweiht ist (nicht bei ehemaligen Novizen/Akoluthen oder bloßer Verehrung); gottheit nur für Geweihte, sonst null. ' +
+              'Erfahrung: unerfahren = Anfänger; erfahren = solide im Beruf; kompetent = sehr gut, bekannt; meisterlich = Meister, berühmt, Lehrer oder Anführer seines Fachs; brillant = legendär. Alter und Ruf beachten. ' +
+              'Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr. Antworte nur mit JSON.',
           },
           {
             role: 'user',
@@ -283,8 +305,8 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     god = pick.gottheit
   }
   if (!profession) throw new Error('Keine passende Profession gefunden.')
-  god = god ?? kb.godOf(profession.name)
-  const consecrated = Boolean(god) || /geweiht/i.test(profession.name)
+  const consecrated = /geweiht|spätweihe/i.test(profession.name) || /Automatische[^\n]*Geweiht/i.test(profession.text.slice(0, 800))
+  god = consecrated ? (kb.godOf(profession.name) ?? god) : null
   const spellcaster = SPELLCASTER_RE.test(profession.name) || /Vollzauberer|Halbzauberer|Viertelzauberer|Hauszauber/i.test(profession.text.slice(0, 1500))
   const hint = LEVEL_HINT[level]
   step(`Profession: ${profession.name} (${level}${god ? `, ${god}` : ''})`)
@@ -295,10 +317,12 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     'Du bist ein erfahrener Spielleiter für Das Schwarze Auge 4.1 und erstellst Werte für einen Nichtspielercharakter.',
     'Regeln:',
     '- Halte dich an das Professionspaket aus „Wege der Helden“ (unten): Talente, Kampftalente, Sonderfertigkeiten, Vor- und Nachteile von dort, angepasst an die Beschreibung.',
+    '- WICHTIG: Die Zahlen im Paket („Fechtwaffen +7“) sind nur Startboni bei Spielbeginn, KEINE Endwerte. Die Talentwerte (TaW) ergeben sich aus der Erfahrung (siehe unten) – das Paket sagt nur, welche Talente wichtig sind.',
+    '- Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr und dürfen die Werte nicht prägen. Als wahr markierte ((W), WAHR) schon.',
     '- Verwende nur die offiziellen DSA-4.1-Namen (z. B. „Heilkunde Wunden“, „Sinnenschärfe“, „Ausweichen I“, „Zweihandschwerter/-säbel“).',
     `- Erfahrung „${level}“: ${hint.taw}; ${hint.ap}; Summe der Eigenschaften ${hint.attrSum}. Eigenschaften 8–18, nur Ausnahmen höher.`,
     '- Eigenschaften passend zu den Probenwerten wichtiger Talente (z. B. Seefahrt FF/GE/KK, Liturgiekenntnis MU/IN/CH).',
-    '- 10–25 Talente: Kampftalente der Waffen, Berufstalente, Sprachen (Muttersprache, z. B. Garethi oder Tulamidya), Wissen. Keine Zauber ohne Zauberbegabung, keine Liturgien ohne Weihe.',
+    '- 12–25 Talente: Kampftalente der Waffen, Berufstalente, Sprachen (Talentname ist nur die Sprache, z. B. „Garethi“, „Tulamidya“; Schriften z. B. „Kusliker Zeichen“), Wissen. Keine Zauber ohne Zauberbegabung, keine Liturgien ohne Weihe (dann liturgien leer, KaP null).',
     '- LeP und AuP als Gesamtwert (Mensch: LeP etwa (KO+KO+KK)/2 + 10 + Zukauf).',
     '- Waffen: 1–3 passende Waffen mit Namen aus dem Arsenal (z. B. Säbel, Dolch, Kurzbogen). Keine AT/PA – das System rechnet sie aus dem Talentwert.',
     '- notiz: 1–2 Sätze, was die Werte prägt (kein Ersatz für die Beschreibung).',
@@ -309,8 +333,8 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     input.name ? `Name: ${input.name}` : '',
     `\nProfessionspaket „${profession.name}“ (${profession.buch}, S. ${profession.seite}):\n${profession.text.slice(0, 5000)}`,
     consecrated && god
-      ? `\nLiturgien des ${god} bis Grad ${hint.litGrade}:\n${Object.entries(liturgies).map(([g, l]) => `Grad ${g}: ${l.join(', ')}`).join('\n')}\nWähle 3–10 passende davon. KaP: Geweihte 12–40.`
-      : '',
+      ? `\nDie Figur ist geweiht (${god}). Liturgien des ${god} bis Grad ${hint.litGrade}:\n${Object.entries(liturgies).map(([g, l]) => `Grad ${g}: ${l.join(', ')}`).join('\n')}\nWähle 4–12 passende davon für „liturgien“ (Pflicht). KaP: 12–40. Talent „Liturgiekenntnis (${god})“ nicht vergessen.`
+      : '\nDie Figur ist NICHT geweiht: liturgien leer, KaP null.',
   ].filter(Boolean).join('\n')
 
   const messages: ChatMessage[] = [{ role: 'system', content: system }, { role: 'user', content: user }]
@@ -328,7 +352,14 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     repairs = [...repairs, ...r.repairs]
     const parsed = dsa41.parseNscBlock(toBlock(npc))
     issues = [...parsed.issues.filter((i) => i.level !== 'info').map((i) => i.message), ...r.unknown.map((u) => `${u} gibt es in DSA 4.1 nicht`)]
-    if (!r.unknown.length && !parsed.issues.some((i) => i.level === 'error')) break
+    const minMain = Number(hint.taw.match(/(\d+)–/)?.[1] ?? 0)
+    const top = [...npc.talente].sort((a, b) => b.wert - a.wert).slice(0, 3)
+    if (top.length && top.reduce((sum, t) => sum + t.wert, 0) / top.length < minMain) {
+      issues.push(`Talentwerte zu niedrig für „${level}“: die wichtigsten Talente (${top.map((t) => `${t.name} ${t.wert}`).join(', ')}) sollten bei ${hint.taw.split(',')[0].replace('Haupttalente ', '')} liegen – die Paketzahlen sind nur Startboni`)
+    }
+    if (consecrated && !npc.liturgien.length) issues.push(`Geweihte brauchen Liturgien: 4–12 aus der Liste des ${god ?? 'Gottes'} wählen`)
+    const needsLlm = r.unknown.length || issues.some((i) => /zu niedrig|brauchen Liturgien/.test(i)) || parsed.issues.some((i) => i.level === 'error')
+    if (!needsLlm) break
     messages.push({ role: 'assistant', content: JSON.stringify(npc) })
     messages.push({
       role: 'user',
@@ -342,7 +373,7 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
     god,
     repairs,
     issues,
-    rounds: rounds + 1,
+    rounds: Math.min(rounds + 1, 3),
     seconds: (Date.now() - t0) / 1000,
   }
 }

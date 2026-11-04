@@ -46,6 +46,14 @@ describe('Reparaturen', () => {
     expect(r.unknown).toEqual(['Talent „Wolkenlesen“'])
     expect(r.npc.talente.filter((t) => t.name === 'Sinnenschärfe')).toHaveLength(1)
   })
+  it('Vor- und Nachteile in der falschen Liste werden umsortiert', () => {
+    const n = base()
+    n.vorteile = [{ name: 'Neugier', wert: 6 }]
+    const r = repair(n, 'erfahren', false, false)
+    expect(r.npc.vorteile).toEqual([])
+    expect(r.npc.nachteile.map((x) => x.name)).toEqual(['Jähzorn', 'Neugier'])
+    expect(r.unknown).toEqual([])
+  })
   it('Kampftalent der Waffe wird ergänzt', () => {
     const r = repair(base(), 'erfahren', false, false)
     expect(r.npc.talente.find((t) => t.name === 'Säbel')).toEqual({ name: 'Säbel', wert: 9 })
@@ -87,7 +95,7 @@ describe('Ablauf mit Fake-LLM', () => {
     const answers = [
       JSON.stringify({ profession: 'Seefahrer / Seefahrerin', erfahrung: 'kompetent', gottheit: null }),
       JSON.stringify({ ...base(), talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wolkenlesen', wert: 5 }] }),
-      JSON.stringify({ ...base(), talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wettervorhersage', wert: 8 }] }),
+      JSON.stringify({ ...base(), talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wettervorhersage', wert: 12 }] }),
     ]
     const prompts: string[] = []
     const llm: LlmClient = { label: 'fake', chat: async (m) => (prompts.push(m.at(-1)!.content), answers.shift()!) }
@@ -98,13 +106,13 @@ describe('Ablauf mit Fake-LLM', () => {
     expect(prompts[2]).toContain('Talent „Wolkenlesen“ gibt es in DSA 4.1 nicht')
     expect(r.issues).toEqual([])
     expect(r.block).toMatch(/^```dsa-nsc\nname: Testa/)
-    expect(r.block).toContain('Wettervorhersage: 8')
+    expect(r.block).toContain('Wettervorhersage: 12')
   })
 
   it('Geweihte bekommen Liturgien ihres Gottes bis zum Grad der Erfahrung', async () => {
     const answers = [
       JSON.stringify({ profession: 'Geweihter des Praios', erfahrung: 'erfahren', gottheit: 'Praios' }),
-      JSON.stringify({ ...base(), KaP: 28, liturgien: ['Eidsegen', 'Wort der Wahrheit'] }),
+      JSON.stringify({ ...base(), KaP: 28, talente: [{ name: 'Menschenkenntnis', wert: 11 }, { name: 'Götter/Kulte', wert: 12 }], liturgien: ['Eidsegen', 'Wort der Wahrheit'] }),
     ]
     const prompts: string[] = []
     const llm: LlmClient = { label: 'fake', chat: async (m) => (prompts.push(m.at(-1)!.content), answers.shift()!) }
