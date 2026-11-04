@@ -87,11 +87,23 @@ In Obsidian: `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugi
 
 Das Ergebnis ist ein Vorschlag. Prüf es wie jeden Wertekasten: Fehler rot, Warnungen orange.
 
+## Kreaturen und einfache Gegner (nur Claude/OpenAI)
+
+Im Formular gibt es das Feld **Art**: *automatisch*, *Person (NSC)* oder *Kreatur / einfacher Gegner*.
+
+- **Person:** Eigenschaften, Talente, SF, Energien nach DSA-4.1-Formel (wie bisher).
+- **Kreatur:** feste Werte wie im Bestiarium – LeP, AuP, RS, MR, GS, INI, Ausweichen, Angriffe mit AT/PA (bzw. FK), TP und Distanzklasse; Kreaturfähigkeiten (Gift, Fliegen, Regeneration, Furcht …) mit kurzem Regeltext. Eigenschaften nur, wenn sie bekannt oder für Proben nötig sind. Der Block bekommt `verknüpft: nein`, damit mehrere Tokens derselben Kreatur unabhängige Lebenspunkte haben. Natürliche Angriffe kämpfen mit Raufen.
+- **Automatisch:** das Modell entscheidet – Tiere, Monster, Dämonen und namenlose Gegner (Wache, Räuber) als Kreatur, benannte Figuren mit Geschichte als Person. Im Test (gpt-6.1-sol) wurden Hydra und Wegelagerer als Kreatur, ein Wachhauptmann als Person erkannt.
+
+Steht die Kreatur in einem deiner Regelwerke (z. B. einem Bestiarium im Ordner `Regelwerke/`), schlägt das Modell nach und übernimmt die Werte mit Fundstelle. Der lokale Modus kann keine Kreaturen.
+
+Die Prüfung achtet auf gültige TP-Ausdrücke („1W6+3“, „2d6“ wird zu „2W6“), echte Kampftalente, plausible AT/PA und offizielle Talentnamen; unbekannte SF werden zu Kreaturfähigkeiten.
+
 ## Regelwerke tauschen
 
 Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein Commit-Hook verhindern das). Bessere PDF dazulegen oder alte ersetzen → `npm run regelwerke` → in den Plugin-Einstellungen „Neu laden“. Die Einstellungen zeigen, welche Bücher lesbar sind. Derzeit **nicht lesbar**: *Wege des Schwerts* und *Liber Cantiones* (die PDFs haben keinen Text, nur Bilder der Schrift).
 
-Bücher werden am Dateinamen erkannt. Anders benannte Bücher in `Regelwerke/regelwerke.json` zuordnen:
+Jedes lesbare PDF landet im Seiten-Index und ist im Cloud-Modus sofort durchsuchbar – auch Bücher, die das Skript nicht kennt (Bestiarien, Regionalbände mit neuen Professionen). Jedes Buch bekommt ein eindeutiges Kürzel (Initialen; teilen sich zwei Bücher eines, bekommen beide eine längere Form, z. B. „AvMa“/„AvMe“). Die Professionsliste für den lokalen Modus und die Liturgien werden nur aus bekannten Büchern gelesen; diese werden am Dateinamen erkannt. Anders benannte Bücher in `Regelwerke/regelwerke.json` zuordnen:
 
 ```json
 [{ "datei": "Mein WdH.pdf", "art": "professionen" }, { "datei": "Altes Buch.pdf", "art": "ignorieren" }]

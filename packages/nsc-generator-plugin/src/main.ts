@@ -216,6 +216,7 @@ class GeneratorModal extends Modal {
     let description = this.init.description
     let level: Level | 'auto' = this.plugin.settings.defaultLevel
     let profession = ''
+    let art: 'auto' | 'person' | 'kreatur' = 'auto'
 
     new Setting(c).setName('Name').addText((t) => t.setValue(name).setPlaceholder('aus der Beschreibung').onChange((v) => (name = v)))
     new Setting(c)
@@ -225,6 +226,13 @@ class GeneratorModal extends Modal {
         t.inputEl.rows = 8
         t.inputEl.addClass('dsa-gen-desc')
         t.setValue(description).onChange((v) => (description = v))
+      })
+    new Setting(c)
+      .setName('Art')
+      .setDesc(cloud ? 'Person: Talente und Werte nach Formel. Kreatur: feste Werte wie im Bestiarium (Tiere, Monster, namenlose Gegner).' : 'Kreaturen nur mit Claude oder OpenAI.')
+      .addDropdown((d) => {
+        d.addOption('auto', 'automatisch').addOption('person', 'Person (NSC)').addOption('kreatur', 'Kreatur / einfacher Gegner')
+        d.setValue(art).onChange((v) => (art = v as typeof art))
       })
     new Setting(c).setName('Erfahrung').addDropdown((d) => {
       d.addOption('auto', 'aus der Beschreibung')
@@ -264,7 +272,7 @@ class GeneratorModal extends Modal {
       progress.setText('Starte …')
       insertBtn?.setDisabled(true)
       try {
-        const input = { description, name: name || undefined, level: level === 'auto' ? undefined : level }
+        const input = { description, name: name || undefined, level: level === 'auto' ? undefined : level, art: art === 'auto' ? undefined : art }
         const st = this.plugin.settings
         if (st.provider === 'claude') {
           if (!st.claudeKey) throw new Error('Kein API-Schlüssel – in den Plugin-Einstellungen eintragen.')
@@ -285,6 +293,7 @@ class GeneratorModal extends Modal {
             (m) => progress.setText(m)
           )
         } else {
+          if (art === 'kreatur') throw new Error('Kreaturen mit festen Werten gibt es nur mit Claude oder OpenAI (Einstellungen → Anbieter).')
           const kb = this.plugin.knowledge()
           const prof = profession && kb.profession(profession) ? profession : undefined
           this.result = await generateNpc(this.plugin.client(), kb, { ...input, profession: prof }, (m) => progress.setText(m))
@@ -296,7 +305,8 @@ class GeneratorModal extends Modal {
           ? ` · ${c.lookups}× nachgeschlagen · ` +
             (c.dollars != null ? `ca. ${c.dollars.toFixed(2).replace('.', ',')} $` : `${Math.round((c.tokens.input + c.tokens.cacheRead) / 1000)}k Tokens rein, ${Math.round(c.tokens.output / 1000)}k raus`)
           : ''
-        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name}${where} · ${r.level}${r.god ? ` · ${r.god}` : ''}${cost}`)
+        const what = c?.art === 'kreatur' ? 'Kreatur' : r.level
+        progress.setText(`Fertig in ${Math.round(r.seconds)} s · ${r.profession.name}${where} · ${what}${r.god ? ` · ${r.god}` : ''}${cost}`)
         const parsed = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, ''))
         out.appendChild(sanitizeHTMLToDom(dsa41.renderStatblock(parsed, { showIssues: true, showCalculated: true })))
         if ('quellen' in r && (r as CloudResult).quellen.length) {

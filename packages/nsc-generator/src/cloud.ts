@@ -55,7 +55,7 @@ export async function generateNpcClaude(
   const t0 = Date.now()
   const step = (m: string) => onStep?.(m)
   const maxTurns = opts.maxTurns ?? 16
-  const tools: BetaTool[] = toolSpecs(pages).map((t) => ({ name: t.name, description: t.description, strict: true, input_schema: t.parameters as BetaTool['input_schema'] }))
+  const tools: BetaTool[] = toolSpecs(pages, input.art).map((t) => ({ name: t.name, description: t.description, strict: true, input_schema: t.parameters as BetaTool['input_schema'] }))
   const system = systemPrompt(pages)
   const fallback = /opus|sonnet/.test(opts.model)
   const runner = new ToolRunner(pages, input, step)
@@ -95,7 +95,7 @@ export async function generateNpcClaude(
     if (!calls.length) {
       if (runner.last || nudged) break
       nudged = true
-      messages.push({ role: 'user', content: 'Bitte gib den NSC jetzt mit nsc_abgeben ab.' })
+      messages.push({ role: 'user', content: 'Bitte gib das Ergebnis jetzt mit nsc_abgeben bzw. kreatur_abgeben ab.' })
       continue
     }
     const results: BetaToolResultBlockParam[] = []

@@ -6,6 +6,7 @@ import { searchNames } from '../../core/src/systems/dsa41/catalog.ts'
 import { LIST_TYPES } from '../../core/src/systems/dsa41/schema.ts'
 import { LEVEL_HINT, LEVELS, npcSchema, review, toBlock, type GenerateInput, type GenerateResult, type Level, type NpcJson } from './generate.ts'
 import type { PageStore } from './pages.ts'
+import { creatureSchema, creatureToBlock, reviewCreature, type CreatureJson } from './creature.ts'
 
 export type Effort = 'low' | 'medium' | 'high'
 
@@ -17,6 +18,7 @@ export interface CloudOptions {
 }
 
 export interface CloudResult extends GenerateResult {
+  art: 'person' | 'kreatur'
   quellen: string[]
   lookups: number
   tokens: { input: number; output: number; cacheRead: number; cacheWrite: number }
@@ -52,9 +54,9 @@ export function strictify(s: any): any {
   return out
 }
 
-export function toolSpecs(pages: PageStore): ToolSpec[] {
+export function toolSpecs(pages: PageStore, art?: 'person' | 'kreatur'): ToolSpec[] {
   const books = pages.books().map((b) => b.kurz)
-  return [
+  const all: ToolSpec[] = [
     {
       name: 'regelwerk_suchen',
       description:
@@ -102,7 +104,21 @@ export function toolSpecs(pages: PageStore): ToolSpec[] {
         required: ['profession', 'erfahrung', 'gottheit', 'zauberkundig', 'quellen', 'npc'],
       }),
     },
+    {
+      name: 'kreatur_abgeben',
+      description:
+        'Gibt eine Kreatur oder einen einfachen Gegner mit FESTEN Werten ab (wie im Bestiarium: LeP, RS, MR, GS, INI, Angriffe mit AT/PA/TP, Besonderheiten). Wird geprüft; bei Problemen korrigieren und erneut abgeben.',
+      parameters: strictify({
+        type: 'object',
+        properties: {
+          quellen: { type: 'array', items: { type: 'string' }, description: 'genutzte Fundstellen, z. B. „ZBA 120: Höhlenspinne“' },
+          kreatur: creatureSchema(),
+        },
+        required: ['quellen', 'kreatur'],
+      }),
+    },
   ]
+  return all.filter((t) => (art === 'kreatur' ? t.name !== 'nsc_abgeben' : art === 'person' ? t.name !== 'kreatur_abgeben' : true))
 }
 
 export function systemPrompt(pages: PageStore): string {
@@ -128,7 +144,15 @@ ${levels}
 - Vor- und Nachteile: nur Zahl angeben, wo der Vor-/Nachteil eine Stufe hat (z. B. „Jähzorn 6“), sonst null.
 - Gerüchte mit (F)/falsch sind nicht wahr und prägen die Werte nicht; (W)/wahr schon.
 - notiz: 1–2 Sätze, was die Werte prägt.
-- Antworte knapp; dein Ergebnis ist ausschließlich der Aufruf von nsc_abgeben.`
+- Antworte knapp; dein Ergebnis ist ausschließlich der Aufruf von nsc_abgeben bzw. kreatur_abgeben.
+
+Person oder Kreatur:
+- nsc_abgeben: Personen mit Beruf, Geschichte und Talenten (NSCs, benannte Gegner). Werte nach den Formeln oben.
+- kreatur_abgeben: Tiere, Monster, Dämonen, Untote, Elementare – und namenlose einfache Gegner (Wache, Räuber, Schläger), wenn keine Talente gebraucht werden. FESTE Werte wie im Bestiarium: LeP, AuP, RS, MR, GS, INI, Ausweichen, Angriffe mit AT/PA (bzw. FK), TP als Würfelausdruck und Distanzklasse; Besonderheiten (Gift, Fliegen, Schwarm, Furcht, Regeneration …) mit kurzem Regeltext. Steht die Kreatur in einem Regelwerk, übernimm dessen Werte und gib die Fundstelle an. Eigenschaften nur, wenn bekannt oder für Proben nötig (sonst null). Kampftalent nur für Waffen und Raufen/Ringen, sonst null.`
+}
+
+export function artHint(art?: 'person' | 'kreatur'): string {
+  return art === 'kreatur' ? 'Vorgabe: als Kreatur mit festen Werten abgeben (kreatur_abgeben).' : art === 'person' ? 'Vorgabe: als Person abgeben (nsc_abgeben).' : ''
 }
 
 export function userPrompt(input: GenerateInput): string {
@@ -137,6 +161,7 @@ export function userPrompt(input: GenerateInput): string {
     input.name ? `Name: ${input.name}` : '',
     input.level ? `Erfahrung (vorgegeben): ${input.level}` : '',
     input.profession ? `Profession (vorgegeben): ${input.profession}` : '',
+    artHint(input.art),
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -153,7 +178,7 @@ export interface ToolOutcome {
 export class ToolRunner {
   lookups = 0
   submissions = 0
-  last: { block: string; profession: string; level: Level; god: string | null; repairs: string[]; issues: string[]; quellen: string[] } | null = null
+  last: { block: string; profession: string; level: Level; god: string | null; repairs: string[]; issues: string[]; quellen: string[]; art: 'person' | 'kreatur' } | null = null
 
   private pages: PageStore
   private input: GenerateInput
@@ -213,6 +238,28 @@ export class ToolRunner {
         repairs: r.repairs,
         issues: r.issues,
         quellen: Array.isArray(args.quellen) ? args.quellen.map(String) : [],
+        art: 'person',
+      }
+      if (r.needsFix && !last) return { content: `Bitte korrigieren und erneut abgeben:\n- ${r.issues.join('\n- ')}`, isError: true, done: false }
+      return { content: 'Angenommen.', isError: false, done: true }
+    }
+    if (name === 'kreatur_abgeben') {
+      this.submissions++
+      this.step(this.submissions === 1 ? 'Prüft die Kreatur …' : `Prüft die Korrektur ${this.submissions - 1} …`)
+      if (!args.kreatur || typeof args.kreatur !== 'object') throw new Error('Feld kreatur fehlt')
+      const c = args.kreatur as CreatureJson
+      if (this.input.name) c.name = this.input.name
+      const last = this.submissions >= 3
+      const r = reviewCreature(c, { dropUnknown: last })
+      this.last = {
+        block: '```dsa-nsc\n' + creatureToBlock(r.creature) + '\n```',
+        profession: String(r.creature.rolle ?? ''),
+        level: this.input.level ?? 'erfahren',
+        god: null,
+        repairs: r.repairs,
+        issues: r.issues,
+        quellen: Array.isArray(args.quellen) ? args.quellen.map(String) : [],
+        art: 'kreatur',
       }
       if (r.needsFix && !last) return { content: `Bitte korrigieren und erneut abgeben:\n- ${r.issues.join('\n- ')}`, isError: true, done: false }
       return { content: 'Angenommen.', isError: false, done: true }
@@ -222,7 +269,7 @@ export class ToolRunner {
 
   result(t0: number, tokens: CloudResult['tokens'], dollars: number | undefined): CloudResult {
     const last = this.last
-    if (!last) throw new Error('Das Modell hat keinen NSC abgegeben (zu viele Nachschlage-Runden). Bitte erneut versuchen.')
+    if (!last) throw new Error('Das Modell hat nichts abgegeben (zu viele Nachschlage-Runden). Bitte erneut versuchen.')
     return {
       block: last.block,
       profession: { name: last.profession, buch: '', seite: 0 },
@@ -233,6 +280,7 @@ export class ToolRunner {
       rounds: this.submissions,
       seconds: (Date.now() - t0) / 1000,
       quellen: last.quellen,
+      art: last.art,
       lookups: this.lookups,
       tokens,
       dollars,

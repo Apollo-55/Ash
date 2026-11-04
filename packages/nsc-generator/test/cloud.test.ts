@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BetaMessage, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { dsa41 } from '../../core/src/index.ts'
-import { bookAbbreviations, bookTitle, generateNpcClaude, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
+import { bookAbbreviations, bookTitle, creatureToBlock, generateNpcClaude, reviewCreature, type CreatureJson, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
 
 const pages = new PageStore({
   erstellt: '',
@@ -164,7 +164,7 @@ describe('OpenAI-Modus (simuliert, Responses-API)', () => {
     const create = async (p: any) => (reqs.push(structuredClone(p)), answers.shift())
     const r = await generateNpcOpenAI(create, pages, { description: 'Schmiedin', name: 'Topasa' }, { model: 'gpt-6-sol', effort: 'low' })
     expect(reqs[0]).toMatchObject({ model: 'gpt-6-sol', store: false, reasoning: { effort: 'low' }, include: ['reasoning.encrypted_content'] })
-    expect(reqs[0].tools.map((t: any) => t.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben'])
+    expect(reqs[0].tools.map((t: any) => t.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben', 'kreatur_abgeben'])
     expect(reqs[0].tools.every((t: any) => t.strict && t.type === 'function')).toBe(true)
     // second request carries reasoning item, the call and its output
     expect(reqs[1].input.map((i: any) => i.type ?? i.role)).toEqual(['user', 'reasoning', 'function_call', 'function_call_output'])
@@ -182,5 +182,71 @@ describe('OpenAI-Modus (simuliert, Responses-API)', () => {
   it('abgeschnittene oder gefilterte Antwort wird als Fehler gemeldet', async () => {
     const create = async () => ({ ...response([], 'incomplete'), incomplete_details: { reason: 'content_filter' } })
     await expect(generateNpcOpenAI(create as any, pages, { description: 'x' }, { model: 'gpt-5.5' })).rejects.toThrow(/gefiltert/)
+  })
+})
+
+describe('Kreatur-Modus', () => {
+  const spider = (): CreatureJson => ({
+    name: 'Höhlenspinne',
+    rolle: 'Riesenspinne',
+    eigenschaften: { MU: 14, KL: null, IN: 12, CH: null, FF: null, GE: 13, KO: 12, KK: 11 },
+    LeP: 25,
+    AuP: 30,
+    AsP: null,
+    MR: 4,
+    RS: 2,
+    GS: 8,
+    INI: 12,
+    ausweichen: 6,
+    angriffe: [{ name: 'Biss', talent: null, AT: 12, PA: 0, FK: null, TP: '1W6+2', DK: 'H' }],
+    talente: [{ name: 'Schleichen', wert: 10 }],
+    sonderfertigkeiten: ['Gezielter Stich'],
+    besonderheiten: [{ name: 'Giftbiss', beschreibung: 'Spinnengift Stufe 5, bei SP' }],
+    notiz: 'Lauert in Höhlen.',
+  })
+
+  it('Block mit festen Werten, eigene Fähigkeiten als Sonderfertigkeit, nicht verknüpft – gültig', () => {
+    const block = creatureToBlock(spider())
+    const r = dsa41.parseNscBlock(block)
+    expect(r.issues.filter((i) => i.level === 'error')).toEqual([])
+    expect(r.data).toMatchObject({ name: 'Höhlenspinne', LeP: 25, MR: 4, RS: 2, GS: 8, INI: 12, verknuepft: false, attributes: { MU: 14, KK: 11 } })
+    expect(r.data!.attributes).not.toHaveProperty('KL')
+    expect(r.data!.waffen).toEqual([{ name: 'Biss', AT: 12, PA: 0, TP: '1W6+2', DK: 'H' }])
+    const reviewed = reviewCreature(spider())
+    expect(reviewed.creature.angriffe[0].talent).toBe('Raufen')
+    expect(reviewed.issues).toEqual([])
+    expect(r.data!.sonderfertigkeiten).toContainEqual({ name: 'Giftbiss', value: null, custom: { typ: 'Kreatur', beschreibung: 'Spinnengift Stufe 5, bei SP' } })
+  })
+
+  it('Prüfung: TP-Schreibweise, falsches Kampftalent, unbekannte Talente/SF', () => {
+    const c = spider()
+    c.angriffe = [{ name: 'Klaue', talent: 'Raufn', AT: 11, PA: 5, FK: null, TP: '1d6 + 1', DK: null }, { name: 'Schwanz', talent: 'Schwanzschlag', AT: 9, PA: null, FK: null, TP: 'viel', DK: null }]
+    c.talente.push({ name: 'Netzbau', wert: 8 })
+    c.sonderfertigkeiten.push('Netzschuss')
+    const r = reviewCreature(structuredClone(c))
+    expect(r.creature.angriffe[0]).toMatchObject({ talent: 'Raufen', TP: '1W6+1' })
+    expect(r.needsFix).toBe(true)
+    expect(r.issues.join('\n')).toMatch(/TP „viel“/)
+    expect(r.issues.join('\n')).toMatch(/Kampftalent „Schwanzschlag“/)
+    expect(r.issues.join('\n')).toMatch(/Talent „Netzbau“/)
+    expect(r.issues.join('\n')).toMatch(/SF „Netzschuss“/)
+    // last round: unknown removed or turned into creature abilities
+    const d = reviewCreature(structuredClone(c), { dropUnknown: true })
+    expect(d.creature.angriffe[1].talent).toBe('Raufen') // unknown talent dropped → natural attack
+    expect(d.creature.talente.map((t) => t.name)).not.toContain('Netzbau')
+    expect(d.creature.besonderheiten.map((b) => b.name)).toContain('Netzschuss')
+  })
+
+  it('Ablauf: Vorgabe Kreatur zeigt nur kreatur_abgeben, Ergebnis ist ein Kreaturblock', async () => {
+    const reqs: MessageCreateParamsNonStreaming[] = []
+    const answers = [reply([use('k1', 'kreatur_abgeben', { quellen: ['ZBA 120: Höhlenspinne'], kreatur: spider() })])]
+    const create: CreateMessage = async (p) => (reqs.push(structuredClone(p)), answers.shift()!)
+    const r = await generateNpcClaude(create, pages, { description: 'Riesige Spinne in einer Höhle', art: 'kreatur' }, { model: 'claude-sonnet-5-5' })
+    expect((reqs[0].tools as any[]).map((t) => t.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'kreatur_abgeben'])
+    expect(JSON.stringify(reqs[0].messages[0])).toContain('Vorgabe: als Kreatur')
+    expect(r.art).toBe('kreatur')
+    expect(r.profession.name).toBe('Riesenspinne')
+    expect(r.block).toContain('verknüpft: nein')
+    expect(r.quellen).toEqual(['ZBA 120: Höhlenspinne'])
   })
 })

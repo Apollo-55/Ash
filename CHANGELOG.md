@@ -5,6 +5,8 @@
 - **NSC-Generator, Cloud-Modus (Claude):** Claude schlägt über Werkzeuge in einem lokalen Seiten-Index der Regelwerke nach (Suche, Seiten lesen, offizielle Namen im dsa-41-Katalog) und gibt den NSC ab; der Code prüft und meldet Probleme zurück. Modell (Opus/Sonnet/Haiku 5.5) und Gründlichkeit einstellbar, Quellen und ungefähre Kosten im Ergebnis. Nur nachgeschlagene Seiten verlassen den PC.
 - **NSC-Generator, lokal:** Profession zweistufig mit Vorauswahl nach Stichworten, Weihe nur nach Profession, Mindestwerte und SF je Erfahrung, Sprach-/Schriftnamen, Vor-/Nachteile umsortieren; Modellvergleich (qwen3:14b bleibt).
 - **NSC-Generator, OpenAI-Modus:** dritter Anbieter mit denselben Werkzeugen und Prüfungen wie Claude (gemeinsames Modul `agent.ts`), Responses-API (zustandslos), Modellliste per „Prüfen“, Standard gpt-6.1-sol nach Modellvergleich.
+- **NSC-Generator, Kreaturen:** Feld „Art“ (automatisch / Person / Kreatur); Kreaturen und einfache Gegner mit festen Bestiarium-Werten (Angriffe mit AT/PA/TP, Besonderheiten mit Regeltext, nicht verknüpft), eigenes Werkzeug `kreatur_abgeben` mit Prüfung. Nur Cloud-Modi.
+- **Regelwerke:** eindeutige Buchkürzel auch bei gleichen Initialen.
 - **Regelwerk-Suche:** Seiten, die einen Begriff erklären („Meisterparade: …“, „Handwerker / Handwerkerin (1 GP)“), stehen vor bloßen Erwähnungen; das Stichwortregister wird herabgestuft.
 - `npm run regelwerke` schreibt zusätzlich `.llm/regelwerk-seiten.json` (Volltext pro Seite).
 

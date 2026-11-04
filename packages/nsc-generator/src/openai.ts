@@ -52,7 +52,7 @@ export async function generateNpcOpenAI(
   const t0 = Date.now()
   const step = (m: string) => onStep?.(m)
   const maxTurns = opts.maxTurns ?? 16
-  const tools: FunctionTool[] = toolSpecs(pages).map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters, strict: true }))
+  const tools: FunctionTool[] = toolSpecs(pages, input.art).map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters, strict: true }))
   const reasoning = isReasoningModel(opts.model)
   const runner = new ToolRunner(pages, input, step)
   const history: ResponseInputItem[] = [{ role: 'user', content: userPrompt(input) }]
@@ -94,7 +94,7 @@ export async function generateNpcOpenAI(
     if (!calls.length) {
       if (runner.last || nudged) break
       nudged = true
-      history.push({ role: 'user', content: 'Bitte gib den NSC jetzt mit nsc_abgeben ab.' })
+      history.push({ role: 'user', content: 'Bitte gib das Ergebnis jetzt mit nsc_abgeben bzw. kreatur_abgeben ab.' })
       continue
     }
     let done = false

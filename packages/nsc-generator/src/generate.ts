@@ -102,9 +102,9 @@ export interface NpcJson {
 
 // ---- YAML block ----------------------------------------------------------------------------
 
-const q = (s: string) => (/[:,[\]{}#&*!|>'"%@`]|^\s|\s$|^(ja|nein|true|false|null|-?\d)/i.test(s) ? JSON.stringify(s) : s)
-const flowMap = (entries: [string, number | null][]) => `{ ${entries.map(([k, v]) => `${q(k)}: ${v ?? 'null'}`).join(', ')} }`
-const flowList = (items: string[]) => `[${items.map(q).join(', ')}]`
+export const q = (s: string) => (/[:,[\]{}#&*!|>'"%@`]|^\s|\s$|^(ja|nein|true|false|null|-?\d)/i.test(s) ? JSON.stringify(s) : s)
+export const flowMap = (entries: [string, number | null][]) => `{ ${entries.map(([k, v]) => `${q(k)}: ${v ?? 'null'}`).join(', ')} }`
+export const flowList = (items: string[]) => `[${items.map(q).join(', ')}]`
 
 export function toBlock(n: NpcJson): string {
   const lines = [
@@ -140,7 +140,7 @@ export interface Repair {
 
 /** Replaces near-miss names by catalog names, fixes SF chains, keeps energies in a sane range. */
 /** Catalog names that could be meant (for correction prompts): containing a word of the name, then similar ones. */
-function alternatives(types: string[], name: string): string[] {
+export function alternatives(types: string[], name: string): string[] {
   const words = name.split(/[\s()/,:-]+/).filter((w) => w.length >= 4)
   // word stems too: "Schmieden" → "schmied" finds "Grobschmied"
   const stems = words.map((w) => w.replace(/(ungen|ung|en|er|in|e|n|s)$/i, '')).filter((w) => w.length >= 4)
@@ -333,6 +333,8 @@ export interface GenerateInput {
   /** forces a profession from the index instead of letting the LLM choose */
   profession?: string
   name?: string
+  /** cloud modes: person (talents, energies by formula) or creature (fixed bestiary values); undefined = model decides */
+  art?: 'person' | 'kreatur'
 }
 
 export interface GenerateResult {
