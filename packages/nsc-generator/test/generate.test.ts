@@ -121,8 +121,8 @@ describe('Ablauf mit Fake-LLM', () => {
   it('wählt Profession, erzeugt Werte, korrigiert unbekannte Namen in einer zweiten Runde', async () => {
     const answers = [
       JSON.stringify({ profession: 'Seefahrer / Seefahrerin', erfahrung: 'kompetent', gottheit: null }),
-      JSON.stringify({ ...base(), talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wolkenlesen', wert: 5 }] }),
-      JSON.stringify({ ...base(), talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wettervorhersage', wert: 12 }] }),
+      JSON.stringify({ ...base(), sonderfertigkeiten: ['Ausweichen I', 'Aufmerksamkeit', 'Rüstungsgewöhnung I', 'Finte', 'Wuchtschlag'], talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wolkenlesen', wert: 5 }] }),
+      JSON.stringify({ ...base(), sonderfertigkeiten: ['Ausweichen I', 'Aufmerksamkeit', 'Rüstungsgewöhnung I', 'Finte', 'Wuchtschlag'], talente: [{ name: 'Seefahrt', wert: 14 }, { name: 'Wettervorhersage', wert: 12 }] }),
     ]
     const prompts: string[] = []
     const llm: LlmClient = { label: 'fake', chat: async (m) => (prompts.push(m.at(-1)!.content), answers.shift()!) }
@@ -139,7 +139,7 @@ describe('Ablauf mit Fake-LLM', () => {
   it('Geweihte bekommen Liturgien ihres Gottes bis zum Grad der Erfahrung', async () => {
     const answers = [
       JSON.stringify({ profession: 'Geweihter des Praios', erfahrung: 'erfahren', gottheit: 'Praios' }),
-      JSON.stringify({ ...base(), KaP: 28, talente: [{ name: 'Menschenkenntnis', wert: 11 }, { name: 'Götter/Kulte', wert: 12 }], liturgien: ['Eidsegen', 'Wort der Wahrheit'] }),
+      JSON.stringify({ ...base(), sonderfertigkeiten: ['Ausweichen I', 'Aufmerksamkeit', 'Rüstungsgewöhnung I', 'Finte', 'Wuchtschlag'], KaP: 28, talente: [{ name: 'Menschenkenntnis', wert: 11 }, { name: 'Götter/Kulte', wert: 12 }], liturgien: ['Eidsegen', 'Wort der Wahrheit'] }),
     ]
     const prompts: string[] = []
     const llm: LlmClient = { label: 'fake', chat: async (m) => (prompts.push(m.at(-1)!.content), answers.shift()!) }

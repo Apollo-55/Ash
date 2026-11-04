@@ -21,8 +21,11 @@ const EXPECT: Record<string, RegExp> = {
   'Leta Sjenskoje': /handwerker/i, 'Shahane ay Zedrakin': /.*/, 'Haargh-Ma-Mu': /kor/i, 'Praiodan von Luring': /praios/i,
   'Zulhaminja saba Zulyoya': /nandus/i, 'Frederik Narciso': /jäger|kopfgeld/i, 'Sir Rondrigo von Talfenn': /ritter|krieger/i,
   'Valeriano di Salsavarda': /schwertgesell|fedorino/i, 'Arvid Frenhilddotter': /druide/i, 'Ralio Derenvay': /magier/i,
-  'Topasa': /handwerker/i, 'Vittorio di Belhanka': /entdecker|kartograph/i, 'Sjadjana die Brutale': /seefahrer/i,
+  'Topasa': /handwerker/i, 'Ebba': /seefahrer|handwerker|wirt/i, 'Kapitän Persiphone von Rethis': /seefahrer|schiffer|fähnrich zur see/i, 'Vittorio di Belhanka': /entdecker|kartograph/i, 'Sjadjana die Brutale': /seefahrer|fähnrich zur see|schiffer/i,
 }
+
+/** creatures have no profession (fixed values, see docs/nsc-umwandlung.md) */
+const SKIP = new Set(['Thalassische Riff-Hydra'])
 
 const walk = (d: string, acc: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
@@ -42,6 +45,7 @@ for (const file of walk(vault)) {
   if (fences.length !== 1) continue
   const reference = dsa41.parseNscBlock(fences[0].content)
   const name = reference.name!
+  if (SKIP.has(name)) continue
   if (only && !only.some((o) => name.toLowerCase().includes(o))) continue
   const description = text
     .replace(/```dsa-nsc[\s\S]*?```/g, '')

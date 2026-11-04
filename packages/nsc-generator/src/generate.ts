@@ -364,7 +364,14 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
       issues.push(`Talentwerte zu niedrig für „${level}“: die wichtigsten Talente (${top.map((t) => `${t.name} ${t.wert}`).join(', ')}) sollten bei ${hint.taw.split(',')[0].replace('Haupttalente ', '')} liegen – die Paketzahlen sind nur Startboni`)
     }
     if (consecrated && !npc.liturgien.length) issues.push(`Geweihte brauchen Liturgien: 4–12 aus der Liste des ${god ?? 'Gottes'} wählen`)
-    const needsLlm = r.unknown.length || issues.some((i) => /zu niedrig|brauchen Liturgien/.test(i)) || parsed.issues.some((i) => i.level === 'error')
+    const sfRange = /(\d+)–(\d+)/.exec(hint.ap)
+    if (sfRange && npc.sonderfertigkeiten.length < Number(sfRange[1])) {
+      issues.push(
+        `Zu wenige Sonderfertigkeiten für „${level}“ (${npc.sonderfertigkeiten.length}, erwartet ${sfRange[0]}): ergänze passende aus Paket und Beschreibung – ` +
+          'Kampf-SF (z. B. Finte, Wuchtschlag, Ausweichen I, Kampfreflexe, Rüstungsgewöhnung I), Geländekunde, Kulturkunde, Ortskenntnis usw.; Voraussetzungen beachten'
+      )
+    }
+    const needsLlm = r.unknown.length || issues.some((i) => /zu niedrig|brauchen Liturgien|Zu wenige Sonderfertigkeiten/.test(i)) || parsed.issues.some((i) => i.level === 'error')
     if (!needsLlm) break
     messages.push({ role: 'assistant', content: JSON.stringify(npc) })
     messages.push({
