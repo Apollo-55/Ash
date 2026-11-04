@@ -270,6 +270,7 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
   if (!profession) {
     step('Profession wählen …')
     const names = kb.professionNames()
+    const shortlist = kb.candidates(input.description)
     const pick = JSON.parse(
       await llm.chat(
         [
@@ -279,11 +280,16 @@ export async function generateNpc(llm: LlmClient, kb: Knowledge, input: Generate
               'Du bist Spielleiter für Das Schwarze Auge 4.1. Ordne einen Nichtspielercharakter der passendsten Profession aus „Wege der Helden“ zu. ' +
               'Geweihte nur, wenn die Figur heute geweiht ist (nicht bei ehemaligen Novizen/Akoluthen oder bloßer Verehrung); gottheit nur für Geweihte, sonst null. ' +
               'Erfahrung: unerfahren = Anfänger; erfahren = solide im Beruf; kompetent = sehr gut, bekannt; meisterlich = Meister, berühmt, Lehrer oder Anführer seines Fachs; brillant = legendär. Alter und Ruf beachten. ' +
-              'Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr. Antworte nur mit JSON.',
+              'Gerüchte, die als falsch markiert sind ((F), falsch, FALSCH), sind nicht wahr. ' +
+              'Überschrift und Zeilen wie „Profession:“ nennen meist die Rolle – nimm sie ernst (z. B. „Kor Geweit Söldner“ = Kor-Geweihter, „Akademiemagister“ = Magier dieser Akademie, „Geschützmeister“ = Söldner/Artillerist). ' +
+              'Antworte nur mit JSON.',
           },
           {
             role: 'user',
-            content: `Beschreibung:\n${input.description}\n\nMögliche Professionen:\n${names.join('; ')}\n\nGottheiten: ${kb.gods().join(', ')}`,
+            content:
+              `Beschreibung:\n${input.description}\n\n` +
+              (shortlist.length ? `Vorauswahl nach Stichworten der Beschreibung (meist passend, aber prüfen):\n${shortlist.join('; ')}\n\n` : '') +
+              `Alle Professionen:\n${names.join('; ')}\n\nGottheiten: ${kb.gods().join(', ')}`,
           },
         ],
         {

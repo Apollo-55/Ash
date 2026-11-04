@@ -78,6 +78,33 @@ describe('Reparaturen', () => {
   })
 })
 
+describe('Vorauswahl der Profession', () => {
+  const kb = new Knowledge({
+    erstellt: '',
+    buecher: [],
+    professionen: [
+      { name: 'Söldner / Söldnerin', buch: 'WdH', seite: 1, text: 'Variante Artillerist …' },
+      { name: 'Spätweihe zum Kor-Geweihten', buch: 'WdH', seite: 2, text: '' },
+      { name: 'Geweihter des Phex', buch: 'WdH', seite: 3, text: '' },
+      { name: 'Handwerker / Handwerkerin', buch: 'WdH', seite: 4, text: '' },
+      { name: 'Magier: Akademie der Hohen Magie & Arcanes Institut zu Punin', buch: 'WdH', seite: 5, text: '' },
+      { name: 'Magier: Halle der Macht zu Lowangen', buch: 'WdH', seite: 6, text: '' },
+      { name: 'Magier: Universität von Al’Anfa', buch: 'WdH', seite: 7, text: '' },
+    ],
+    liturgien: { Kor: { I: ['x'] }, Phex: { I: ['y'] } },
+    sfVoraussetzungen: {},
+  })
+  it('Gottheit + Weihe-Wort in der Überschrift (auch mit Tippfehler) schlägt den Beruf', () => {
+    expect(kb.candidates('## Kor Geweit Söldner\nschuldet zwei Phex-Geweihten Geld')[0]).toBe('Spätweihe zum Kor-Geweihten')
+  })
+  it('Synonyme und Ortsnamen', () => {
+    expect(kb.candidates('## Zwergische Tüftlerin und Schmid')[0]).toBe('Handwerker / Handwerkerin')
+    expect(kb.candidates('## ehem. Akademiemagister aus Punin')[0]).toMatch(/Punin/)
+    expect(kb.candidates('## Geschützmeister')[0]).toBe('Söldner / Söldnerin')
+    expect(kb.candidates('Ein neuer Anfang')).toEqual([])
+  })
+})
+
 describe('Ablauf mit Fake-LLM', () => {
   const index: RulebookIndex = {
     erstellt: '',
