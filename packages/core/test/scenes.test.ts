@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { actorsOf, dsa41Adapter, journalsOf, leafletToPixel, parseLeafletBlock, parseSceneBlock, scenesOf } from '../src/index.ts'
+import { actorsOf, journalsOf, leafletToPixel, parseLeafletBlock, parseSceneBlock, scenesOf } from '../src/index.ts'
+// integration test: NPC tokens on scenes need a real game system
+import { dsa41Adapter } from '../../../systems/dsa41/adapter/src/index.ts'
 import { build } from './helpers.ts'
 
 const errors = (s: string) => parseSceneBlock(s).issues.filter((i) => i.level === 'error').map((i) => i.message)

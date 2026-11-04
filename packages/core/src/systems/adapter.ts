@@ -41,6 +41,8 @@ export interface StatblockOptions {
 export interface SystemAdapter<T = unknown> {
   /** adapter id, e.g. "dsa41" */
   id: string
+  /** name shown in settings, e.g. "DSA 4.1" */
+  label: string
   /** Foundry system id, e.g. "dsa-41" */
   foundrySystem: string
   /** code block language, e.g. "dsa-nsc" */

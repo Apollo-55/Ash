@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **Projektaufbau:** systemunabhängig unter `packages/` (core, obsidian-plugin, foundry-module, sync-service), DSA 4.1 unter `systems/dsa41/` (adapter, nsc-generator, nsc-generator-plugin, tools). Der Kern exportiert kein System mehr; Systeme hängen an `SystemAdapter` und neu `FoundrySystemHooks` (Actor-Typ, Kompendien, AT/PA), eingehängt in je einer `systems.ts`.
 - **NSC-Generator, Cloud-Modus (Claude):** Claude schlägt über Werkzeuge in einem lokalen Seiten-Index der Regelwerke nach (Suche, Seiten lesen, offizielle Namen im dsa-41-Katalog) und gibt den NSC ab; der Code prüft und meldet Probleme zurück. Modell (Opus/Sonnet/Haiku 5.5) und Gründlichkeit einstellbar, Quellen und ungefähre Kosten im Ergebnis. Nur nachgeschlagene Seiten verlassen den PC.
 - **NSC-Generator, lokaler Modus (Ollama) entfernt:** im Vergleich deutlich schwächer als die Cloud-Modelle; Stand und Erkenntnisse in `docs/zukunft.md` (letzter Stand Commit `5577dc6`). `npm run llm` entfällt, `npm run regelwerke` schreibt nur noch Seiten-Index und Bücherliste.
 - **NSC-Generator, OpenAI-Modus:** dritter Anbieter mit denselben Werkzeugen und Prüfungen wie Claude (gemeinsames Modul `agent.ts`), Responses-API (zustandslos), Modellliste per „Prüfen“, Standard gpt-6.1-sol nach Modellvergleich.

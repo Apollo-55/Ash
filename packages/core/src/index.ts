@@ -10,7 +10,6 @@ export { splitFrontmatter, stripComments, stripBlockIds } from './markdown/prepr
 export { renderBody, createMarkdown, builtinFenceHandlers } from './markdown/render.ts'
 export { parseWikilinkInner, uuidLink } from './markdown/wikilinks.ts'
 export type { SystemAdapter, ParsedBlock, BlockIssue, ActorContext, StatblockOptions } from './systems/adapter.ts'
-export { dsa41Adapter } from './systems/dsa41/index.ts'
-export * as dsa41 from './systems/dsa41/index.ts'
+export * from './text.ts'
 export * from './scenes.ts'
 export * from './sync-client.ts'

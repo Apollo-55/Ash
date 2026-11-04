@@ -1,6 +1,8 @@
 import { planSync } from '../../core/src/sync.ts'
 import { actorsOf, FLAG_SCOPE, type Bundle, type BundleActor, type BundleItem, type DocumentFlags } from '../../core/src/types.ts'
-import { normalizeName } from '../../core/src/systems/dsa41/catalog.ts'
+import { normalizeName } from '../../core/src/text.ts'
+import { defaultHooks, type FoundrySystemHooks } from './system-hooks.ts'
+import { SYSTEM_HOOKS } from './systems.ts'
 import { MODULE_ID, SETTINGS } from './constants.ts'
 import type { ImportOptions, ImportReport, ReportEntry } from './importer.ts'
 
@@ -12,9 +14,11 @@ type ItemOrigin = 'welt' | 'kompendium' | 'neu'
 class ItemResolver {
   private indexCache = new Map<string, any[]>()
   private systemId: string
+  private hooks: FoundrySystemHooks
   private extraPacks: string[]
-  constructor(systemId: string) {
+  constructor(systemId: string, hooks: FoundrySystemHooks) {
     this.systemId = systemId
+    this.hooks = hooks
     this.extraPacks = String(game.settings.get(MODULE_ID, SETTINGS.extraPacks) ?? '')
       .split(/[,\n]/)
       .map((s) => s.trim())
@@ -24,14 +28,14 @@ class ItemResolver {
   private async index(packId: string): Promise<any[]> {
     if (!this.indexCache.has(packId)) {
       const pack = game.packs.get(packId)
-      const idx = pack ? await pack.getIndex({ fields: ['system.sid'] }) : []
+      const idx = pack ? await pack.getIndex({ fields: this.hooks.indexFields ?? [] }) : []
       this.indexCache.set(packId, [...idx])
     }
     return this.indexCache.get(packId)!
   }
 
   private systemPacks(): string[] {
-    const rank = (name: string) => (/^(darkage|myranor|uthuria|eg_|vtuu_)/.test(name) ? (name.startsWith('uthuria') ? 1 : 2) : 0)
+    const rank = (name: string) => this.hooks.packRank?.(name) ?? 0
     return game.packs
       .filter((p: any) => p.documentName === 'Item' && p.metadata.packageType === 'system' && p.metadata.packageName === this.systemId)
       .sort((a: any, b: any) => rank(a.metadata.name) - rank(b.metadata.name))
@@ -46,12 +50,13 @@ class ItemResolver {
     const world = game.items.find((i: any) => matches(i.name, i.type))
     if (world) return { data: world.toObject(), origin: 'welt', from: world.uuid }
 
-    // 2. compendia chosen in the settings, 3. compendium hinted by the catalog (by sid), 4. all system compendia
+    // 2. compendia chosen in the settings, 3. compendium hinted by the system's catalog, 4. all system compendia
     const candidates: [string, (e: any) => boolean][] = [
       ...this.extraPacks.map((p) => [p, (e: any) => matches(e.name, e.type)] as [string, (e: any) => boolean]),
     ]
-    if (bi.source) {
-      candidates.push([`${this.systemId}.${bi.source.pack}`, (e: any) => e.system?.sid === bi.source!.sid && e.type === bi.source!.type])
+    if (bi.source && this.hooks.matchesSource) {
+      const source = bi.source
+      candidates.push([`${this.systemId}.${source.pack}`, (e: any) => this.hooks.matchesSource!(e, source)])
     }
     for (const p of this.systemPacks()) candidates.push([p, (e: any) => matches(e.name, e.type)])
 
@@ -99,82 +104,18 @@ function actorFlags(a: BundleActor, bundle: Bundle) {
   return { vault: bundle.vault.slug, sourcePath: a.sourcePath, hash: a.hash, bundleVersion: bundle.schemaVersion, block: a.blockName }
 }
 
-/**
- * Makes the sheet show the AT/PA/FK/INI values written in the block:
- * the first weapon of a combat talent sets the talent's AT/PA share (talent value = AT share + PA share),
- * further weapons with the same talent get the remaining difference as weapon modifier.
- */
-async function adjustCombat(actor: any, a: BundleActor, report: ImportReport) {
-  const base = actor.system?.base?.combatAttributes?.active ?? {}
-  const baseAT = base.baseAttack?.value ?? 0
-  const basePA = base.baseParry?.value ?? 0
-  const baseFK = base.baseRangedAttack?.value ?? 0
-  const baseINI = base.baseInitiative?.value ?? 0
-  const updates = new Map<string, Record<string, unknown>>()
-  const upd = (id: string, data: Record<string, unknown>) => updates.set(id, { ...(updates.get(id) ?? { _id: id }), ...data })
-  const talentShares = new Map<string, { at?: number; pa?: number; fk?: number }>()
-
-  for (const bi of a.items) {
-    const c = bi.combat
-    if (!c) continue
-    const weapon = actor.items.get(bi.id)
-    const talent = actor.items.find((i: any) => i.type === 'combatTalent' && i.system?.sid === c.talentSid)
-    if (!weapon) continue
-    if (c.INI !== undefined && weapon.type === 'meleeWeapon') upd(weapon.id, { 'system.initiativeMod': c.INI - baseINI })
-    if (!talent) {
-      if (c.AT !== undefined || c.PA !== undefined || c.FK !== undefined) {
-        report.warnings.push({ code: 'nsc-warning', sourcePath: a.sourcePath, message: `NSC „${a.name}“: Kampftalent für „${weapon.name}“ fehlt, AT/PA nicht angepasst.` })
-      }
-      continue
-    }
-    const wmGiven = 'weaponMod.attack' in bi.system
-    const wmAT = wmGiven ? Number(bi.system['weaponMod.attack']) : 0
-    const wmPA = wmGiven ? Number(bi.system['weaponMod.parry']) : 0
-    const shares = talentShares.get(talent.id)
-
-    if (weapon.type === 'rangedWeapon') {
-      if (c.FK === undefined) continue
-      if (!shares) {
-        talentShares.set(talent.id, { fk: c.FK - baseFK })
-        upd(talent.id, { 'system.combat.rangedAttack': c.FK - baseFK, 'system.value': c.FK - baseFK })
-      }
-      continue
-    }
-    if (c.AT === undefined && c.PA === undefined) continue
-    if (!shares) {
-      const at = c.AT !== undefined ? c.AT - baseAT - wmAT : talent.system.combat?.attack
-      const pa = c.PA !== undefined ? c.PA - basePA - wmPA : talent.system.combat?.parry
-      talentShares.set(talent.id, { at, pa })
-      upd(talent.id, { 'system.combat.attack': at, 'system.combat.parry': pa, 'system.value': Math.max(0, (at ?? 0) + (pa ?? 0)) })
-      if (!wmGiven) upd(weapon.id, { 'system.weaponMod.attack': 0, 'system.weaponMod.parry': 0 })
-    } else {
-      const dAT = c.AT !== undefined ? c.AT - baseAT - (shares.at ?? 0) : 0
-      const dPA = c.PA !== undefined ? c.PA - basePA - (shares.pa ?? 0) : 0
-      upd(weapon.id, { 'system.weaponMod.attack': dAT, 'system.weaponMod.parry': dPA })
-      if (wmGiven && (dAT !== wmAT || dPA !== wmPA)) {
-        report.warnings.push({
-          code: 'nsc-warning',
-          sourcePath: a.sourcePath,
-          message: `NSC „${a.name}“: „${weapon.name}“ – WM ${wmAT}/${wmPA} passt nicht zu AT/PA, verwendet ${dAT}/${dPA}.`,
-        })
-      }
-    }
-  }
-  if (updates.size) await actor.updateEmbeddedDocuments('Item', [...updates.values()])
-}
-
-async function createActor(a: BundleActor, bundle: Bundle, resolver: ItemResolver, report: ImportReport) {
+async function createActor(a: BundleActor, bundle: Bundle, resolver: ItemResolver, report: ImportReport, hooks: FoundrySystemHooks) {
   const ActorCls = CONFIG.Actor.documentClass
   const system = foundry.utils.expandObject({ ...a.data, ...a.dataOnCreate })
   const items = []
   for (const bi of a.items) items.push(await buildItem(resolver, bi, report, a))
-  const firstWeapon = a.items.find((i) => i.combat && i.types[0] === 'meleeWeapon')
-  if (firstWeapon) foundry.utils.mergeObject(system, { base: { combatState: { isArmed: true, primaryHand: firstWeapon.id } } })
+  const extra = hooks.onCreate?.(a)
+  if (extra) foundry.utils.mergeObject(system, extra)
   const actor = await ActorCls.create(
     {
       _id: a.id,
       name: a.name,
-      type: 'character',
+      type: hooks.actorType,
       folder: a.folder,
       ...(a.img ? { img: a.img } : {}),
       system,
@@ -184,10 +125,10 @@ async function createActor(a: BundleActor, bundle: Bundle, resolver: ItemResolve
     },
     { keepId: true }
   )
-  await adjustCombat(actor, a, report)
+  await hooks.afterItems?.(actor, a, report)
 }
 
-async function updateActor(actor: any, a: BundleActor, bundle: Bundle, resolver: ItemResolver, report: ImportReport) {
+async function updateActor(actor: any, a: BundleActor, bundle: Bundle, resolver: ItemResolver, report: ImportReport, hooks: FoundrySystemHooks) {
   const update: Record<string, unknown> = {
     name: a.name,
     folder: a.folder,
@@ -213,12 +154,7 @@ async function updateActor(actor: any, a: BundleActor, bundle: Bundle, resolver:
   if (toUpdate.length) await actor.updateEmbeddedDocuments('Item', toUpdate)
   if (toCreate.length) await actor.createEmbeddedDocuments('Item', toCreate, { keepId: true })
   if (toDelete.length) await actor.deleteEmbeddedDocuments('Item', toDelete)
-  const combatState = actor.system?.base?.combatState
-  const firstWeapon = a.items.find((i) => i.combat && i.types[0] === 'meleeWeapon')
-  if (firstWeapon && combatState && (!combatState.primaryHand || !actor.items.get(combatState.primaryHand))) {
-    await actor.update({ 'system.base.combatState.isArmed': true, 'system.base.combatState.primaryHand': firstWeapon.id })
-  }
-  await adjustCombat(actor, a, report)
+  await hooks.afterItems?.(actor, a, report)
 }
 
 export async function syncActors(bundle: Bundle, report: ImportReport, opts: ImportOptions): Promise<void> {
@@ -233,7 +169,8 @@ export async function syncActors(bundle: Bundle, report: ImportReport, opts: Imp
   const plan = planSync(bundle, actors, existing, { force: opts.forceDocuments })
   const byId = new Map(actors.map((a) => [a.id, a]))
   const entry = (a: BundleActor): ReportEntry => ({ id: a.id, uuid: `Actor.${a.id}`, name: a.name, sourcePath: a.sourcePath, type: 'Actor' })
-  const resolver = new ItemResolver(game.system.id)
+  const hooks = SYSTEM_HOOKS[game.system.id] ?? defaultHooks()
+  const resolver = new ItemResolver(game.system.id, hooks)
 
   let n = 0
   const total = plan.create.length + plan.update.length
@@ -241,7 +178,7 @@ export async function syncActors(bundle: Bundle, report: ImportReport, opts: Imp
     const a = byId.get(id)!
     opts.onProgress?.(0.9 + 0.1 * (n++ / Math.max(1, total)), `NSC ${a.name}`)
     try {
-      await createActor(a, bundle, resolver, report)
+      await createActor(a, bundle, resolver, report, hooks)
       report.created.push(entry(a))
     } catch (e) {
       console.error(MODULE_ID, e)
@@ -252,7 +189,7 @@ export async function syncActors(bundle: Bundle, report: ImportReport, opts: Imp
     const a = byId.get(id)!
     opts.onProgress?.(0.9 + 0.1 * (n++ / Math.max(1, total)), `NSC ${a.name}`)
     try {
-      await updateActor(game.actors.get(id), a, bundle, resolver, report)
+      await updateActor(game.actors.get(id), a, bundle, resolver, report, hooks)
       report.updated.push(entry(a))
     } catch (e) {
       console.error(MODULE_ID, e)

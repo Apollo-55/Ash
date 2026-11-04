@@ -24,7 +24,7 @@ function copyStatic() {
   mkdirSync(pluginOut, { recursive: true })
   for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'packages/obsidian-plugin', f), join(pluginOut, f))
   mkdirSync(genOut, { recursive: true })
-  for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'packages/nsc-generator-plugin', f), join(genOut, f))
+  for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'systems/dsa41/nsc-generator-plugin', f), join(genOut, f))
   mkdirSync(moduleOut, { recursive: true })
   for (const f of ['module.json', 'styles', 'lang']) cpSync(join(root, 'packages/foundry-module', f), join(moduleOut, f), { recursive: true })
 }
@@ -117,7 +117,7 @@ const plugin = await context({
 })
 const gen = await context({
   ...common,
-  entryPoints: [join(root, 'packages/nsc-generator-plugin/src/main.ts')],
+  entryPoints: [join(root, 'systems/dsa41/nsc-generator-plugin/src/main.ts')],
   outfile: join(genOut, 'main.js'),
   format: 'cjs',
   platform: 'browser',

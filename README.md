@@ -177,29 +177,44 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 
 ## Entwicklung
 
-| Paket | Zweck |
-|---|---|
-| `packages/core` | Logik ohne Obsidian/Foundry: Markdown → HTML, Links, IDs, Bundle, NSC- und Szenen-Blöcke, Sync-Planung, Sync-Client |
-| `packages/obsidian-plugin` | Obsidian-Plugin |
-| `packages/foundry-module` | Foundry-Modul `vault-to-foundry` (v13) |
-| `packages/sync-service` | Sync-Dienst `vtf-sync` (Node, ohne Abhängigkeiten, Docker) |
-| `packages/nsc-generator` | NSC-Generator: Regelwerk- und Seiten-Index, Claude (Anthropic-SDK) und OpenAI mit gemeinsamen Werkzeugen, Prüfung und Reparatur, Kreaturen |
-| `packages/nsc-generator-plugin` | Obsidian-Plugin „DSA-NSC-Generator“ |
+Das Projekt ist in **systemunabhängig** und **systemabhängig** geteilt. Alles unter `packages/` kennt kein Spielsystem; es spricht mit einem System nur über die Schnittstellen `SystemAdapter` (Obsidian/Export: Block lesen, Wertekasten, Actor-Daten) und `FoundrySystemHooks` (Foundry: Actor-Typ, Kompendien, Kampfwerte). Alles für DSA 4.1 liegt unter `systems/dsa41/`.
+
+```
+packages/                       systemunabhängig – „Vault to Foundry“
+  core/                         Markdown → HTML, Links, IDs, Bundle, Szenen, Sync, System-Schnittstelle
+  obsidian-plugin/              Obsidian-Plugin „Vault to Foundry“   (Systeme eingehängt in src/systems.ts)
+  foundry-module/               Foundry-Modul vault-to-foundry (v13) (Systeme eingehängt in src/systems.ts)
+  sync-service/                 Sync-Dienst vtf-sync (Node, Docker)
+systems/                        systemabhängig – je Spielsystem ein Ordner
+  dsa41/                        DSA 4.1 (Foundry-System dsa-41)
+    adapter/                    dsa-nsc-Block, Namenskatalog, Regeln (SF-Ketten, Energien), Wertekasten,
+                                Actor-Daten, Foundry-Teil (Kampfwerte, Kompendien)
+    nsc-generator/              NSC-/Kreatur-Generator mit Claude und OpenAI, Seiten-Index, Prüfung
+    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“
+    tools/                      regelwerke.ts (Seiten-Index), gen-catalog.mjs (Namenskatalog),
+                                eval.ts (Modellvergleich), nsc-umwandlung/ (einmalige Uthuria-Umwandlung)
+tools/                          Build, Tests, lokale Testumgebung (systemunabhängig)
+  build.mjs  export-cli.ts  sync-cli.ts  foundry-local.sh  sync-local.sh  e2e/
+deploy/                         Server-Beispiele (Manic)
+docs/                           Anleitungen, Entscheidungen, zukunft.md (zurückgestellte Pläne)
+```
+
+Ein neues System (z. B. D&D 5e) bekommt `systems/dnd5e/adapter/` und je eine Zeile in `packages/obsidian-plugin/src/systems.ts` und `packages/foundry-module/src/systems.ts`.
 
 ```bash
 npm install
-npm test              # vitest (core, Modul gegen nachgebaute Foundry-API, Sync-Dienst)
+npm test              # vitest: packages/*/test und systems/*/*/test
 npm run typecheck
-npm run build         # → dist/ (inkl. der drei ZIPs)
-npm run deploy        # wie build, kopiert das Plugin zusätzlich in test-vault/
+npm run build         # → dist/ (inkl. der ZIPs)
+npm run deploy        # wie build, kopiert die Plugins zusätzlich in test-vault/
 npm run dev           # wie deploy, bei jeder Änderung
 
 npm run foundry       # lokale Test-Foundry auf http://localhost:30013 (.foundry/, gitignored)
 npm run sync-local    # lokaler vtf-sync vor der Test-Foundry (Token in .foundry/sync-token)
 npm run e2e           # kompletter Durchlauf im Browser (Playwright), Screenshots in dist/e2e/
-npm run regelwerke    # Regelwerk-Index aus Regelwerke/*.pdf → .llm/regelwerk-index.json
+npm run regelwerke    # DSA-Regelwerke: Seiten-Index aus Regelwerke/*.pdf → .llm/
 ```
 
-Weitere Werkzeuge: `tools/export-cli.ts` (Export ohne Obsidian), `tools/sync-cli.ts` (Push ohne Obsidian), `tools/gen-dsa41-catalog.mjs` (Namenskatalog aus den dsa-41-Quellen), `tools/nsc-umwandlung/` (einmalige Umwandlung der Uthuria-NSCs).
+Weitere Werkzeuge: `tools/export-cli.ts` (Export ohne Obsidian), `tools/sync-cli.ts` (Push ohne Obsidian), `systems/dsa41/tools/gen-catalog.mjs` (Namenskatalog aus den dsa-41-Quellen), `systems/dsa41/tools/nsc-umwandlung/` (einmalige Umwandlung der Uthuria-NSCs), `systems/dsa41/tools/eval.ts` (Modellvergleich des Generators, kostet Geld).
 
-Dokumentation: [docs/plan.md](docs/plan.md) (Entscheidungen), [docs/dsa41-datenmodell.md](docs/dsa41-datenmodell.md), [docs/vault-analyse.md](docs/vault-analyse.md), [docs/sync-server.md](docs/sync-server.md), [docs/test-foundry.md](docs/test-foundry.md), [docs/nsc-umwandlung.md](docs/nsc-umwandlung.md).
+Dokumentation: [docs/plan.md](docs/plan.md) (Entscheidungen), [docs/zukunft.md](docs/zukunft.md) (zurückgestellte Pläne), [docs/nsc-generator.md](docs/nsc-generator.md), [docs/dsa41-datenmodell.md](docs/dsa41-datenmodell.md), [docs/vault-analyse.md](docs/vault-analyse.md), [docs/sync-server.md](docs/sync-server.md), [docs/test-foundry.md](docs/test-foundry.md), [docs/nsc-umwandlung.md](docs/nsc-umwandlung.md).

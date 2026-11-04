@@ -1,2 +1,3 @@
 import { defineConfig } from 'vitest/config'
-export default defineConfig({ test: { include: ['packages/*/test/**/*.test.ts'] } })
+// packages/*: system-independent, systems/<id>/*: per game system
+export default defineConfig({ test: { include: ['packages/*/test/**/*.test.ts', 'systems/*/*/test/**/*.test.ts'] } })

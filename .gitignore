@@ -9,5 +9,6 @@ backup/
 # Regelwerke (urheberrechtlich geschützt) – niemals ins Git
 Regelwerke/
 *.pdf
-# lokales LLM: Modelle und Index
+# Regelwerk-Index (enthält Buchtext, nie ins Git)
 .llm/
+__pycache__/

@@ -2,7 +2,8 @@
 // Usage: node tools/sync-cli.ts <vault-dir> --url http://localhost:8787 --token … [--name uthuria-ob] [--unused] [--cleanup]
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
-import { actorsOf, buildBundle, createSimpleResolver, dsa41Adapter, fetchHttp, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, pushBundle, scenesOf, SyncClient } from '../packages/core/src/index.ts'
+import { actorsOf, buildBundle, createSimpleResolver, fetchHttp, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, pushBundle, scenesOf, SyncClient } from '../packages/core/src/index.ts'
+import { dsa41Adapter } from '../systems/dsa41/adapter/src/index.ts'
 
 const args = process.argv.slice(2)
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }

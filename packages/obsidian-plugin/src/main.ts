@@ -1,8 +1,9 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient } from '../../core/src/index.ts'
+import { SYSTEMS } from './systems.ts'
 
-const ADAPTERS: Record<string, SystemAdapter<any>> = { dsa41: dsa41Adapter }
+const ADAPTERS: Record<string, SystemAdapter<any>> = SYSTEMS
 
 interface VtfSettings {
   /** name of the vault in Foundry; part of every document id. Fixed on first use, independent of the folder name. */
@@ -49,7 +50,7 @@ const DEFAULTS: VtfSettings = {
   excludePatterns: [],
   rootFolder: '',
   includeUnreferencedAttachments: true,
-  system: 'dsa41',
+  system: Object.keys(SYSTEMS)[0] ?? '',
   idMap: {},
   syncUrl: '',
   syncToken: '',
@@ -126,7 +127,7 @@ export default class VaultToFoundryPlugin extends Plugin {
       id: 'insert-nsc-template',
       name: 'DSA-NSC-Vorlage einfügen',
       editorCallback: (editor: Editor) => {
-        const adapter = ADAPTERS[this.settings.system] ?? dsa41Adapter
+        const adapter = ADAPTERS[this.settings.system] ?? Object.values(ADAPTERS)[0]
         const cursor = editor.getCursor()
         const prefix = cursor.ch > 0 ? '\n\n' : ''
         editor.replaceSelection(prefix + adapter.template())
@@ -548,16 +549,15 @@ class VtfSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Spielsystem für NSC-Blöcke')
       .setDesc('Welche Codeblöcke als NSC gelten und wie sie nach Foundry übertragen werden.')
-      .addDropdown((d) =>
-        d
-          .addOption('dsa41', 'DSA 4.1 (dsa-41) – ```dsa-nsc')
-          .addOption('', 'keins (NSC-Blöcke bleiben Codeblöcke)')
+      .addDropdown((d) => {
+        for (const a of Object.values(ADAPTERS)) d.addOption(a.id, `${a.label} (${a.foundrySystem}) – \`\`\`${a.blockLanguage}`)
+        d.addOption('', 'keins (NSC-Blöcke bleiben Codeblöcke)')
           .setValue(s.system)
           .onChange(async (v) => {
             s.system = v
             await save()
           })
-      )
+      })
     new Setting(containerEl)
       .setName('Nie exportieren')
       .setDesc('Ein Muster pro Zeile. „Ordner/“ schließt einen Ordner aus, „*“ steht für beliebige Zeichen, „*.canvas“ wirkt überall. Beispiel: _privat/, Vorlagen/, *TODO*')

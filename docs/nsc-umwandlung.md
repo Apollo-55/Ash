@@ -1,12 +1,12 @@
 # NSC-Umwandlung der Uthuria-Vault (2026-11-03)
 
-Einmalige Umwandlung aller Charakter- und Begegnungsnotizen in `dsa-nsc`-Blöcke. Skript: `tools/nsc-umwandlung/umwandeln.py` (reproduzierbar). Prüfung der Namen: `node tools/nsc-umwandlung/pruefen.ts <vault>`. Prüfung der SF-Voraussetzungen: `python3 tools/nsc-umwandlung/sf_check.py`.
+Einmalige Umwandlung aller Charakter- und Begegnungsnotizen in `dsa-nsc`-Blöcke. Skript: `systems/dsa41/tools/nsc-umwandlung/umwandeln.py` (reproduzierbar). Prüfung der Namen: `node systems/dsa41/tools/nsc-umwandlung/pruefen.ts <vault>`. Prüfung der SF-Voraussetzungen: `python3 systems/dsa41/tools/nsc-umwandlung/sf_check.py`.
 
 **Überarbeitung (2. Durchgang):** Talente, SF, Vor- und Nachteile, Liturgien und Zauber folgen jetzt den Professionen in *Wege der Helden* (Pakete, Varianten, automatische Vor- und Nachteile). Liturgien sind nach Gottheit und Grad aus dem *Liber Liturgium*, Zauber nach Tradition (Haindruide, Akademie Punin). Die SF-Voraussetzungen stammen aus *Wege der Helden*, weil die PDF von *Wege des Schwerts* keinen lesbaren Text enthält. Mit `--force` ersetzt das Skript bereits vorhandene Blöcke an Ort und Stelle.
 
 ```bash
-python3 tools/nsc-umwandlung/umwandeln.py <vault> --dry-run   # zeigt nur, was passieren würde
-python3 tools/nsc-umwandlung/umwandeln.py <vault>             # schreibt; Notizen mit vorhandenem Block bleiben unberührt
+python3 systems/dsa41/tools/nsc-umwandlung/umwandeln.py <vault> --dry-run   # zeigt nur, was passieren würde
+python3 systems/dsa41/tools/nsc-umwandlung/umwandeln.py <vault>             # schreibt; Notizen mit vorhandenem Block bleiben unberührt
 ```
 
 Alte Wertezeilen (z. B. „Seefahrt (TaW 17, 15/15/15)“) werden durch den Block ersetzt. Beschreibungen, Gerüchte, Bilder und Giftbeschreibungen bleiben stehen. Fehlt eine erwartete alte Zeile, bleibt die Notiz unverändert und das Skript meldet es.

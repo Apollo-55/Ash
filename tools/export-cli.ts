@@ -3,8 +3,9 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, createSimpleResolver, dsa41Adapter, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, scenesOf } from '../packages/core/src/index.ts'
+import { actorsOf, buildBundle, createSimpleResolver, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, scenesOf } from '../packages/core/src/index.ts'
 import { existsSync } from 'node:fs'
+import { dsa41Adapter } from '../systems/dsa41/adapter/src/index.ts'
 
 const args = process.argv.slice(2)
 const positional: string[] = []
