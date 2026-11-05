@@ -2,7 +2,8 @@ import { planSync } from '../../core/src/sync.ts'
 import { actorsOf, FLAG_SCOPE, type Bundle, type BundleActor, type BundleItem, type DocumentFlags } from '../../core/src/types.ts'
 import { normalizeName } from '../../core/src/text.ts'
 import { defaultHooks, type FoundrySystemHooks } from './system-hooks.ts'
-import { SYSTEM_HOOKS } from './systems.ts'
+// the only import of concrete game systems; register new ones in systems/foundry-hooks.ts
+import { SYSTEM_HOOKS } from '../../../systems/foundry-hooks.ts'
 import { MODULE_ID, SETTINGS } from './constants.ts'
 import type { ImportOptions, ImportReport, ReportEntry } from './importer.ts'
 

@@ -50,14 +50,17 @@ export interface BundleItem {
   name: string
   /** Foundry item types that may satisfy this entry, in order of preference */
   types: string[]
-  /** compendium hint from the offline catalog (pack name without system prefix) */
+  /** compendium hint (pack name without system prefix, stable id the system's hooks compare in matchesSource) */
   source?: { pack: string; sid: string; type: string }
   /** values written below item.system (dot paths) after copying/creating */
   system: Record<string, unknown>
   /** used when the item exists nowhere (world, compendia): created from scratch */
   fallback: { type: string; system: Record<string, unknown> }
-  /** weapons: target values the importer adjusts the combat talent / weapon to */
-  combat?: { talentSid: string; AT?: number; PA?: number; FK?: number; INI?: number }
+  /**
+   * free data from the system adapter for its own Foundry hooks (e.g. target combat values).
+   * The core and the importer never read it; only FoundrySystemHooks of the same system do.
+   */
+  extra?: Record<string, unknown>
 }
 
 export interface BundleActor {
@@ -78,7 +81,7 @@ export interface BundleActor {
   journal?: string
   /** dot paths below actor.system, written on create and update */
   data: Record<string, unknown>
-  /** dot paths below actor.system, written only when the actor is created (current LeP etc.) */
+  /** dot paths below actor.system, written only when the actor is created (e.g. current hit points) */
   dataOnCreate: Record<string, unknown>
   items: BundleItem[]
   hash: string
@@ -150,7 +153,7 @@ export interface Bundle {
   generator: { name: string; version: string }
   vault: { name: string; slug: string }
   generatedAt: string
-  /** Foundry system the actor data is meant for (e.g. "dsa-41"); absent when the bundle has no actors */
+  /** Foundry system the actor data is meant for (e.g. "dnd5e"); absent when the bundle has no actors */
   system?: string
   /** Data-relative base directory of uploaded assets, e.g. "vault-to-foundry/uthuria-ob/assets" */
   assetsBase: string

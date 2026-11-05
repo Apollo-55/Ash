@@ -1,5 +1,6 @@
 import type { SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
 import { nscToActor } from './actor.ts'
+import { combatOf } from './combat.ts'
 import { renderStatblock } from './render.ts'
 import { parseNscBlock, type NscData } from './schema.ts'
 
@@ -30,7 +31,8 @@ export const dsa41Adapter: SystemAdapter<NscData> = {
   template: () => DSA41_TEMPLATE,
 }
 
-export { parseNscBlock, renderStatblock, nscToActor }
+export { parseNscBlock, renderStatblock, nscToActor, combatOf }
+export type { Dsa41Combat } from './combat.ts'
 export { computeDerived, overrides } from './derived.ts'
 export { findWeapon, find as findCatalog, findBySid, normalizeName, suggest, CATALOG_VERSION } from './catalog.ts'
 export type { NscData, NscWeapon, NamedEntry } from './schema.ts'

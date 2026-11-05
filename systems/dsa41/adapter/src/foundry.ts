@@ -1,9 +1,10 @@
 // dsa-41 specifics of the Foundry actor import (see packages/foundry-module/src/system-hooks.ts).
 import type { BundleActor, BundleWarning } from '../../../../packages/core/src/types.ts'
 import type { FoundrySystemHooks } from '../../../../packages/foundry-module/src/system-hooks.ts'
+import { combatOf } from './combat.ts'
 
 /** first melee weapon of the block – the actor holds it */
-const firstWeapon = (a: BundleActor) => a.items.find((i) => i.combat && i.types[0] === 'meleeWeapon')
+const firstWeapon = (a: BundleActor) => a.items.find((i) => combatOf(i) && i.types[0] === 'meleeWeapon')
 
 /**
  * Makes the sheet show the AT/PA/FK/INI values written in the block:
@@ -21,7 +22,7 @@ async function adjustCombat(actor: any, a: BundleActor, report: { warnings: Bund
   const talentShares = new Map<string, { at?: number; pa?: number; fk?: number }>()
 
   for (const bi of a.items) {
-    const c = bi.combat
+    const c = combatOf(bi)
     if (!c) continue
     const weapon = actor.items.get(bi.id)
     const talent = actor.items.find((i: any) => i.type === 'combatTalent' && i.system?.sid === c.talentSid)
