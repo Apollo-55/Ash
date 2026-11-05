@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actorsOf, journalsOf, leafletToPixel, parseLeafletBlock, parseSceneBlock, scenesOf } from '../src/index.ts'
+import { actorsOf, journalsOf, leafletToPixel, parseLeafletBlock, parseSceneBlock, SCENE_TEMPLATE, scenesOf } from '../src/index.ts'
 // integration test: NPC tokens on scenes need a real game system
 import { dsa41Adapter } from '../../../systems/dsa41/adapter/src/index.ts'
 import { build } from './helpers.ts'
@@ -24,6 +24,13 @@ describe('szene-Block', () => {
   it('Standardwerte', () => {
     expect(parseSceneBlock('leaflet: süd-map').data).toEqual({ leaflet: 'süd-map', nscs: [], licht: 'tag', nebel: false, navigation: true })
     expect(parseSceneBlock('karte: a.png\nraster: keins').data!.grid!.type).toBe('none')
+  })
+
+  it('Vorlage: gültig bis auf die fehlende Karte', () => {
+    const body = SCENE_TEMPLATE.split('\n').slice(1, -2).join('\n')
+    expect(SCENE_TEMPLATE.split('\n')[2]).toBe('karte:')
+    expect(errors(body)).toEqual(['Es fehlt „karte:“ oder „leaflet:“ – ohne Bild keine Szene.'])
+    expect(errors(body.replace('karte:', 'karte: "[[deck.webp]]"'))).toEqual([])
   })
 
   it('Fehler', () => {
