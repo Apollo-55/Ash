@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **Build:** `npm run build` und die anderen Skripte (`dev`, `deploy`, `build:generator`, `dev:generator`, `test`, `typecheck`) installieren in einem frischen Clone die Abhängigkeiten selbst (`tools/ensure-deps.mjs`).
 - **Systeme modular:** Systeme werden nur noch in `systems/adapters.ts` und `systems/foundry-hooks.ts` eingetragen, `packages/` ändert sich für ein neues System nicht. Der Kern kennt keine Kampfwerte mehr (`BundleItem.combat` → freies Feld `extra`, das nur die Foundry-Hooks des Systems lesen). Ein Test hält `packages/` systemfrei und prüft jeden eingetragenen Adapter. Anleitung in `systems/README.md`.
 - **Build:** `npm run build` baut nur noch Vault to Foundry (Plugin, Modul, Sync-Dienst). Der DSA-NSC-Generator hat einen eigenen Build: `npm run build:generator` bzw. `npm run dev:generator`.
 - **Typecheck:** `npm run typecheck` (`tools/typecheck.mjs`) findet alle Projekte mit `tsconfig.json` unter `packages/` und `systems/` selbst.
