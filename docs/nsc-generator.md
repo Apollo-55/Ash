@@ -12,7 +12,7 @@ Einen lokalen Modus (Ollama) gab es bis 2026-11-04; er ist pausiert – siehe [z
 ## Einrichten
 
 1. **Index bauen** (einmalig und nach jedem PDF-Tausch): `cd ~/Projekt/Ash && npm run regelwerke`. Das erzeugt `.llm/regelwerk-seiten.json` (Volltext aller lesbaren Seiten) und `.llm/regelwerk-index.json` (welche Bücher lesbar sind) – beides nur lokal.
-2. **Plugin:** `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken und „DSA-NSC-Generator“ einschalten.
+2. **Plugin:** `npm run build:generator` (nicht in `npm run build` enthalten), dann `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken und „DSA-NSC-Generator“ einschalten.
 3. **Anbieter wählen** (Einstellungen → Sprachmodell):
    - **Claude:** Schlüssel von [console.anthropic.com](https://console.anthropic.com) → *API Keys* (Abrechnung pro Nutzung; ein Claude.ai-Abo enthält keinen API-Zugang). **Prüfen** zeigt „verbunden, Modell … verfügbar“ und kostet nichts. Modelle: Opus 5.5 (beste Qualität, ca. 0,20–0,40 $ pro NSC), Sonnet 5.5 (etwa die Hälfte), Haiku 5.5 (sehr günstig, für einfache Gegner).
    - **OpenAI:** Schlüssel von [platform.openai.com](https://platform.openai.com) → *API keys* (ein ChatGPT-Abo enthält keinen API-Zugang). **Prüfen** lädt kostenlos die Modelle, die der Schlüssel nutzen darf.

@@ -30,7 +30,9 @@ Beispiel D&D 5e (Foundry-System `dnd5e`):
    - Daten nur für die eigenen Foundry-Hooks (z. B. Zielwerte für Angriffe) gehören in `BundleItem.extra`; der Kern liest das Feld nie.
 3. **Foundry-Teil** (optional) `src/foundry.ts` exportiert `FoundrySystemHooks`; Pflicht ist nur `actorType` (z. B. `npc`). Ohne Eintrag gilt `defaultHooks()`: erster Actor-Typ des Systems, Items nur über den Namen. Diese Datei darf keine großen Kataloge importieren – sie landet im Foundry-Modul.
 4. **Eintragen**: `dnd5eAdapter` in `adapters.ts`, `'dnd5e': dnd5eFoundryHooks` in `foundry-hooks.ts`.
-5. **Prüfen**: `npm test` prüft den neuen Adapter automatisch (Vorlage lesbar, Wertekasten, Actor), dazu eigene Tests unter `systems/dnd5e/adapter/test/`. In `package.json` beim Skript `typecheck` `tsc -p systems/dnd5e/adapter` ergänzen.
+5. **Prüfen**: `npm test` prüft den neuen Adapter automatisch (Vorlage lesbar, Wertekasten, Actor), dazu eigene Tests unter `systems/dnd5e/adapter/test/`. `npm run typecheck` findet den Ordner über seine `tsconfig.json` von selbst, `npm run build` baut ihn über die Registries mit.
+
+Werkzeuge rund um ein System (z. B. der DSA-NSC-Generator unter `dsa41/nsc-generator*`) sind eigene Programme mit eigenem Build; Vault to Foundry kennt sie nicht und ein System braucht keins.
 
 Pro Vault ist ein System aktiv (Obsidian: Einstellungen → Inhalt → Spielsystem für NSC-Blöcke). Das Foundry-Modul überspringt NSCs, deren System nicht zur Welt passt.
 

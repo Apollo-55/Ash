@@ -3,6 +3,8 @@
 ## Unveröffentlicht
 
 - **Systeme modular:** Systeme werden nur noch in `systems/adapters.ts` und `systems/foundry-hooks.ts` eingetragen, `packages/` ändert sich für ein neues System nicht. Der Kern kennt keine Kampfwerte mehr (`BundleItem.combat` → freies Feld `extra`, das nur die Foundry-Hooks des Systems lesen). Ein Test hält `packages/` systemfrei und prüft jeden eingetragenen Adapter. Anleitung in `systems/README.md`.
+- **Build:** `npm run build` baut nur noch Vault to Foundry (Plugin, Modul, Sync-Dienst). Der DSA-NSC-Generator hat einen eigenen Build: `npm run build:generator` bzw. `npm run dev:generator`.
+- **Typecheck:** `npm run typecheck` (`tools/typecheck.mjs`) findet alle Projekte mit `tsconfig.json` unter `packages/` und `systems/` selbst.
 - Obsidian-Befehl heißt „NSC-Vorlage einfügen“ (ID unverändert, Tastenkürzel bleiben) und meldet, wenn kein System eingestellt ist.
 - `export-cli.ts` und `sync-cli.ts`: `--system <id>` (Standard: erstes eingetragenes System), `--no-system`.
 - Hinweis: Durch das geänderte Datenformat gelten alle NSCs beim nächsten Sync einmal als geändert und werden aktualisiert (Spielstand bleibt erhalten). Obsidian-Plugin und Foundry-Modul zusammen aktualisieren.

@@ -192,11 +192,12 @@ systems/                        systemabhängig – je Spielsystem ein Ordner
     adapter/                    dsa-nsc-Block, Namenskatalog, Regeln (SF-Ketten, Energien), Wertekasten,
                                 Actor-Daten, Foundry-Teil (Kampfwerte, Kompendien)
     nsc-generator/              NSC-/Kreatur-Generator mit Claude und OpenAI, Seiten-Index, Prüfung
-    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“
+    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“ – eigenes Werkzeug, eigener Build
+                                (npm run build:generator), Vault to Foundry braucht es nicht
     tools/                      regelwerke.ts (Seiten-Index), gen-catalog.mjs (Namenskatalog),
                                 eval.ts (Modellvergleich), nsc-umwandlung/ (einmalige Uthuria-Umwandlung)
 tools/                          Build, Tests, lokale Testumgebung (systemunabhängig)
-  build.mjs  export-cli.ts  sync-cli.ts (--system <id> | --no-system)  foundry-local.sh  sync-local.sh  e2e/
+  build.mjs  typecheck.mjs  export-cli.ts  sync-cli.ts (--system <id> | --no-system)  foundry-local.sh  sync-local.sh  e2e/
 deploy/                         Server-Beispiele (Manic)
 docs/                           Anleitungen, Entscheidungen, zukunft.md (zurückgestellte Pläne)
 ```
@@ -206,10 +207,11 @@ Ein neues System (z. B. D&D 5e) bekommt `systems/dnd5e/adapter/` und je einen Ei
 ```bash
 npm install
 npm test              # vitest: packages/*/test und systems/*/*/test
-npm run typecheck
+npm run typecheck     # findet alle tsconfig.json unter packages/ und systems/ selbst
 npm run build         # → dist/ (inkl. der ZIPs)
 npm run deploy        # wie build, kopiert die Plugins zusätzlich in test-vault/
 npm run dev           # wie deploy, bei jeder Änderung
+npm run build:generator   # DSA-NSC-Generator, eigenes Plugin (nicht in build enthalten); dev:generator wie dev
 
 npm run foundry       # lokale Test-Foundry auf http://localhost:30013 (.foundry/, gitignored)
 npm run sync-local    # lokaler vtf-sync vor der Test-Foundry (Token in .foundry/sync-token)
