@@ -77,7 +77,9 @@ describe('vtf-sync Dienst + pushBundle', () => {
 
   it('erster Push lädt alles hoch und schreibt bundle.json + revision.json in Foundrys Ordnerstruktur', async () => {
     const r = await push()
-    expect(r).toMatchObject({ uploaded: ['bild.png', 'Maps/Karte_gross.webp'], unchanged: 0, failed: [], revision: 1, bundleUnchanged: false })
+    // uploads run in parallel, so their order in r.uploaded is not deterministic
+    expect([...r.uploaded].sort()).toEqual(['Maps/Karte_gross.webp', 'bild.png'])
+    expect(r).toMatchObject({ unchanged: 0, failed: [], revision: 1, bundleUnchanged: false })
     expect(readFileSync(join(dir, 'test_vault/assets/Maps/Karte_gross.webp'))).toEqual(Buffer.from([4, 5, 6, 7]))
     const bundle = JSON.parse(readFileSync(join(dir, 'test_vault/bundle.json'), 'utf8'))
     expect(bundle.assets.find((a: { path: string }) => a.path === 'bild.png').hash).toBe(hashBytes(files['bild.png']))
