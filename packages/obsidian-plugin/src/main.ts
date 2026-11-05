@@ -1,9 +1,10 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, SCENE_TEMPLATE, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient } from '../../core/src/index.ts'
-import { SYSTEMS } from './systems.ts'
+import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, SCENE_TEMPLATE, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient, indexSystems } from '../../core/src/index.ts'
+// the only import of concrete game systems; register new ones in systems/adapters.ts
+import { SYSTEMS } from '../../../systems/adapters.ts'
 
-const ADAPTERS: Record<string, SystemAdapter<any>> = SYSTEMS
+const ADAPTERS: Record<string, SystemAdapter<any>> = indexSystems(SYSTEMS)
 
 interface VtfSettings {
   /** name of the vault in Foundry; part of every document id. Fixed on first use, independent of the folder name. */
@@ -12,7 +13,7 @@ interface VtfSettings {
   excludePatterns: string[]
   rootFolder: string
   includeUnreferencedAttachments: boolean
-  /** game system adapter for NPC blocks ("dsa41") or "" for none */
+  /** id of the game system adapter for NPC blocks (see systems/adapters.ts) or "" for none */
   system: string
   /** sourcePath → Foundry id; kept up to date on rename so ids survive moves */
   idMap: Record<string, string>
@@ -50,7 +51,7 @@ const DEFAULTS: VtfSettings = {
   excludePatterns: [],
   rootFolder: '',
   includeUnreferencedAttachments: true,
-  system: Object.keys(SYSTEMS)[0] ?? '',
+  system: SYSTEMS[0]?.id ?? '',
   idMap: {},
   syncUrl: '',
   syncToken: '',
@@ -125,9 +126,13 @@ export default class VaultToFoundryPlugin extends Plugin {
 
     this.addCommand({
       id: 'insert-nsc-template',
-      name: 'DSA-NSC-Vorlage einfügen',
+      name: 'NSC-Vorlage einfügen',
       editorCallback: (editor: Editor) => {
-        const adapter = ADAPTERS[this.settings.system] ?? Object.values(ADAPTERS)[0]
+        const adapter = ADAPTERS[this.settings.system]
+        if (!adapter) {
+          new Notice('Vault to Foundry: Kein Spielsystem eingestellt (Einstellungen → Inhalt → Spielsystem für NSC-Blöcke).')
+          return
+        }
         const cursor = editor.getCursor()
         const prefix = cursor.ch > 0 ? '\n\n' : ''
         editor.replaceSelection(prefix + adapter.template())

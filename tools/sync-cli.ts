@@ -1,13 +1,14 @@
 // Pushes a vault folder to a vtf-sync service (same code path as the Obsidian plugin's auto-sync).
-// Usage: node tools/sync-cli.ts <vault-dir> --url http://localhost:8787 --token … [--name uthuria-ob] [--unused] [--cleanup]
+// Usage: node tools/sync-cli.ts <vault-dir> --url http://localhost:8787 --token … [--name uthuria-ob] [--unused] [--cleanup] [--system <id> | --no-system]
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import { actorsOf, buildBundle, createSimpleResolver, fetchHttp, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, pushBundle, scenesOf, SyncClient } from '../packages/core/src/index.ts'
-import { dsa41Adapter } from '../systems/dsa41/adapter/src/index.ts'
+import { systemFromArgs } from './cli-system.ts'
 
 const args = process.argv.slice(2)
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }
-const vaultDir = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'))!
+const FLAGS = new Set(['--unused', '--cleanup', '--no-system']) // options without a value
+const vaultDir = args.find((a, i) => !a.startsWith('--') && !(args[i - 1]?.startsWith('--') && !FLAGS.has(args[i - 1])))!
 const url = opt('--url') ?? 'http://localhost:8787'
 const token = opt('--token') ?? process.env.VTF_TOKEN ?? ''
 const vaultName = opt('--name') ?? basename(vaultDir.replace(/\/+$/, ''))
@@ -30,7 +31,7 @@ const { bundle, assetFiles } = buildBundle({
   notes: files.filter((f) => f.endsWith('.md')).map((path) => ({ path, content: readFileSync(join(vaultDir, path), 'utf8') })),
   attachments: files.filter((f) => !f.endsWith('.md')),
   resolver: createSimpleResolver(files),
-  system: dsa41Adapter,
+  system: systemFromArgs(args),
   leafletMarkers: existsSync(leafletFile) ? leafletMarkersFromPluginData(JSON.parse(readFileSync(leafletFile, 'utf8'))) : {},
   generator: { name: 'vault-to-foundry-sync-cli', version: '0.1.0' },
 })

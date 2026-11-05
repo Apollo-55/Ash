@@ -92,7 +92,7 @@ Testdaten: `tools/e2e/fixtures/Sabotage NSC.md` (Viper, Schattenweber, Vollstrec
 - [ ] **[auto]** Erneuter Import nach Änderung: Maximum neu, aktuelle LeP bleiben, Hand-Item und Effekt bleiben, entfernte SF verschwinden.
 - [ ] **[auto]** Unverändert erneut: alles übersprungen. Verwaiste NSCs löschbar.
 - [ ] Von Hand: Würfe vom Bogen (Talentprobe, Attacke mit Säbel, Zauber) funktionieren.
-- [ ] Von Hand in Obsidian: Wertekasten wird angezeigt, Fehler (z. B. `KK: 1a`) erscheinen rot, „gerechnet“ steht neben MR/INI/WS. Befehl „DSA-NSC-Vorlage einfügen“.
+- [ ] Von Hand in Obsidian: Wertekasten wird angezeigt, Fehler (z. B. `KK: 1a`) erscheinen rot, „gerechnet“ steht neben MR/INI/WS. Befehl „NSC-Vorlage einfügen“.
 
 ## Szenen (M3)
 

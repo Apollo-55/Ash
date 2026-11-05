@@ -1,6 +1,7 @@
 import { makeId } from '../../../../packages/core/src/ids.ts'
 import type { BundleItem } from '../../../../packages/core/src/types.ts'
 import type { ActorContext, SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
+import type { Dsa41Combat } from './combat.ts'
 import { find, findBySid, findWeapon, normalizeName } from './catalog.ts'
 import { diceToFoundry, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscData } from './schema.ts'
 
@@ -174,7 +175,7 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
       source: hit ? { pack: hit.p, sid: hit.s, type } : undefined,
       system,
       fallback: { type, system: { talent: talentSid, damage: diceToFoundry(w.TP ?? '') ?? w.TP ?? '1d6', distanceClass: w.DK ?? 'N' } },
-      combat: { talentSid, AT: w.AT, PA: w.PA, FK: w.FK, INI: w.INI },
+      extra: { combat: { talentSid, AT: w.AT, PA: w.PA, FK: w.FK, INI: w.INI } satisfies Dsa41Combat },
     })
     if (!talentSids.has(talentSid)) {
       talentSids.add(talentSid)

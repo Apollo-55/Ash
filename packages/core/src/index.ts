@@ -10,6 +10,7 @@ export { splitFrontmatter, stripComments, stripBlockIds } from './markdown/prepr
 export { renderBody, createMarkdown, builtinFenceHandlers } from './markdown/render.ts'
 export { parseWikilinkInner, uuidLink } from './markdown/wikilinks.ts'
 export type { SystemAdapter, ParsedBlock, BlockIssue, ActorContext, StatblockOptions } from './systems/adapter.ts'
+export { indexSystems } from './systems/adapter.ts'
 export * from './text.ts'
 export * from './scenes.ts'
 export * from './sync-client.ts'

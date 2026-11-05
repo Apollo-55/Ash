@@ -1,26 +1,27 @@
 // Exports a vault folder to a bundle ZIP without Obsidian (for testing and CI).
-// Usage: node tools/export-cli.ts <vault-dir> [out.zip] [--name "Vault Name"] [--exclude pattern]...
+// Usage: node tools/export-cli.ts <vault-dir> [out.zip] [--name "Vault Name"] [--exclude pattern]... [--system <id> | --no-system]
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import JSZip from 'jszip'
 import { actorsOf, buildBundle, createSimpleResolver, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, scenesOf } from '../packages/core/src/index.ts'
 import { existsSync } from 'node:fs'
-import { dsa41Adapter } from '../systems/dsa41/adapter/src/index.ts'
+import { systemFromArgs } from './cli-system.ts'
 
 const args = process.argv.slice(2)
 const positional: string[] = []
 const excludes: string[] = []
 let name: string | undefined
-let withSystem = true
+const system = systemFromArgs(args)
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--name') name = args[++i]
-  else if (args[i] === '--no-system') withSystem = false
+  else if (args[i] === '--no-system') continue
+  else if (args[i] === '--system') i++
   else if (args[i] === '--exclude') excludes.push(args[++i])
   else positional.push(args[i])
 }
 const [vaultDir, outFile = 'bundle.zip'] = positional
 if (!vaultDir) {
-  console.error('Aufruf: node tools/export-cli.ts <vault-ordner> [ausgabe.zip] [--name "Name"] [--exclude muster]')
+  console.error('Aufruf: node tools/export-cli.ts <vault-ordner> [ausgabe.zip] [--name "Name"] [--exclude muster] [--system id | --no-system]')
   process.exit(1)
 }
 
@@ -49,7 +50,7 @@ const { bundle, assetFiles } = buildBundle({
   resolver: createSimpleResolver(files),
   excludePatterns: excludes,
   generator: { name: 'vault-to-foundry-cli', version: '0.1.0' },
-  system: withSystem ? dsa41Adapter : undefined,
+  system,
   leafletMarkers,
 })
 

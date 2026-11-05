@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { actorsOf, FOUNDRY_ID_PATTERN, journalsOf } from '../../../../packages/core/src/index.ts'
 import * as dsa41 from '../src/index.ts'
-import { dsa41Adapter } from '../src/index.ts'
+import { combatOf, dsa41Adapter } from '../src/index.ts'
 import { build } from '../../../../packages/core/test/helpers.ts'
 
 const SHAHANE = `name: Shahane ay Zedrakin
@@ -151,8 +151,8 @@ describe('Umwandlung in Actor-Daten', () => {
     expect(by('Sinnenschärfe')).toMatchObject({ types: ['talent'], source: { pack: 'talent', sid: 'talent-sinnenschaerfe' }, system: { value: 10 } })
     expect(by('Neid')).toMatchObject({ types: ['disadvantage'], system: { value: 8 } })
     expect(by('Finte')).toMatchObject({ types: ['specialAbility'], source: { sid: 'ability-finte' } })
-    expect(by('Säbel')).toMatchObject({ types: ['meleeWeapon'], source: { pack: 'meleeweapon' }, system: { damage: '1d6+3', distanceClass: 'N' }, combat: { talentSid: 'talent-saebel', AT: 16, PA: 18, INI: 12 } })
-    expect(by('Orchidee').combat!.talentSid).toBe('talent-raufen')
+    expect(by('Säbel')).toMatchObject({ types: ['meleeWeapon'], source: { pack: 'meleeweapon' }, system: { damage: '1d6+3', distanceClass: 'N' }, extra: { combat: { talentSid: 'talent-saebel', AT: 16, PA: 18, INI: 12 } } })
+    expect(combatOf(by('Orchidee'))!.talentSid).toBe('talent-raufen')
     // combat talents needed by the weapons are added
     expect(actor.items.filter((i) => i.types[0] === 'combatTalent').map((i) => i.name).sort()).toEqual(['Raufen', 'Säbel'])
     actor.items.forEach((i) => expect(i.id).toMatch(FOUNDRY_ID_PATTERN))
@@ -184,7 +184,7 @@ describe('Umwandlung in Actor-Daten', () => {
     const a = dsa41.nscToActor(parse('name: S\nwaffen: [Säbel, Kurzbogen]\ntalente: { Säbel: 12 }').data!, ctx)
     expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'combatTalent')!.system).toEqual({ value: 12, 'combat.attack': 6, 'combat.parry': 6 })
     expect(a.items.find((i) => i.name === 'Bogen')!.system).toEqual({ value: 0, 'combat.rangedAttack': 0 })
-    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'meleeWeapon')!.combat).toEqual({ talentSid: 'talent-saebel', AT: undefined, PA: undefined, FK: undefined, INI: undefined })
+    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'meleeWeapon')!.extra?.combat).toEqual({ talentSid: 'talent-saebel', AT: undefined, PA: undefined, FK: undefined, INI: undefined })
   })
 
   it('Kampftalent ohne Waffe: TaW wird aufgeteilt', () => {

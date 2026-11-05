@@ -44,7 +44,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 
 **NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
-**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „DSA-NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
+**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
 ## Notation
 
@@ -75,7 +75,7 @@ foundry:
 
 ### NSCs: der `dsa-nsc`-Block
 
-Beliebig viele Blöcke pro Notiz. Befehl **„DSA-NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
+Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
 
 ~~~markdown
 ```dsa-nsc
@@ -182,32 +182,36 @@ Das Projekt ist in **systemunabhängig** und **systemabhängig** geteilt. Alles 
 ```
 packages/                       systemunabhängig – „Vault to Foundry“
   core/                         Markdown → HTML, Links, IDs, Bundle, Szenen, Sync, System-Schnittstelle
-  obsidian-plugin/              Obsidian-Plugin „Vault to Foundry“   (Systeme eingehängt in src/systems.ts)
-  foundry-module/               Foundry-Modul vault-to-foundry (v13) (Systeme eingehängt in src/systems.ts)
+  obsidian-plugin/              Obsidian-Plugin „Vault to Foundry“
+  foundry-module/               Foundry-Modul vault-to-foundry (v13)
   sync-service/                 Sync-Dienst vtf-sync (Node, Docker)
 systems/                        systemabhängig – je Spielsystem ein Ordner
+  adapters.ts                   Liste der Systeme für Obsidian und Export
+  foundry-hooks.ts              Liste der Foundry-Teile (nach Foundry-System-ID)
   dsa41/                        DSA 4.1 (Foundry-System dsa-41)
     adapter/                    dsa-nsc-Block, Namenskatalog, Regeln (SF-Ketten, Energien), Wertekasten,
                                 Actor-Daten, Foundry-Teil (Kampfwerte, Kompendien)
     nsc-generator/              NSC-/Kreatur-Generator mit Claude und OpenAI, Seiten-Index, Prüfung
-    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“
+    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“ – eigenes Werkzeug, eigener Build
+                                (npm run build:generator), Vault to Foundry braucht es nicht
     tools/                      regelwerke.ts (Seiten-Index), gen-catalog.mjs (Namenskatalog),
                                 eval.ts (Modellvergleich), nsc-umwandlung/ (einmalige Uthuria-Umwandlung)
 tools/                          Build, Tests, lokale Testumgebung (systemunabhängig)
-  build.mjs  export-cli.ts  sync-cli.ts  foundry-local.sh  sync-local.sh  e2e/
+  build.mjs  typecheck.mjs  export-cli.ts  sync-cli.ts (--system <id> | --no-system)  foundry-local.sh  sync-local.sh  e2e/
 deploy/                         Server-Beispiele (Manic)
 docs/                           Anleitungen, Entscheidungen, zukunft.md (zurückgestellte Pläne)
 ```
 
-Ein neues System (z. B. D&D 5e) bekommt `systems/dnd5e/adapter/` und je eine Zeile in `packages/obsidian-plugin/src/systems.ts` und `packages/foundry-module/src/systems.ts`.
+Ein neues System (z. B. D&D 5e) bekommt `systems/dnd5e/adapter/` und je einen Eintrag in `systems/adapters.ts` und `systems/foundry-hooks.ts` – unter `packages/` ändert sich nichts. Anleitung: [systems/README.md](systems/README.md). Der Test `packages/core/test/systems.test.ts` wacht darüber, dass `packages/` systemfrei bleibt, und prüft jeden eingetragenen Adapter.
 
 ```bash
 npm install
 npm test              # vitest: packages/*/test und systems/*/*/test
-npm run typecheck
+npm run typecheck     # findet alle tsconfig.json unter packages/ und systems/ selbst
 npm run build         # → dist/ (inkl. der ZIPs)
 npm run deploy        # wie build, kopiert die Plugins zusätzlich in test-vault/
 npm run dev           # wie deploy, bei jeder Änderung
+npm run build:generator   # DSA-NSC-Generator, eigenes Plugin (nicht in build enthalten); dev:generator wie dev
 
 npm run foundry       # lokale Test-Foundry auf http://localhost:30013 (.foundry/, gitignored)
 npm run sync-local    # lokaler vtf-sync vor der Test-Foundry (Token in .foundry/sync-token)

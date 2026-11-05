@@ -3,7 +3,7 @@ import type { BundleActor, BundleItem, BundleWarning } from '../../core/src/type
 /**
  * What the actor import needs to know about a game system in Foundry. Everything system-specific
  * (actor type, compendium order, item identity, combat values) lives behind this interface;
- * implementations sit in systems/<id>/, registered in ./systems.ts.
+ * implementations sit in systems/<id>/, registered in systems/foundry-hooks.ts.
  */
 export interface FoundrySystemHooks {
   /** actor document type for NPCs, e.g. "character" (dsa-41) or "npc" (dnd5e) */
