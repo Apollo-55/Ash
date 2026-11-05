@@ -44,7 +44,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 
 **NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
-**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „DSA-NSC-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
+**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „DSA-NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
 ## Notation
 
@@ -111,7 +111,7 @@ notiz: Freitext für die Biografie
 
 ### Szenen: der `szene`-Block
 
-Beliebig viele pro Notiz. Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
+Beliebig viele pro Notiz. Befehl **„Szenen-Vorlage einfügen“** setzt eine Vorlage ein (Cursor steht hinter `karte:`). Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
 
 ~~~markdown
 ```szene
