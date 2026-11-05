@@ -34,9 +34,19 @@ Dinge, die bewusst zurückgestellt sind. Jeder Punkt sagt, warum er wartet, was 
 
 Der Sync-Dienst ist für den Manic-Server vorbereitet (`deploy/manic/EINRICHTEN.md`), aber noch nicht auf dem echten Server getestet.
 
-## D&D 5e
+## Weiteres Spielsystem (z. B. D&D 5e)
 
-Zweites System neben DSA 4.1: eigener Ordner `systems/dnd5e/` mit Adapter (Block-Notation, Statblock, Actor-Daten) nach dem Muster von `systems/dsa41/`. Der systemunabhängige Teil (Journale, Szenen, Sync) braucht dafür keine Änderung.
+**Warum es wartet:** Derzeit wird nur DSA 4.1 gespielt. Die Vorarbeit ist erledigt (2026-11-05): Der Kern unter `packages/` kennt kein System, Systeme werden nur in `systems/adapters.ts` und `systems/foundry-hooks.ts` eingetragen, Typecheck, Tests und Build finden sie von selbst.
+
+**Wieder aufnehmen:**
+
+1. Block-Format festlegen (Name, z. B. `dnd-npc`, und Felder: Werte, HP, AC, Angriffe, Zauber) – wie für DSA in `docs/plan.md`.
+2. Adapter in `systems/<id>/adapter/` nach der Anleitung in [systems/README.md](../systems/README.md); Foundry-Teil nur, wenn Items über mehr als den Namen gefunden werden sollen.
+3. In beide Registries eintragen; `npm test` prüft den Adapter automatisch.
+4. Für den E2E-Durchlauf: eigene Test-Notiz in `tools/e2e/fixtures/` und eine Test-Welt mit dem neuen System.
+5. Was am Kern hakt, verbessern (Kandidaten: `dataOnCreate`, `BundleItem.source`, `linkedDefault`).
+
+**Bewusst offen:** mehrere Systeme in einer Vault (heute eins pro Vault) und ein Generator für andere Systeme (der DSA-NSC-Generator ist ein eigenes Werkzeug).
 
 ## Kleinere Ideen
 
