@@ -22,7 +22,7 @@ Version 1.0.0 – Änderungen siehe [CHANGELOG.md](CHANGELOG.md).
 | Datei | wohin |
 |---|---|
 | `vault-to-foundry-obsidian.zip` | in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop) |
-| `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren |
+| `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren – oder, mit Sync-Dienst, in Foundry per Manifest-URL `https://<domain>/vtf-sync/module/module.json` installieren |
 | `vtf-sync.zip` | Sync-Dienst: auf dem Server neben die `docker-compose.yaml` entpacken, siehe [docs/sync-server.md](docs/sync-server.md); fertige Dateien für manic: [deploy/manic/EINRICHTEN.md](deploy/manic/EINRICHTEN.md) |
 
 Danach in Obsidian: Einstellungen → Vault to Foundry → **Sync mit Foundry** → Server-Adresse und Token eintragen → „Verbindung testen“.
@@ -44,7 +44,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 
 **NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
-**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
+**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
 ## Notation
 
@@ -111,7 +111,7 @@ notiz: Freitext für die Biografie
 
 ### Szenen: der `szene`-Block
 
-Beliebig viele pro Notiz. Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
+Beliebig viele pro Notiz. Befehl **„Szenen-Vorlage einfügen“** setzt eine Vorlage ein (Cursor steht hinter `karte:`). Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
 
 ~~~markdown
 ```szene

@@ -6,19 +6,26 @@
 //   VTF_DATA_DIR   target folder, default /data/vault-to-foundry (= Foundry Data/vault-to-foundry)
 //   VTF_PORT       default 8787
 //   VTF_MAX_MB     max size of one upload, default 512
+//   VTF_MODULE_DIR the built Foundry module (folder with module.json), default ./module next to server.mjs
+//   VTF_PUBLIC_URL public address of this service as Foundry reaches it, e.g. https://dsa.example.org/vtf-sync
+//                  (used for "manifest"/"download"; without it: X-Forwarded-Proto/Host/Prefix or Host)
 //
 // API (all under /v1, all need the token):
-//   GET    /health                               → { ok, version }            (no token needed)
+//   GET    /health                               → { ok, version, module }    (no token needed)
+//   GET    /module/module.json                   → Foundry manifest with "manifest"/"download" (no token needed)
+//   GET    /module/vault-to-foundry.zip          → the module, module.json at the zip root (no token needed)
 //   GET    /v1/vaults/:vault/state               → { revision, bundleHash, updatedAt, assets: { path: hash } }
 //   PUT    /v1/vaults/:vault/assets/<path>       body = file, header X-VTF-Hash (optional check)
 //   PUT    /v1/vaults/:vault/bundle              body = bundle.json → { revision }
 //   GET    /v1/vaults/:vault/unused              → { paths: [...] }  files not referenced by the current bundle
 //   POST   /v1/vaults/:vault/cleanup             body { paths: [...] } → { deleted: [...] }  (only unused files)
 import { createHash, timingSafeEqual } from 'node:crypto'
+import { deflateRawSync } from 'node:zlib'
 import { createReadStream, createWriteStream } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { dirname, join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const VERSION = '1.0.0'
 const TOKEN = process.env.VTF_TOKEN ?? ''
@@ -26,6 +33,9 @@ const DATA_DIR = process.env.VTF_DATA_DIR ?? '/data/vault-to-foundry'
 const PORT = Number(process.env.VTF_PORT ?? 8787)
 const MAX_BYTES = Number(process.env.VTF_MAX_MB ?? 512) * 1024 * 1024
 const MAX_BUNDLE_BYTES = 64 * 1024 * 1024
+const MODULE_DIR = process.env.VTF_MODULE_DIR ?? join(dirname(fileURLToPath(import.meta.url)), 'module')
+const PUBLIC_URL = (process.env.VTF_PUBLIC_URL ?? '').replace(/\/+$/, '')
+const MODULE_ZIP = 'vault-to-foundry.zip'
 
 if (TOKEN.length < 16) {
   console.error('vtf-sync: VTF_TOKEN fehlt oder ist kürzer als 16 Zeichen.')
@@ -139,12 +149,137 @@ async function referencedAssets(vaultDir) {
   }
 }
 
+// ---- Foundry module (install/update via manifest URL) --------------------------------------
+// Foundry's server fetches the manifest, then the zip from its "download" field, and later checks
+// "manifest" for updates. Both URLs depend on where the service is reachable, so they are filled in
+// per request – in the served module.json and in the copy inside the zip.
+
+async function readModuleManifest() {
+  try {
+    return JSON.parse(await readFile(join(MODULE_DIR, 'module.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/** Public base URL of this service: VTF_PUBLIC_URL, else from the reverse proxy's headers. */
+function publicBase(req) {
+  if (PUBLIC_URL) return PUBLIC_URL
+  const first = (v) => String(v ?? '').split(',')[0].trim()
+  const proto = first(req.headers['x-forwarded-proto']) || 'http'
+  const host = first(req.headers['x-forwarded-host']) || req.headers.host || `127.0.0.1:${PORT}`
+  const prefix = first(req.headers['x-forwarded-prefix']).replace(/\/+$/, '')
+  return `${proto}://${host}${prefix}`
+}
+
+function withUrls(manifest, base) {
+  return { ...manifest, manifest: `${base}/module/module.json`, download: `${base}/module/${MODULE_ZIP}` }
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+  return c >>> 0
+})
+function crc32(buf) {
+  let c = 0xffffffff
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+
+/** Minimal zip writer (deflate, no dependencies). entries: [{ name, data }] */
+function zip(entries) {
+  const parts = []
+  const central = []
+  let offset = 0
+  // fixed timestamp (2020-01-01 00:00) → same module, byte-identical zip
+  const DOS_TIME = 0
+  const DOS_DATE = ((2020 - 1980) << 9) | (1 << 5) | 1
+  for (const { name, data } of entries) {
+    const nameBuf = Buffer.from(name, 'utf8')
+    const packed = deflateRawSync(data)
+    const crc = crc32(data)
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt16LE(0x0800, 6) // UTF-8 names
+    local.writeUInt16LE(8, 8) // deflate
+    local.writeUInt16LE(DOS_TIME, 10)
+    local.writeUInt16LE(DOS_DATE, 12)
+    local.writeUInt32LE(crc, 14)
+    local.writeUInt32LE(packed.length, 18)
+    local.writeUInt32LE(data.length, 22)
+    local.writeUInt16LE(nameBuf.length, 26)
+    const head = Buffer.alloc(46)
+    head.writeUInt32LE(0x02014b50, 0)
+    head.writeUInt16LE(20, 4)
+    head.writeUInt16LE(20, 6)
+    head.writeUInt16LE(0x0800, 8)
+    head.writeUInt16LE(8, 10)
+    head.writeUInt16LE(DOS_TIME, 12)
+    head.writeUInt16LE(DOS_DATE, 14)
+    head.writeUInt32LE(crc, 16)
+    head.writeUInt32LE(packed.length, 20)
+    head.writeUInt32LE(data.length, 24)
+    head.writeUInt16LE(nameBuf.length, 28)
+    head.writeUInt32LE(offset, 42)
+    parts.push(local, nameBuf, packed)
+    central.push(head, nameBuf)
+    offset += local.length + nameBuf.length + packed.length
+  }
+  const centralBuf = Buffer.concat(central)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0)
+  end.writeUInt16LE(entries.length, 8)
+  end.writeUInt16LE(entries.length, 10)
+  end.writeUInt32LE(centralBuf.length, 12)
+  end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...parts, centralBuf, end])
+}
+
+const zipCache = new Map() // base URL → zip (the module folder does not change while the service runs)
+async function moduleZip(base) {
+  if (zipCache.has(base)) return zipCache.get(base)
+  const manifest = await readModuleManifest()
+  if (!manifest) return null
+  const entries = []
+  for (const rel of (await walk(MODULE_DIR)).sort()) {
+    const data = rel === 'module.json' ? Buffer.from(JSON.stringify(withUrls(manifest, base), null, 2)) : await readFile(join(MODULE_DIR, rel))
+    entries.push({ name: rel, data })
+  }
+  const buf = zip(entries)
+  zipCache.set(base, buf)
+  return buf
+}
+
+async function handleModule(req, res, file) {
+  const manifest = await readModuleManifest()
+  if (!manifest) return send(res, 404, { error: 'Dieser Dienst enthält kein Foundry-Modul (VTF_MODULE_DIR)' })
+  const base = publicBase(req)
+  if (file === 'module.json') return send(res, 200, withUrls(manifest, base))
+  if (file === MODULE_ZIP) {
+    const buf = await moduleZip(base)
+    res.writeHead(200, {
+      'content-type': 'application/zip',
+      'content-length': buf.length,
+      'content-disposition': `attachment; filename="${MODULE_ZIP}"`,
+      'cache-control': 'no-store',
+    })
+    return res.end(buf)
+  }
+  return send(res, 404, { error: 'unbekannter Pfad' })
+}
+
 // ---- handlers --------------------------------------------------------------------------------
 
 async function handle(req, res) {
   const url = new URL(req.url, 'http://x')
   const path = decodeURIComponent(url.pathname).replace(/\/+$/, '')
-  if (req.method === 'GET' && (path === '/health' || path === '')) return send(res, 200, { ok: true, version: VERSION })
+  if (req.method === 'GET' && (path === '/health' || path === '')) {
+    return send(res, 200, { ok: true, version: VERSION, module: (await readModuleManifest())?.version ?? null })
+  }
+  const mod = /^\/module\/([^/]+)$/.exec(path)
+  if (req.method === 'GET' && mod) return handleModule(req, res, mod[1])
 
   const m = /^\/v1\/vaults\/([^/]+)\/(state|bundle|unused|cleanup|assets\/(.+))$/.exec(path)
   if (!m) return send(res, 404, { error: 'unbekannter Pfad' })
@@ -247,7 +382,11 @@ const server = createServer((req, res) => {
     log('Fehler:', e?.message ?? e)
     if (!res.headersSent) send(res, e?.status ?? 500, { error: e?.message ?? 'Serverfehler' })
   })
-}).listen(PORT, () => log(`vtf-sync ${VERSION} auf Port ${PORT}, Ziel ${DATA_DIR}`))
+}).listen(PORT, async () => {
+  log(`vtf-sync ${VERSION} auf Port ${PORT}, Ziel ${DATA_DIR}`)
+  const m = await readModuleManifest()
+  log(m ? `Foundry-Modul ${m.version}: Manifest-URL ${PUBLIC_URL || '<öffentliche Adresse>'}/module/module.json` : `kein Foundry-Modul in ${MODULE_DIR}`)
+})
 
 // as PID 1 in a container Node ignores SIGTERM by default → stop cleanly on "docker stop"
 for (const sig of ['SIGTERM', 'SIGINT']) {

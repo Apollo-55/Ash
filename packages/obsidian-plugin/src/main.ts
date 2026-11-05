@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient, indexSystems } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, SCENE_TEMPLATE, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient, indexSystems } from '../../core/src/index.ts'
 // the only import of concrete game systems; register new ones in systems/adapters.ts
 import { SYSTEMS } from '../../../systems/adapters.ts'
 
@@ -138,6 +138,19 @@ export default class VaultToFoundryPlugin extends Plugin {
         editor.replaceSelection(prefix + adapter.template())
         // place the cursor behind "name: "
         const line = cursor.line + (prefix ? 2 : 0) + 1
+        editor.setCursor({ line, ch: editor.getLine(line).length })
+      },
+    })
+
+    this.addCommand({
+      id: 'insert-scene-template',
+      name: 'Szenen-Vorlage einfügen',
+      editorCallback: (editor: Editor) => {
+        const cursor = editor.getCursor()
+        const prefix = cursor.ch > 0 ? '\n\n' : ''
+        editor.replaceSelection(prefix + SCENE_TEMPLATE)
+        // place the cursor behind "karte:"
+        const line = cursor.line + (prefix ? 2 : 0) + 2
         editor.setCursor({ line, ch: editor.getLine(line).length })
       },
     })

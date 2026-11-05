@@ -15,8 +15,34 @@ Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigen
    - `user:` wie Foundry (felddy: `FOUNDRY_UID`/`FOUNDRY_GID`, Standard `421:421`), damit Foundry die Dateien lesen kann.
    - Volume: **nur** der Unterordner `Data/vault-to-foundry` aus Foundrys Volume (bzw. Bind-Mount `…/Data/vault-to-foundry:/data/vault-to-foundry`). Ordner vorher anlegen, Besitzer wie Foundry.
    - `VTF_TOKEN` setzen.
+   - `VTF_PUBLIC_URL` auf die öffentliche Adresse des Dienstes setzen (z. B. `https://<deine-domain>/vtf-sync`), damit Foundry das Modul vom Dienst installieren kann (siehe [Modul vom Dienst installieren](#modul-vom-dienst-installieren)).
 4. nginx: den Block aus `vtf-sync/nginx.example.conf` in den `server { … }` von Foundry einfügen, nginx neu laden.
 5. `docker compose up -d --build vtf-sync`, dann prüfen: `curl https://<deine-domain>/vtf-sync/health` → `{"ok":true,…}`.
+
+## Modul vom Dienst installieren
+
+`vtf-sync.zip` enthält das Foundry-Modul aus demselben Build. Der Dienst liefert es ohne Token aus, Dienst und Modul haben also immer dieselbe Version:
+
+- `GET /module/module.json` – Manifest, `manifest`/`download` zeigen auf diesen Dienst
+- `GET /module/vault-to-foundry.zip` – das Modul (`module.json` liegt oben in der ZIP, mit denselben URLs)
+
+In Foundry (Setup → Add-on-Module → **Modul installieren**) als Manifest-URL eintragen:
+
+```
+https://<deine-domain>/vtf-sync/module/module.json
+```
+
+Updates: neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`, dann in Foundry bei den Modulen auf **Aktualisieren** klicken. `curl https://<deine-domain>/vtf-sync/health` zeigt unter `module` die Version, die der Dienst gerade ausliefert.
+
+Die Adressen in `manifest`/`download` kommen aus `VTF_PUBLIC_URL`. Ohne diese Variable setzt der Dienst sie aus `X-Forwarded-Proto`, `X-Forwarded-Host`/`Host` und `X-Forwarded-Prefix` zusammen (siehe `nginx.example.conf`).
+
+**Wichtig:** Das Manifest und die ZIP lädt der **Foundry-Server** herunter, nicht dein Browser. Der Foundry-Container muss die öffentliche Adresse also selbst erreichen. Prüfen auf dem Server:
+
+```bash
+docker exec <foundry-container> wget -qO- https://<deine-domain>/vtf-sync/module/module.json
+```
+
+Gibt das einen Fehler (z. B. weil eine Firewall Verbindungen aus Docker-Netzen zur eigenen öffentlichen IP blockt), das Modul wie bisher von Hand entpacken.
 
 ## 2. In Obsidian
 
@@ -90,6 +116,7 @@ VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
     restart: unless-stopped
     environment:
       - VTF_TOKEN=${VTF_TOKEN}
+      - VTF_PUBLIC_URL=https://dsa.manic-gaming.de/vtf-sync
     volumes:
       - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry
     ports:
@@ -104,6 +131,8 @@ Weitere Instanzen: gleicher Block mit anderem `container_name`, eigenem Mount au
   ```nginx
   location /vtf-sync/ {
       proxy_pass http://127.0.0.1:8787/;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Prefix /vtf-sync;
       client_max_body_size 512m;
       proxy_request_buffering off;
   }

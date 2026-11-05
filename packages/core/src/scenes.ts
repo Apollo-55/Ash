@@ -3,6 +3,19 @@ import type { BlockIssue, ParsedBlock } from './systems/adapter.ts'
 
 export const SCENE_BLOCK = 'szene'
 
+/** inserted by the Obsidian command „Szenen-Vorlage einfügen“; line 2 is `karte:` (cursor goes there) */
+export const SCENE_TEMPLATE = `\`\`\`${SCENE_BLOCK}
+name:
+karte:
+# leaflet: <id>   # statt karte: eine Leaflet-Karte mit Markern
+raster: { typ: quadrat, größe: 100, schritt: 1 }
+nscs: []
+licht: tag
+nebel: nein
+navigation: ja
+\`\`\`
+`
+
 export type GridType = 'square' | 'hex' | 'none'
 export type Lighting = 'tag' | 'nacht' | 'dunkel'
 
@@ -72,12 +85,14 @@ export function parseSceneBlock(source: string): ParsedBlock<SceneBlockData> {
         if (value !== null && value !== undefined) data.name = String(value)
         break
       case 'karte': {
+        if (value === null || value === undefined) break
         const t = linkText(value)
         if (!t) error(`karte: ${show(value)} ist kein Bild (z. B. "[[deck.webp]]").`)
         else data.karte = t
         break
       }
       case 'leaflet':
+        if (value === null || value === undefined) break
         if (typeof value !== 'string' && typeof value !== 'number') error(`leaflet: ${show(value)} ist keine Karten-ID.`)
         else data.leaflet = String(value).trim()
         break
