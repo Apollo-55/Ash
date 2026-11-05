@@ -85,6 +85,16 @@ function packSyncService() {
   const out = join(root, 'dist/vtf-sync')
   mkdirSync(out, { recursive: true })
   for (const f of ['server.mjs', 'Dockerfile', 'docker-compose.example.yml', 'nginx.example.conf']) cpSync(join(root, 'packages/sync-service', f), join(out, f))
+  // the service serves exactly this module build to Foundry (manifest URL …/module/module.json)
+  rmSync(join(out, 'module'), { recursive: true, force: true })
+  cpSync(moduleOut, join(out, 'module'), { recursive: true })
+}
+
+/** Service and module are installed together and must have the same version. */
+function checkVersions() {
+  const moduleVersion = JSON.parse(readFileSync(join(root, 'packages/foundry-module/module.json'), 'utf8')).version
+  const serviceVersion = /const VERSION = '([^']+)'/.exec(readFileSync(join(root, 'packages/sync-service/server.mjs'), 'utf8'))?.[1]
+  if (moduleVersion !== serviceVersion) throw new Error(`Version passt nicht: module.json ${moduleVersion}, server.mjs ${serviceVersion}`)
 }
 
 async function packZips() {
@@ -99,6 +109,7 @@ async function packZips() {
 }
 
 async function finish() {
+  checkVersions()
   copyStatic()
   packSyncService()
   if (deploy) await doDeploy()

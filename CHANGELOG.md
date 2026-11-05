@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **Sync-Dienst liefert das Foundry-Modul aus:** `vtf-sync.zip` enthält das Modul aus demselben Build; Foundry installiert und aktualisiert es per Manifest-URL `<VTF_PUBLIC_URL>/module/module.json` (ohne Token). `/health` nennt die ausgelieferte Modulversion; der Build bricht ab, wenn `module.json` und `server.mjs` verschiedene Versionen haben.
 - **Obsidian:** Befehl „Szenen-Vorlage einfügen“ setzt einen `szene`-Block ein (Cursor hinter `karte:`). Leeres `karte:`/`leaflet:` zählt als nicht angegeben.
 - **Sync:** Eine Welt merkt sich ihre Vault (erste Übernahme verbindet, Dialog und Hinweispunkt zeigen nur noch diese, Feld „Verbundene Vault dieser Welt“ in den Modul-Einstellungen leeren löst die Verbindung).
 - **Projektaufbau:** systemunabhängig unter `packages/` (core, obsidian-plugin, foundry-module, sync-service), DSA 4.1 unter `systems/dsa41/` (adapter, nsc-generator, nsc-generator-plugin, tools). Der Kern exportiert kein System mehr; Systeme hängen an `SystemAdapter` und neu `FoundrySystemHooks` (Actor-Typ, Kompendien, AT/PA), eingehängt in je einer `systems.ts`.

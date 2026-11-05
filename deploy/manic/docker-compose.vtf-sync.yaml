@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     environment:
       - VTF_TOKEN=${VTF_TOKEN}
+      # öffentliche Adresse: Foundry installiert das Modul über …/module/module.json
+      - VTF_PUBLIC_URL=https://dsa.manic-gaming.de/vtf-sync
     volumes:
       - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry
     ports:
