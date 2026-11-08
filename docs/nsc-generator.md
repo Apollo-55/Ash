@@ -7,6 +7,8 @@ Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block – für Personen (Talente,
 
 Die PDFs bleiben auf deinem PC; an den Anbieter gehen die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt.
 
+Aufbau im Code: [Plugin](../systems/dsa41/nsc-generator-plugin/README.md) (Oberfläche in Obsidian) und [Logik](../systems/dsa41/nsc-generator/README.md) (Prompts, Werkzeuge, Prüfung, ohne Obsidian).
+
 Einen lokalen Modus (Ollama) gab es bis 2026-11-04; er ist pausiert – siehe [zukunft.md](zukunft.md).
 
 ## Einrichten
