@@ -1,6 +1,6 @@
 # DSA-NSC-Generator (Obsidian-Plugin)
 
-Schreib in Obsidian, wer jemand ist („alte Kor-Geweihte, Söldnerin aus Al'Anfa, misstrauisch“), und das Plugin macht daraus einen fertigen `dsa-nsc`-Block mit Eigenschaften, Talenten, SF, Energien und Waffen. Ein Sprachmodell (Claude oder OpenAI, eigener API-Schlüssel) schlägt dabei wie eine Spielleitung in deinen eigenen Regelwerk-PDFs nach. Der Code prüft jeden Vorschlag gegen die DSA-4.1-Regeln und die Namen in den dsa-41-Kompendien.
+Schreib in Obsidian, wer jemand ist („alte Kor-Geweihte, Söldnerin aus Al'Anfa, misstrauisch“), und das Plugin macht daraus einen fertigen `dsa-nsc`-Block mit Eigenschaften, Talenten, SF, Energien und Waffen. Ein Sprachmodell (Claude, OpenAI oder DeepSeek, eigener API-Schlüssel) schlägt dabei wie eine Spielleitung in deinen eigenen Regelwerk-PDFs nach. Der Code prüft jeden Vorschlag gegen die DSA-4.1-Regeln und die Namen in den dsa-41-Kompendien.
 
 Das Ergebnis ist ein normaler `dsa-nsc`-Block. **Vault to Foundry** zeigt ihn als Wertekasten und bringt ihn als Actor nach Foundry. Beide Plugins sind unabhängig voneinander: Den Generator braucht man nicht, um Vault to Foundry zu nutzen, und umgekehrt.
 
@@ -8,14 +8,14 @@ Das Ergebnis ist ein normaler `dsa-nsc`-Block. **Vault to Foundry** zeigt ihn al
 
 | Ordner | Was | Läuft in |
 |---|---|---|
-| [`../nsc-generator/`](../nsc-generator/README.md) | **Die Logik**: Prompts, Werkzeuge für das Modell, Seitensuche, Prüfen und Reparieren, Anbindung an Claude und OpenAI | überall (Node, Obsidian, Tests) |
+| [`../nsc-generator/`](../nsc-generator/README.md) | **Die Logik**: Prompts, Werkzeuge für das Modell, Seitensuche, Prüfen und Reparieren, Anbindung an Claude, OpenAI und DeepSeek | überall (Node, Obsidian, Tests) |
 | `nsc-generator-plugin/` (dieser Ordner) | **Die Oberfläche**: Befehle, Formular, Vorschau, Einstellungen, Lesen des Regelwerk-Index von der Platte | nur Obsidian (Desktop) |
 
 Die Logik kennt Obsidian nicht. Darum lässt sie sich ohne Obsidian testen (`npm test`) und vom Modellvergleich `../tools/eval.ts` direkt auf der Kommandozeile nutzen. Das Plugin ist eine dünne Schicht darüber.
 
 ## Installieren
 
-Voraussetzungen: Obsidian Desktop, die Regelwerk-PDFs in `Regelwerke/` im Projekt, ein API-Schlüssel für Claude oder OpenAI.
+Voraussetzungen: Obsidian Desktop, die Regelwerk-PDFs in `Regelwerke/` im Projekt, ein API-Schlüssel für Claude, OpenAI oder DeepSeek.
 
 ```bash
 npm run regelwerke        # einmalig und nach jedem PDF-Tausch: Seiten-Index nach .llm/
@@ -34,8 +34,8 @@ Einstellungen → DSA-NSC-Generator:
 |---|---|---|
 | Sprachmodell | Anbieter | Claude |
 | | API-Schlüssel, „Prüfen“ (kostenlos) | – |
-| | Modell | `claude-opus-5-5` bzw. `gpt-6.1-sol` |
-| | Gründlichkeit (niedrig / mittel / hoch) | mittel |
+| | Modell | `claude-opus-5-5`, `gpt-6.1-sol` bzw. `deepseek-reasoner` |
+| | Gründlichkeit (niedrig / mittel / hoch; nicht bei DeepSeek) | mittel |
 | Regelwerke | Index-Datei, „Neu laden“ | `~/Projekt/Ash/.llm/regelwerk-index.json` |
 | Vorgaben | Erfahrung | automatisch |
 
@@ -57,7 +57,7 @@ Das Ergebnis ist ein Vorschlag: Im Wertekasten von Vault to Foundry stehen Fehle
 
 ## Was das Programm verlässt
 
-Die PDFs bleiben auf deinem PC. An den Anbieter gehen nur die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt. OpenAI wird mit `store: false` angefragt und speichert nichts. Claude zeigt nach jedem Lauf die ungefähren Kosten (Opus etwa 0,20–0,40 $ pro NSC), OpenAI die verbrauchten Tokens.
+Die PDFs bleiben auf deinem PC. An den Anbieter gehen nur die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt. OpenAI wird mit `store: false` angefragt und speichert nichts. Claude zeigt nach jedem Lauf die ungefähren Kosten (Opus etwa 0,20–0,40 $ pro NSC), OpenAI und DeepSeek die verbrauchten Tokens. **DeepSeek:** die Server stehen in China – Beschreibung und nachgeschlagene Seiten gehen dorthin.
 
 ## Entwickeln
 

@@ -42,7 +42,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 1. Obsidian: Befehl „Nach Foundry exportieren (ZIP)“ (oder Paket-Symbol links) → `~/Downloads/<vault>-foundry.zip`.
 2. Foundry: ZIP-Symbol neben „Vault synchronisieren“ → Datei wählen → Importieren.
 
-**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude oder OpenAI (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
+**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude, OpenAI oder DeepSeek (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
 **Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
 
@@ -191,7 +191,7 @@ systems/                        systemabhängig – je Spielsystem ein Ordner
   dsa41/                        DSA 4.1 (Foundry-System dsa-41)
     adapter/                    dsa-nsc-Block, Namenskatalog, Regeln (SF-Ketten, Energien), Wertekasten,
                                 Actor-Daten, Foundry-Teil (Kampfwerte, Kompendien)
-    nsc-generator/              NSC-/Kreatur-Generator mit Claude und OpenAI, Seiten-Index, Prüfung
+    nsc-generator/              NSC-/Kreatur-Generator mit Claude, OpenAI und DeepSeek, Seiten-Index, Prüfung
     nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“ – eigenes Werkzeug, eigener Build
                                 (npm run build:generator), Vault to Foundry braucht es nicht
     tools/                      regelwerke.ts (Seiten-Index), gen-catalog.mjs (Namenskatalog),

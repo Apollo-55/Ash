@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **NSC-Generator, DeepSeek-Modus:** weiterer Anbieter mit denselben Werkzeugen und Prüfungen (`deepseek.ts`), OpenAI-kompatible Chat Completions über das `openai`-SDK, Modellliste per „Prüfen“, Standard `deepseek-reasoner`, Hinweis auf Server in China. `eval.ts` kennt `deepseek:<modell>` (`DEEPSEEK_API_KEY`).
 - **NSC-Generator:** README für Plugin (`systems/dsa41/nsc-generator-plugin/`) und Logik (`systems/dsa41/nsc-generator/`) – was wohin gehört, Installieren, Einrichten, Entwickeln. Plugin-Beschreibung nennt nicht mehr das entfernte lokale Modell.
 - **Build:** `npm run build` und die anderen Skripte (`dev`, `deploy`, `build:generator`, `dev:generator`, `test`, `typecheck`) installieren in einem frischen Clone die Abhängigkeiten selbst (`tools/ensure-deps.mjs`).
 - **Systeme modular:** Systeme werden nur noch in `systems/adapters.ts` und `systems/foundry-hooks.ts` eingetragen, `packages/` ändert sich für ein neues System nicht. Der Kern kennt keine Kampfwerte mehr (`BundleItem.combat` → freies Feld `extra`, das nur die Foundry-Hooks des Systems lesen). Ein Test hält `packages/` systemfrei und prüft jeden eingetragenen Adapter. Anleitung in `systems/README.md`.
