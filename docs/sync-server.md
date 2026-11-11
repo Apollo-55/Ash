@@ -9,19 +9,35 @@ Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigen
 
 ## 1. Auf dem Server
 
-1. `npm run deploy` erzeugt `dist/vtf-sync.zip`. Auf den Server kopieren und neben deine `docker-compose.yml` entpacken (Ordner `vtf-sync/`).
+1. Der Dienst kommt als fertiges Image `ghcr.io/apollo-55/vtf-sync:latest` – GitHub baut es bei jeder Änderung auf `main` (siehe [Image von GitHub](#image-von-github)). Auf dem Server muss nichts gebaut oder entpackt werden.
 2. Token erzeugen: `openssl rand -hex 32`.
-3. Den Dienst aus `vtf-sync/docker-compose.example.yml` in deine Compose-Datei übernehmen:
+3. Den Dienst aus [`docker-compose.example.yml`](../packages/sync-service/docker-compose.example.yml) in deine Compose-Datei übernehmen:
    - `user:` wie Foundry (felddy: `FOUNDRY_UID`/`FOUNDRY_GID`, Standard `421:421`), damit Foundry die Dateien lesen kann.
    - Volume: **nur** der Unterordner `Data/vault-to-foundry` aus Foundrys Volume (bzw. Bind-Mount `…/Data/vault-to-foundry:/data/vault-to-foundry`). Ordner vorher anlegen, Besitzer wie Foundry.
    - `VTF_TOKEN` setzen.
    - `VTF_PUBLIC_URL` auf die öffentliche Adresse des Dienstes setzen (z. B. `https://<deine-domain>/vtf-sync`), damit Foundry das Modul vom Dienst installieren kann (siehe [Modul vom Dienst installieren](#modul-vom-dienst-installieren)).
-4. nginx: den Block aus `vtf-sync/nginx.example.conf` in den `server { … }` von Foundry einfügen, nginx neu laden.
-5. `docker compose up -d --build vtf-sync`, dann prüfen: `curl https://<deine-domain>/vtf-sync/health` → `{"ok":true,…}`.
+4. nginx: den Block aus [`nginx.example.conf`](../packages/sync-service/nginx.example.conf) in den `server { … }` von Foundry einfügen, nginx neu laden.
+5. `docker compose up -d vtf-sync`, dann prüfen: `curl https://<deine-domain>/vtf-sync/health` → `{"ok":true,…}`.
+
+**Update:** `docker compose pull vtf-sync && docker compose up -d vtf-sync`. Danach Foundry-Modul und Obsidian-Plugin wie unten beschrieben per Klick nachziehen.
+
+## Image von GitHub
+
+Der Workflow `.github/workflows/vtf-sync-image.yml` läuft bei jedem Push auf `main` (und von Hand unter Actions → „vtf-sync-Image“ → Run workflow): Tests, `npm run build`, dann das Image mit Dienst, Foundry-Modul und Obsidian-Plugin aus genau diesem Stand nach `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64). Tags: `latest`, die Version (z. B. `1.0.0`) und `sha-<commit>` zum Festnageln oder Zurückgehen.
+
+Das Image enthält weder Token noch Vault-Daten. Es ist zunächst **privat**, der Server muss sich dann einmal anmelden:
+
+```bash
+docker login ghcr.io -u <github-benutzer>     # Passwort: ein Personal Access Token (classic) mit „read:packages“
+```
+
+Ohne Anmeldung geht es, wenn du das Paket öffentlich machst: GitHub → dein Profil → Packages → `vtf-sync` → Package settings → Change visibility.
+
+**Ohne GitHub:** `npm run build` erzeugt weiterhin `dist/vtf-sync.zip`. Auf dem Server neben die Compose-Datei entpacken, in der Compose-Datei `build: ./vtf-sync` statt `image:` eintragen und mit `docker compose up -d --build vtf-sync` starten.
 
 ## Modul vom Dienst installieren
 
-`vtf-sync.zip` enthält das Foundry-Modul aus demselben Build. Der Dienst liefert es ohne Token aus, Dienst und Modul haben also immer dieselbe Version:
+Das Image enthält das Foundry-Modul aus demselben Build. Der Dienst liefert es ohne Token aus, Dienst und Modul haben also immer dieselbe Version:
 
 - `GET /module/module.json` – Manifest, `manifest`/`download` zeigen auf diesen Dienst
 - `GET /module/vault-to-foundry.zip` – das Modul (`module.json` liegt oben in der ZIP, mit denselben URLs)
@@ -32,7 +48,7 @@ In Foundry (Setup → Add-on-Module → **Modul installieren**) als Manifest-URL
 https://<deine-domain>/vtf-sync/module/module.json
 ```
 
-Updates: neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`, dann in Foundry bei den Modulen auf **Aktualisieren** klicken. `curl https://<deine-domain>/vtf-sync/health` zeigt unter `module` und `plugin` die Versionen, die der Dienst gerade ausliefert.
+Updates: `docker compose pull vtf-sync && docker compose up -d vtf-sync`, dann in Foundry bei den Modulen auf **Aktualisieren** klicken. `curl https://<deine-domain>/vtf-sync/health` zeigt unter `module` und `plugin` die Versionen, die der Dienst gerade ausliefert.
 
 Die Adressen in `manifest`/`download` kommen aus `VTF_PUBLIC_URL`. Ohne diese Variable setzt der Dienst sie aus `X-Forwarded-Proto`, `X-Forwarded-Host`/`Host` und `X-Forwarded-Prefix` zusammen (siehe `nginx.example.conf`).
 
@@ -46,9 +62,9 @@ Gibt das einen Fehler (z. B. weil eine Firewall Verbindungen aus Docker-Netzen z
 
 ## Plugin vom Dienst aktualisieren
 
-`vtf-sync.zip` enthält auch das Obsidian-Plugin aus demselben Build (Ordner `plugin/`). Obsidian kennt keine Manifest-URL, deshalb holt sich das Plugin die Dateien selbst – ein Update des Dienstes reicht also für alle drei Teile:
+Das Image enthält auch das Obsidian-Plugin aus demselben Build. Obsidian kennt keine Manifest-URL, deshalb holt sich das Plugin die Dateien selbst – ein Update des Dienstes reicht also für alle drei Teile:
 
-1. Neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`.
+1. `docker compose pull vtf-sync && docker compose up -d vtf-sync`
 2. Foundry: bei den Modulen **Aktualisieren**.
 3. Obsidian: Beim Start (und danach alle paar Stunden) vergleicht das Plugin seine Dateien mit denen des Dienstes. Weichen sie ab, erscheint „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**. Jederzeit von Hand: Einstellungen → Vault to Foundry → **Plugin aktualisieren** oder Befehl „Plugin vom Foundry-Server aktualisieren“.
 
@@ -129,11 +145,11 @@ sudo chown 1001:1001 /manic/foundry/yvtt/data/Data/vault-to-foundry
 VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
 ```
 
-**In die bestehende `docker-compose.yaml` der DSA-Instanz** unter `services:` (der Ordner `vtf-sync/` aus `dist/vtf-sync.zip` liegt daneben):
+**In die bestehende `docker-compose.yaml` der DSA-Instanz** unter `services:`:
 
 ```yaml
   vtf-sync:
-    build: ./vtf-sync
+    image: ghcr.io/apollo-55/vtf-sync:latest
     container_name: vtf-sync-dsa
     user: 1001:1001
     restart: unless-stopped
@@ -172,7 +188,7 @@ Weitere Instanzen: gleicher Block mit anderem `container_name`, eigenem Mount au
 Starten und prüfen:
 
 ```bash
-docker compose up -d --build vtf-sync
+docker compose up -d vtf-sync
 curl -s http://127.0.0.1:8787/health          # auf dem Server
 curl -s https://<domain>/vtf-sync/health       # von außen, über den Proxy
 ```

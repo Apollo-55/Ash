@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **Sync-Dienst als fertiges Image:** GitHub Actions baut bei jedem Push auf `main` das Image `ghcr.io/apollo-55/vtf-sync` (Dienst, Foundry-Modul und Obsidian-Plugin aus demselben Stand; amd64 und arm64; Tags `latest`, Version, `sha-<commit>`). Auf dem Server entfällt Bauen und Entpacken, ein Update ist `docker compose pull vtf-sync && docker compose up -d vtf-sync`. Die Compose-Beispiele nutzen `image:` statt `build:`; der Weg über `vtf-sync.zip` bleibt möglich.
 - **Sync-Dienst liefert das Obsidian-Plugin aus:** `vtf-sync.zip` enthält das Plugin aus demselben Build. Das Plugin vergleicht beim Start seine Dateien mit denen des Dienstes und holt sich die neue Fassung per Klick („Jetzt aktualisieren“, Einstellungen → „Plugin aktualisieren“, Befehl „Plugin vom Foundry-Server aktualisieren“), mit Prüfsummen und nur mit Token (`/v1/plugin`). Ein Update muss damit nur noch im Docker-Container eingespielt werden. `/health` nennt die Plugin-Version; der Build prüft, dass Dienst, Modul und Plugin dieselbe Version haben. Einmalig nötig: dieses Plugin noch von Hand installieren.
 - **NSC-Generator:** README für Plugin (`systems/dsa41/nsc-generator-plugin/`) und Logik (`systems/dsa41/nsc-generator/`) – was wohin gehört, Installieren, Einrichten, Entwickeln. Plugin-Beschreibung nennt nicht mehr das entfernte lokale Modell.
 - **Build:** `npm run build` und die anderen Skripte (`dev`, `deploy`, `build:generator`, `dev:generator`, `test`, `typecheck`) installieren in einem frischen Clone die Abhängigkeiten selbst (`tools/ensure-deps.mjs`).
