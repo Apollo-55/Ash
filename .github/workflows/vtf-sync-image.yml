@@ -1,4 +1,4 @@
-# Baut den Sync-Dienst vtf-sync (mit Foundry-Modul und Obsidian-Plugin aus demselben Build) als
+# Baut den Sync-Dienst vtf-sync (mit Foundry-Modul und den Obsidian-Plugins aus demselben Build) als
 # Docker-Image und legt es in die GitHub Container Registry: ghcr.io/<owner>/vtf-sync
 # Auf dem Server reicht danach: docker compose pull vtf-sync && docker compose up -d vtf-sync
 name: vtf-sync-Image
@@ -27,6 +27,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # first the further plugins, so the service build picks them up
+      - run: npm run build:generator
       - run: npm run build
       - name: Image bauen und hochladen
         env:
