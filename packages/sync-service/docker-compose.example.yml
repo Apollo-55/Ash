@@ -7,7 +7,8 @@ services:
       - foundry-data:/data
 
   vtf-sync:
-    build: ./vtf-sync            # Ordner mit server.mjs und Dockerfile
+    image: ghcr.io/apollo-55/vtf-sync:latest   # von GitHub gebaut; Update: docker compose pull vtf-sync && docker compose up -d vtf-sync
+    # build: ./vtf-sync          # stattdessen, wenn du dist/vtf-sync.zip selbst entpackst (dann up -d --build)
     restart: unless-stopped
     user: "421:421"              # wie Foundry (felddy: FOUNDRY_UID/FOUNDRY_GID, Standard 421)
     environment:

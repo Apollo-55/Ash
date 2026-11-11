@@ -1,9 +1,10 @@
 # Ergänzung für die docker-compose.yaml der DSA-Instanz (felddy, user 1001:1001).
-# Diesen Dienst unter „services:“ einfügen; Ordner ./vtf-sync aus dist/vtf-sync.zip daneben entpacken;
-# VTF_TOKEN in .env (Rechte 600) neben der Compose-Datei.
+# Diesen Dienst unter „services:“ einfügen; VTF_TOKEN in .env (Rechte 600) neben der Compose-Datei.
+# Das Image baut GitHub bei jeder Änderung auf main. Update:
+#   docker compose pull vtf-sync && docker compose up -d vtf-sync
 services:
   vtf-sync:
-    build: ./vtf-sync
+    image: ghcr.io/apollo-55/vtf-sync:latest
     container_name: vtf-sync-dsa
     user: 1001:1001
     restart: unless-stopped
