@@ -10,6 +10,7 @@ sudo chown 1001:1001 /manic/foundry/yvtt/data/Data/vault-to-foundry
 # 2. Dienst in die docker-compose.yaml der DSA-Instanz aufnehmen (Image kommt fertig von GitHub)
 cd <Ordner der DSA-docker-compose.yaml>
 echo "VTF_TOKEN=$(openssl rand -hex 32)" >> .env && chmod 600 .env
+echo "VTF_DOWNLOAD_PASSWORD=<einfaches Passwort>" >> .env   # für die Download-Seite des Obsidian-Plugins
 #    Block aus docker-compose.vtf-sync.yaml unter "services:" einfügen
 #    nur solange das Image privat ist: docker login ghcr.io -u <github-benutzer>  (Token mit read:packages)
 docker compose up -d vtf-sync
@@ -22,7 +23,7 @@ sudo nginx -t && sudo systemctl reload nginx
 curl -s https://dsa.manic-gaming.de/vtf-sync/health   # → {"ok":true,...}
 ```
 
-4. Obsidian → Einstellungen → Vault to Foundry → Sync-Server:
+4. Obsidian-Plugin (nur beim ersten Mal): `https://dsa.manic-gaming.de/vtf-sync/plugin` öffnen, Passwort aus `VTF_DOWNLOAD_PASSWORD` eingeben, ZIP nach `<vault>/.obsidian/plugins/` entpacken und das Plugin einschalten. Dann Obsidian → Einstellungen → Vault to Foundry → Sync-Server:
    - Server-Adresse: `https://dsa.manic-gaming.de/vtf-sync`
    - Token: Wert aus `.env` (`grep VTF_TOKEN .env`)
    - „Verbindung testen“

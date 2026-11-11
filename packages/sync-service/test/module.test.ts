@@ -164,6 +164,36 @@ describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
     await expect(new SyncClient(url, 'falsches-token-0123456789', fetchHttp).pluginInfo()).rejects.toThrow(/Token falsch/)
   })
 
+  it('Download-Seite: fragt nach dem eigenen Passwort und liefert die ZIP; Sync-Token gilt dort nicht', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_DOWNLOAD_PASSWORD: 'drachenei' })
+    const post = (password: string) =>
+      fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password }) })
+    const page = await fetch(`${url}/plugin/`)
+    expect(page.status).toBe(200)
+    expect(page.headers.get('content-type')).toMatch(/text\/html/)
+    expect(await page.text()).toMatch(/type="password"[\s\S]*9\.8\.7|9\.8\.7[\s\S]*type="password"/)
+
+    const wrong = await post(TOKEN)
+    expect(wrong.status).toBe(401)
+    expect(await wrong.text()).toMatch(/Passwort stimmt nicht/)
+
+    const ok = await post('drachenei')
+    expect(ok.status).toBe(200)
+    expect(ok.headers.get('content-disposition')).toBe('attachment; filename="vault-to-foundry-9.8.7.zip"')
+    const zip = await JSZip.loadAsync(new Uint8Array(await ok.arrayBuffer()))
+    expect(Object.keys(zip.files).sort()).toEqual(['vault-to-foundry/main.js', 'vault-to-foundry/manifest.json', 'vault-to-foundry/styles.css'])
+    expect(await zip.file('vault-to-foundry/main.js')!.async('string')).toBe(mainJs)
+    // the page password opens nothing else
+    expect((await fetch(`${url}/v1/plugin`, { headers: { authorization: 'Bearer drachenei' } })).status).toBe(401)
+  }, 15000)
+
+  it('Download-Seite: ohne VTF_DOWNLOAD_PASSWORD aus', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_DOWNLOAD_PASSWORD: '' })
+    expect((await fetch(`${url}/plugin`)).status).toBe(404)
+    const res = await fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'password=' })
+    expect(res.status).toBe(404)
+  })
+
   it('ohne Plugin: 404, SyncClient meldet null, Sync-API läuft weiter', async () => {
     const url = await start({ VTF_PLUGIN_DIR: join(pluginDir, 'gibt-es-nicht') })
     expect((await fetch(`${url}/v1/plugin`, auth)).status).toBe(404)

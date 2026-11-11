@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     environment:
       - VTF_TOKEN=${VTF_TOKEN}
+      # einfaches Passwort für die Download-Seite des Obsidian-Plugins: https://dsa.manic-gaming.de/vtf-sync/plugin
+      - VTF_DOWNLOAD_PASSWORD=${VTF_DOWNLOAD_PASSWORD:-}
       # öffentliche Adresse: Foundry installiert das Modul über …/module/module.json
       - VTF_PUBLIC_URL=https://dsa.manic-gaming.de/vtf-sync
     volumes:

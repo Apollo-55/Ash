@@ -21,7 +21,7 @@ Version 1.0.0 – Änderungen siehe [CHANGELOG.md](CHANGELOG.md).
 
 | Datei | wohin |
 |---|---|
-| `vault-to-foundry-obsidian.zip` | einmalig in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop). Mit Sync-Dienst holt sich das Plugin spätere Updates selbst vom Dienst |
+| `vault-to-foundry-obsidian.zip` | einmalig (mit Sync-Dienst auch im Browser von `https://<domain>/vtf-sync/plugin`, Passwort `VTF_DOWNLOAD_PASSWORD`) in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop). Mit Sync-Dienst holt sich das Plugin spätere Updates selbst vom Dienst |
 | `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren – oder, mit Sync-Dienst, in Foundry per Manifest-URL `https://<domain>/vtf-sync/module/module.json` installieren |
 | `vtf-sync.zip` | Sync-Dienst. Normalfall: gar nicht nötig, der Server zieht das fertige Image `ghcr.io/apollo-55/vtf-sync:latest` (GitHub baut es bei jeder Änderung auf `main`). Sonst: auf dem Server neben die `docker-compose.yaml` entpacken. Siehe [docs/sync-server.md](docs/sync-server.md); fertige Dateien für manic: [deploy/manic/EINRICHTEN.md](deploy/manic/EINRICHTEN.md) |
 

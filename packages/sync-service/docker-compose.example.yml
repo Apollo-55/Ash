@@ -13,6 +13,8 @@ services:
     user: "421:421"              # wie Foundry (felddy: FOUNDRY_UID/FOUNDRY_GID, Standard 421)
     environment:
       VTF_TOKEN: "hier-ein-langes-zufälliges-geheimnis"   # z. B. openssl rand -hex 32
+      # optional: einfaches Passwort für die Download-Seite des Obsidian-Plugins, <VTF_PUBLIC_URL>/plugin
+      VTF_DOWNLOAD_PASSWORD: ""
       VTF_DATA_DIR: /data/vault-to-foundry
       # so erreicht Foundry den Dienst; Manifest-URL für das Modul ist dann <VTF_PUBLIC_URL>/module/module.json
       VTF_PUBLIC_URL: "https://<deine-foundry-domain>/vtf-sync"

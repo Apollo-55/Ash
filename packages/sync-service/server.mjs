@@ -10,11 +10,14 @@
 //   VTF_PUBLIC_URL public address of this service as Foundry reaches it, e.g. https://dsa.example.org/vtf-sync
 //                  (used for "manifest"/"download"; without it: X-Forwarded-Proto/Host/Prefix or Host)
 //   VTF_PLUGIN_DIR the built Obsidian plugin (manifest.json, main.js, styles.css), default ./plugin next to server.mjs
+//   VTF_DOWNLOAD_PASSWORD  optional, simple password for the download page /plugin (first install of the
+//                  Obsidian plugin in the browser); without it the page is off
 //
 // API (all under /v1, all need the token):
 //   GET    /health                               → { ok, version, module, plugin }    (no token needed)
 //   GET    /module/module.json                   → Foundry manifest with "manifest"/"download" (no token needed)
 //   GET    /module/vault-to-foundry.zip          → the module, module.json at the zip root (no token needed)
+//   GET    /plugin                               → page asking for VTF_DOWNLOAD_PASSWORD; POST password=… → the plugin zip
 //   GET    /v1/vaults/:vault/state               → { revision, bundleHash, updatedAt, assets: { path: hash } }
 //   PUT    /v1/vaults/:vault/assets/<path>       body = file, header X-VTF-Hash (optional check)
 //   PUT    /v1/vaults/:vault/bundle              body = bundle.json → { revision }
@@ -42,6 +45,7 @@ const PUBLIC_URL = (process.env.VTF_PUBLIC_URL ?? '').replace(/\/+$/, '')
 const MODULE_ZIP = 'vault-to-foundry.zip'
 const PLUGIN_DIR = process.env.VTF_PLUGIN_DIR ?? join(dirname(fileURLToPath(import.meta.url)), 'plugin')
 const PLUGIN_ZIP = 'vault-to-foundry.zip'
+const DOWNLOAD_PASSWORD = process.env.VTF_DOWNLOAD_PASSWORD ?? ''
 // the only files Obsidian loads from a plugin folder (styles.css is optional)
 const PLUGIN_FILES = { 'manifest.json': 'application/json; charset=utf-8', 'main.js': 'text/javascript; charset=utf-8', 'styles.css': 'text/css; charset=utf-8' }
 
@@ -57,11 +61,15 @@ const STATE_FILE = '.vtf-state.json'
 const log = (...a) => console.log(new Date().toISOString(), ...a)
 const hashOf = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 32)
 
+function sameSecret(given, want) {
+  const a = Buffer.from(given)
+  const b = Buffer.from(want)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
 function authorized(req) {
   const h = req.headers.authorization ?? ''
-  const given = Buffer.from(h.startsWith('Bearer ') ? h.slice(7) : '')
-  const want = Buffer.from(TOKEN)
-  return given.length === want.length && timingSafeEqual(given, want)
+  return sameSecret(h.startsWith('Bearer ') ? h.slice(7) : '', TOKEN)
 }
 
 function send(res, status, body) {
@@ -325,6 +333,61 @@ async function handlePlugin(res, rest) {
   return sendFile(res, PLUGIN_FILES[name], plugin.files[name])
 }
 
+// ---- download page for the first install (browser, simple password) --------------------------
+// The sync token stays out of the browser: this page has its own password and hands out nothing
+// but the plugin zip. Wrong passwords are slowed down and limited.
+
+const PLUGIN_ZIP_NAME = (plugin) => `${plugin.id}-${plugin.version}.zip`
+const failures = [] // timestamps of wrong passwords
+const MAX_FAILURES = 10 // per minute, all clients together
+
+function downloadPage(plugin, error = '') {
+  return `<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault to Foundry – Obsidian-Plugin</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; background: #1e1e2e; color: #e6e6ef; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+  form { background: #2a2a3c; padding: 28px; border-radius: 12px; width: min(92vw, 380px); box-shadow: 0 10px 40px #0006; }
+  h1 { font-size: 20px; margin: 0 0 4px; } p { margin: 0 0 16px; color: #b4b4c8; font-size: 14px; }
+  input, button { font: inherit; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid #50506a; }
+  input { background: #1e1e2e; color: inherit; margin-bottom: 12px; } button { background: #7c5cff; color: #fff; border: 0; cursor: pointer; }
+  .error { color: #ff8080; } ol { margin: 16px 0 0; padding-left: 20px; color: #b4b4c8; font-size: 13px; }
+</style></head><body>
+<form method="post">
+  <h1>Vault to Foundry</h1>
+  <p>Obsidian-Plugin ${plugin.version} herunterladen</p>
+  ${error ? `<p class="error">${error}</p>` : ''}
+  <input type="password" name="password" placeholder="Passwort" autofocus required autocomplete="current-password">
+  <button type="submit">Herunterladen</button>
+  <ol><li>ZIP nach <code>&lt;Vault&gt;/.obsidian/plugins/</code> entpacken</li><li>In Obsidian unter „Community-Plugins“ einschalten</li><li>Spätere Updates holt das Plugin selbst</li></ol>
+</form></body></html>`
+}
+
+function sendHtml(res, status, html) {
+  res.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+  res.end(html)
+}
+
+async function handleDownloadPage(req, res) {
+  const plugin = DOWNLOAD_PASSWORD ? await readPlugin() : null
+  if (!plugin) return send(res, 404, { error: 'Download-Seite ist aus (VTF_DOWNLOAD_PASSWORD nicht gesetzt oder kein Obsidian-Plugin im Dienst)' })
+  if (req.method === 'GET') return sendHtml(res, 200, downloadPage(plugin))
+  if (req.method !== 'POST') return send(res, 405, { error: 'Methode nicht erlaubt' })
+  const now = Date.now()
+  while (failures.length && failures[0] < now - 60_000) failures.shift()
+  if (failures.length >= MAX_FAILURES) return sendHtml(res, 429, downloadPage(plugin, 'Zu viele Versuche. Bitte in einer Minute noch einmal.'))
+  const password = new URLSearchParams((await readBody(req, 4096)).toString('utf8')).get('password') ?? ''
+  if (!sameSecret(password, DOWNLOAD_PASSWORD)) {
+    failures.push(now)
+    log('Download-Seite: falsches Passwort')
+    await new Promise((r) => setTimeout(r, 1000))
+    return sendHtml(res, 401, downloadPage(plugin, 'Das Passwort stimmt nicht.'))
+  }
+  log(`Download-Seite: Plugin ${plugin.version} heruntergeladen`)
+  const names = Object.keys(plugin.files)
+  return sendFile(res, 'application/zip', zip(names.map((n) => ({ name: `${plugin.id}/${n}`, data: plugin.files[n] }))), PLUGIN_ZIP_NAME(plugin))
+}
+
 // ---- handlers --------------------------------------------------------------------------------
 
 async function handle(req, res) {
@@ -335,6 +398,8 @@ async function handle(req, res) {
   }
   const mod = /^\/module\/([^/]+)$/.exec(path)
   if (req.method === 'GET' && mod) return handleModule(req, res, mod[1])
+
+  if (path === '/plugin') return handleDownloadPage(req, res)
 
   const plug = /^\/v1\/plugin(\/.+)?$/.exec(path)
   if (plug) {
@@ -449,6 +514,7 @@ const server = createServer((req, res) => {
   const m = await readModuleManifest()
   const p = await readPlugin()
   log(p ? `Obsidian-Plugin ${p.version}: aktualisiert sich über diesen Dienst` : `kein Obsidian-Plugin in ${PLUGIN_DIR}`)
+  if (p) log(DOWNLOAD_PASSWORD ? `Download-Seite für die Erstinstallation: ${PUBLIC_URL || '<öffentliche Adresse>'}/plugin` : 'Download-Seite aus (VTF_DOWNLOAD_PASSWORD nicht gesetzt)')
   log(m ? `Foundry-Modul ${m.version}: Manifest-URL ${PUBLIC_URL || '<öffentliche Adresse>'}/module/module.json` : `kein Foundry-Modul in ${MODULE_DIR}`)
 })
 
