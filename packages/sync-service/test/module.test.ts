@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import JSZip from 'jszip'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { fetchHttp, hashString, SyncClient } from '../../core/src/index.ts'
 
 // vtf-sync serves the Foundry module so Foundry can install/update it via manifest URL
 
@@ -106,5 +107,67 @@ describe('vtf-sync liefert das Foundry-Modul aus', () => {
     expect((await res.json()).error).toMatch(/kein Foundry-Modul/)
     expect(await (await fetch(`${url}/health`)).json()).toMatchObject({ ok: true, module: null })
     expect((await fetch(`${url}/module/anderes.zip`)).status).toBe(404)
+  })
+})
+
+// … and the Obsidian plugin, so the plugin can update itself (with token)
+describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
+  const TOKEN = 'test-token-0123456789abcdef'
+  const auth = { headers: { authorization: `Bearer ${TOKEN}` } }
+  const pluginManifest = JSON.stringify({ id: 'vault-to-foundry', name: 'Vault to Foundry', version: '9.8.7' })
+  const mainJs = 'module.exports = "Grüße aus Obsidian"\n'.repeat(40)
+  let pluginDir: string
+
+  beforeAll(() => {
+    pluginDir = mkdtempSync(join(tmpdir(), 'vtf-plugin-'))
+    dirs.push(pluginDir)
+    writeFileSync(join(pluginDir, 'manifest.json'), pluginManifest)
+    writeFileSync(join(pluginDir, 'main.js'), mainJs)
+    writeFileSync(join(pluginDir, 'styles.css'), '.vtf { color: red }\n')
+    writeFileSync(join(pluginDir, 'data.json'), '{"syncToken":"geheim"}') // never served
+  })
+
+  it('nur mit Token; Info mit Prüfsummen, Dateien unverändert, health nennt die Version', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir })
+    expect(await (await fetch(`${url}/health`)).json()).toMatchObject({ ok: true, plugin: '9.8.7' })
+    for (const path of ['/v1/plugin', '/v1/plugin/files/main.js', '/v1/plugin/vault-to-foundry.zip']) {
+      expect((await fetch(url + path)).status).toBe(401)
+    }
+    expect(await (await fetch(`${url}/v1/plugin`, auth)).json()).toEqual({
+      id: 'vault-to-foundry',
+      version: '9.8.7',
+      files: { 'manifest.json': hashString(pluginManifest), 'main.js': hashString(mainJs), 'styles.css': hashString('.vtf { color: red }\n') },
+    })
+    expect(await (await fetch(`${url}/v1/plugin/files/main.js`, auth)).text()).toBe(mainJs)
+    expect((await fetch(`${url}/v1/plugin/files/data.json`, auth)).status).toBe(404)
+    expect((await fetch(`${url}/v1/plugin/files/..%2Fserver.mjs`, auth)).status).toBe(404)
+    expect((await fetch(`${url}/v1/plugin`, { ...auth, method: 'PUT', body: 'x' })).status).toBe(405)
+  })
+
+  it('ZIP für die Erstinstallation: Ordner <id>/ mit den drei Dateien', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir })
+    const res = await fetch(`${url}/v1/plugin/vault-to-foundry.zip`, auth)
+    expect(res.headers.get('content-type')).toBe('application/zip')
+    const zip = await JSZip.loadAsync(new Uint8Array(await res.arrayBuffer()))
+    expect(Object.keys(zip.files).sort()).toEqual(['vault-to-foundry/main.js', 'vault-to-foundry/manifest.json', 'vault-to-foundry/styles.css'])
+    expect(await zip.file('vault-to-foundry/main.js')!.async('string')).toBe(mainJs)
+  })
+
+  it('SyncClient: pluginInfo und geprüfte Dateien; beschädigte Datei wird abgelehnt', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir })
+    const client = new SyncClient(url, TOKEN, fetchHttp)
+    const info = (await client.pluginInfo())!
+    expect(info.version).toBe('9.8.7')
+    expect(await client.pluginFile(info, 'main.js')).toBe(mainJs)
+    expect(await client.pluginFile(info, 'manifest.json')).toBe(pluginManifest)
+    await expect(client.pluginFile({ ...info, files: { ...info.files, 'main.js': 'falsch' } }, 'main.js')).rejects.toThrow(/Prüfsumme/)
+    await expect(new SyncClient(url, 'falsches-token-0123456789', fetchHttp).pluginInfo()).rejects.toThrow(/Token falsch/)
+  })
+
+  it('ohne Plugin: 404, SyncClient meldet null, Sync-API läuft weiter', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: join(pluginDir, 'gibt-es-nicht') })
+    expect((await fetch(`${url}/v1/plugin`, auth)).status).toBe(404)
+    expect(await new SyncClient(url, TOKEN, fetchHttp).pluginInfo()).toBeNull()
+    expect(await (await fetch(`${url}/health`)).json()).toMatchObject({ ok: true, plugin: null })
   })
 })

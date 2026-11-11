@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, sanitizeHTMLToDom, type Editor, type TAbstractFile } from 'obsidian'
 import JSZip from 'jszip'
-import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, SCENE_TEMPLATE, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type SystemAdapter, pushBundle, SyncClient, indexSystems } from '../../core/src/index.ts'
+import { actorsOf, buildBundle, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, parseLeafletBlock, parseSceneBlock, renderSceneCard, SCENE_BLOCK, SCENE_TEMPLATE, scenesOf, vaultSlug, type Bundle, type HttpFn, type LinkResolver, type NoteInput, type PluginInfo, type SystemAdapter, pushBundle, SyncClient, indexSystems } from '../../core/src/index.ts'
 // the only import of concrete game systems; register new ones in systems/adapters.ts
 import { SYSTEMS } from '../../../systems/adapters.ts'
 
@@ -66,6 +66,8 @@ export default class VaultToFoundryPlugin extends Plugin {
   private syncTimer: number | null = null
   private syncRunning = false
   private syncAgain = false
+  /** the server build an update notice was already shown for (once per build and session) */
+  private updateNotified = ''
 
   async onload(): Promise<void> {
     await this.loadSettings()
@@ -77,6 +79,10 @@ export default class VaultToFoundryPlugin extends Plugin {
     this.setStatus(this.syncConfigured() ? 'idle' : 'off')
     this.addCommand({ id: 'sync-server', name: 'Mit Foundry-Server synchronisieren', callback: () => this.syncNow(true) })
     this.addCommand({ id: 'cleanup-server', name: 'Ungenutzte Dateien auf dem Foundry-Server entfernen', callback: () => this.cleanupServer() })
+    this.addCommand({ id: 'update-plugin', name: 'Plugin vom Foundry-Server aktualisieren', callback: () => this.updatePlugin() })
+    // the service carries the plugin of its own build: look for it at start and now and then
+    this.app.workspace.onLayoutReady(() => void this.notifyPluginUpdate())
+    this.registerInterval(window.setInterval(() => void this.notifyPluginUpdate(), 6 * 60 * 60 * 1000))
     this.app.workspace.onLayoutReady(() => {
       // registered after startup, otherwise every file of the vault fires a "create" event
       const trigger = (file: TAbstractFile) => {
@@ -249,6 +255,91 @@ export default class VaultToFoundryPlugin extends Plugin {
 
   client(): SyncClient {
     return new SyncClient(this.settings.syncUrl.trim(), this.settings.syncToken.trim(), obsidianHttp)
+  }
+
+  // ---- plugin update from the service ----------------------------------------------------------
+
+  private pluginDir(): string {
+    return this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`
+  }
+
+  /** What the service offers and which of our files differ from it. null: the service has no plugin. */
+  async pluginUpdate(): Promise<{ info: PluginInfo; changed: string[]; label: string } | null> {
+    const info = await this.client().pluginInfo()
+    if (!info) return null
+    if (info.id !== this.manifest.id) throw new Error(`Der Server liefert ein anderes Plugin („${info.id}“)`)
+    const adapter = this.app.vault.adapter
+    const changed: string[] = []
+    for (const [name, hash] of Object.entries(info.files)) {
+      const file = `${this.pluginDir()}/${name}`
+      const local = (await adapter.exists(file)) ? hashBytes(new Uint8Array(await adapter.readBinary(file))) : ''
+      if (local !== hash) changed.push(name)
+    }
+    const label = info.version === this.manifest.version ? `ein neuerer Stand von Version ${info.version}` : `Version ${info.version} (installiert: ${this.manifest.version})`
+    return { info, changed, label }
+  }
+
+  /** Quiet check; shows a notice with an update button once per server build. */
+  private async notifyPluginUpdate(): Promise<void> {
+    if (!this.syncConfigured()) return
+    try {
+      const u = await this.pluginUpdate()
+      if (!u?.changed.length) return
+      const key = JSON.stringify(u.info.files)
+      if (key === this.updateNotified) return
+      this.updateNotified = key
+      const frag = createFragment((f) => {
+        f.createDiv({ text: `Vault to Foundry: Auf dem Server liegt ${u.label}.` })
+        f.createEl('button', { text: 'Jetzt aktualisieren', cls: 'mod-cta' }).addEventListener('click', () => void this.updatePlugin())
+      })
+      new Notice(frag, 30000)
+    } catch {
+      /* server not reachable: the sync status already shows that */
+    }
+  }
+
+  /** Fetches the plugin files from the service into the plugin folder and reloads the plugin. */
+  async updatePlugin(): Promise<void> {
+    if (!this.syncConfigured()) {
+      new Notice('Vault to Foundry: Bitte in den Einstellungen Server-Adresse und Token eintragen.')
+      return
+    }
+    try {
+      const u = await this.pluginUpdate()
+      if (!u) {
+        new Notice('Vault to Foundry: Der Sync-Dienst liefert kein Plugin aus (älterer Dienst?). Erst den Dienst aktualisieren.', 10000)
+        return
+      }
+      if (!u.changed.length) {
+        new Notice(`Vault to Foundry ${this.manifest.version} ist auf dem Stand des Servers.`)
+        return
+      }
+      // fetch and check everything first, then write – main.js and manifest.json last
+      const client = this.client()
+      const order = ['styles.css', 'main.js', 'manifest.json']
+      const names = [...u.changed].sort((a, b) => order.indexOf(a) - order.indexOf(b))
+      const texts = new Map<string, string>()
+      for (const name of names) texts.set(name, await client.pluginFile(u.info, name))
+      for (const [name, text] of texts) await this.app.vault.adapter.write(`${this.pluginDir()}/${name}`, text)
+      this.updateNotified = JSON.stringify(u.info.files)
+      await this.reloadSelf(u.info.version)
+    } catch (e) {
+      new Notice(`Vault to Foundry: Aktualisieren fehlgeschlagen – ${(e as Error)?.message ?? e}`, 10000)
+    }
+  }
+
+  /** Obsidian has no public way to reload a plugin; if the internal one is gone, ask for a restart. */
+  private async reloadSelf(version: string): Promise<void> {
+    const plugins = (this.app as any).plugins
+    const id = this.manifest.id
+    try {
+      if (typeof plugins?.disablePlugin !== 'function' || typeof plugins?.enablePlugin !== 'function') throw new Error('nicht verfügbar')
+      await plugins.disablePlugin(id)
+      await plugins.enablePlugin(id)
+      new Notice(`Vault to Foundry auf ${version} aktualisiert.`)
+    } catch {
+      new Notice(`Vault to Foundry auf ${version} aktualisiert. Bitte Obsidian neu starten, damit die neue Fassung läuft.`, 0)
+    }
   }
 
   setStatus(state: 'off' | 'idle' | 'waiting' | 'busy' | 'ok' | 'error', detail = ''): void {
@@ -553,7 +644,9 @@ class VtfSettingTab extends PluginSettingTab {
             const c = this.plugin.client()
             const h = await c.health()
             const st = await c.state(vaultSlug(this.plugin.foundryVaultName()))
-            new Notice(`Verbunden mit vtf-sync ${h.version}. Auf dem Server: Revision ${st.revision}, ${Object.keys(st.assets).length} Dateien.`)
+            const u = await this.plugin.pluginUpdate().catch(() => null)
+            const update = u?.changed.length ? ` Für das Plugin liegt ${u.label} bereit – „Plugin aktualisieren“.` : ''
+            new Notice(`Verbunden mit vtf-sync ${h.version}. Auf dem Server: Revision ${st.revision}, ${Object.keys(st.assets).length} Dateien.${update}`, update ? 10000 : undefined)
           } catch (e) {
             new Notice(`Keine Verbindung: ${(e as Error)?.message ?? e}`, 10000)
           }
@@ -561,6 +654,11 @@ class VtfSettingTab extends PluginSettingTab {
       )
       .addButton((b) => b.setButtonText('Jetzt synchronisieren').setCta().onClick(() => this.plugin.syncNow(true)))
       .addButton((b) => b.setButtonText('Ungenutzte Dateien entfernen …').onClick(() => this.plugin.cleanupServer()))
+
+    new Setting(containerEl)
+      .setName('Plugin-Update')
+      .setDesc(`Installiert: ${this.plugin.manifest.version}. Der Sync-Dienst bringt das passende Plugin mit; nach einem Update des Dienstes meldet sich das Plugin und holt sich die neue Fassung per Klick.`)
+      .addButton((b) => b.setButtonText('Plugin aktualisieren').onClick(() => this.plugin.updatePlugin()))
 
     // ---- Inhalt ----
     new Setting(containerEl).setName('Inhalt').setHeading()
