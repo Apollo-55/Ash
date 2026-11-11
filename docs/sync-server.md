@@ -32,7 +32,7 @@ In Foundry (Setup → Add-on-Module → **Modul installieren**) als Manifest-URL
 https://<deine-domain>/vtf-sync/module/module.json
 ```
 
-Updates: neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`, dann in Foundry bei den Modulen auf **Aktualisieren** klicken. `curl https://<deine-domain>/vtf-sync/health` zeigt unter `module` die Version, die der Dienst gerade ausliefert.
+Updates: neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`, dann in Foundry bei den Modulen auf **Aktualisieren** klicken. `curl https://<deine-domain>/vtf-sync/health` zeigt unter `module` und `plugin` die Versionen, die der Dienst gerade ausliefert.
 
 Die Adressen in `manifest`/`download` kommen aus `VTF_PUBLIC_URL`. Ohne diese Variable setzt der Dienst sie aus `X-Forwarded-Proto`, `X-Forwarded-Host`/`Host` und `X-Forwarded-Prefix` zusammen (siehe `nginx.example.conf`).
 
@@ -43,6 +43,28 @@ docker exec <foundry-container> wget -qO- https://<deine-domain>/vtf-sync/module
 ```
 
 Gibt das einen Fehler (z. B. weil eine Firewall Verbindungen aus Docker-Netzen zur eigenen öffentlichen IP blockt), das Modul wie bisher von Hand entpacken.
+
+## Plugin vom Dienst aktualisieren
+
+`vtf-sync.zip` enthält auch das Obsidian-Plugin aus demselben Build (Ordner `plugin/`). Obsidian kennt keine Manifest-URL, deshalb holt sich das Plugin die Dateien selbst – ein Update des Dienstes reicht also für alle drei Teile:
+
+1. Neue `vtf-sync.zip` einspielen, `docker compose up -d --build vtf-sync`.
+2. Foundry: bei den Modulen **Aktualisieren**.
+3. Obsidian: Beim Start (und danach alle paar Stunden) vergleicht das Plugin seine Dateien mit denen des Dienstes. Weichen sie ab, erscheint „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**. Jederzeit von Hand: Einstellungen → Vault to Foundry → **Plugin aktualisieren** oder Befehl „Plugin vom Foundry-Server aktualisieren“.
+
+Das Plugin lädt `main.js`, `manifest.json` und `styles.css`, prüft jede Datei gegen ihre Prüfsumme, schreibt sie in seinen Ordner und lädt sich neu. Deine Einstellungen (`data.json`) bleiben unberührt. Es wird nie ohne Klick aktualisiert. Verglichen werden die Dateien, nicht nur die Versionsnummer – ein neuer Build mit gleicher Nummer wird also auch erkannt.
+
+Anders als das Modul gibt der Dienst das Plugin **nur mit Token** heraus (`GET /v1/plugin`, `/v1/plugin/files/<name>`), denn das Plugin führt Code auf deinem Rechner aus.
+
+**Erstinstallation** bleibt ein Handgriff, geht aber auch vom Dienst statt aus `dist/`:
+
+```bash
+curl -H "Authorization: Bearer <VTF_TOKEN>" -o vault-to-foundry.zip https://<deine-domain>/vtf-sync/v1/plugin/vault-to-foundry.zip
+```
+
+Die ZIP in `<vault>/.obsidian/plugins/` entpacken (Ordner `vault-to-foundry/`), Plugin in Obsidian einschalten, Server-Adresse und Token eintragen.
+
+Der DSA-NSC-Generator ist ein eigenes Plugin und wird nicht über den Dienst verteilt.
 
 ## 2. In Obsidian
 
@@ -78,6 +100,7 @@ Der Dienst legt die echten Dateien direkt in Foundrys Datenordner. Genau von dor
 ## Sicherheit
 
 - Ohne gültiges Token nimmt der Dienst nichts an. Das Token läuft über HTTPS (nginx).
+- Das Obsidian-Plugin gibt der Dienst nur mit Token heraus. Wer den Server (oder das Token und die Adresse im Plugin) kontrolliert, bestimmt, welchen Code „Plugin aktualisieren“ in Obsidian lädt – das Update läuft deshalb nie ohne deinen Klick.
 - Der Dienst sieht nur `Data/vault-to-foundry/`, er hat keinen Zugriff auf Welten, Module oder die Foundry-Konfiguration.
 - Dateinamen werden geprüft (nur `A–Z a–z 0–9 . _ -`, keine `..`). Jede Datei wird gegen ihre Prüfsumme geprüft. `bundle.json` muss zum Vault passen.
 - „Ungenutzte Dateien entfernen“ löscht nur Dateien, die die aktuelle `bundle.json` nicht mehr verwendet.

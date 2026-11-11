@@ -9,9 +9,10 @@
 //   VTF_MODULE_DIR the built Foundry module (folder with module.json), default ./module next to server.mjs
 //   VTF_PUBLIC_URL public address of this service as Foundry reaches it, e.g. https://dsa.example.org/vtf-sync
 //                  (used for "manifest"/"download"; without it: X-Forwarded-Proto/Host/Prefix or Host)
+//   VTF_PLUGIN_DIR the built Obsidian plugin (manifest.json, main.js, styles.css), default ./plugin next to server.mjs
 //
 // API (all under /v1, all need the token):
-//   GET    /health                               → { ok, version, module }    (no token needed)
+//   GET    /health                               → { ok, version, module, plugin }    (no token needed)
 //   GET    /module/module.json                   → Foundry manifest with "manifest"/"download" (no token needed)
 //   GET    /module/vault-to-foundry.zip          → the module, module.json at the zip root (no token needed)
 //   GET    /v1/vaults/:vault/state               → { revision, bundleHash, updatedAt, assets: { path: hash } }
@@ -19,6 +20,9 @@
 //   PUT    /v1/vaults/:vault/bundle              body = bundle.json → { revision }
 //   GET    /v1/vaults/:vault/unused              → { paths: [...] }  files not referenced by the current bundle
 //   POST   /v1/vaults/:vault/cleanup             body { paths: [...] } → { deleted: [...] }  (only unused files)
+//   GET    /v1/plugin                            → { id, version, files: { name: hash } }  the Obsidian plugin of this build
+//   GET    /v1/plugin/files/<name>               → one plugin file (manifest.json, main.js, styles.css)
+//   GET    /v1/plugin/vault-to-foundry.zip       → the plugin as zip (folder <id>/ inside), for the first install
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { deflateRawSync } from 'node:zlib'
 import { createReadStream, createWriteStream } from 'node:fs'
@@ -36,6 +40,10 @@ const MAX_BUNDLE_BYTES = 64 * 1024 * 1024
 const MODULE_DIR = process.env.VTF_MODULE_DIR ?? join(dirname(fileURLToPath(import.meta.url)), 'module')
 const PUBLIC_URL = (process.env.VTF_PUBLIC_URL ?? '').replace(/\/+$/, '')
 const MODULE_ZIP = 'vault-to-foundry.zip'
+const PLUGIN_DIR = process.env.VTF_PLUGIN_DIR ?? join(dirname(fileURLToPath(import.meta.url)), 'plugin')
+const PLUGIN_ZIP = 'vault-to-foundry.zip'
+// the only files Obsidian loads from a plugin folder (styles.css is optional)
+const PLUGIN_FILES = { 'manifest.json': 'application/json; charset=utf-8', 'main.js': 'text/javascript; charset=utf-8', 'styles.css': 'text/css; charset=utf-8' }
 
 if (TOKEN.length < 16) {
   console.error('vtf-sync: VTF_TOKEN fehlt oder ist kürzer als 16 Zeichen.')
@@ -270,16 +278,70 @@ async function handleModule(req, res, file) {
   return send(res, 404, { error: 'unbekannter Pfad' })
 }
 
+// ---- Obsidian plugin (self-update from the service) ------------------------------------------
+// Obsidian has no manifest URL. The plugin asks for the file hashes of the build this service
+// carries and, if they differ from its own files, fetches them into its plugin folder. Unlike the
+// module this needs the token: the plugin runs code on the user's computer.
+
+async function readPlugin() {
+  const files = {}
+  for (const name of Object.keys(PLUGIN_FILES)) {
+    try {
+      files[name] = await readFile(join(PLUGIN_DIR, name))
+    } catch {
+      /* missing */
+    }
+  }
+  if (!files['manifest.json'] || !files['main.js']) return null
+  try {
+    const { id, version } = JSON.parse(files['manifest.json'].toString('utf8'))
+    if (typeof id !== 'string' || !SEGMENT_RE.test(id) || typeof version !== 'string') return null
+    return { id, version, files }
+  } catch {
+    return null
+  }
+}
+
+function sendFile(res, type, buf, filename) {
+  res.writeHead(200, {
+    'content-type': type,
+    'content-length': buf.length,
+    ...(filename ? { 'content-disposition': `attachment; filename="${filename}"` } : {}),
+    'cache-control': 'no-store',
+  })
+  res.end(buf)
+}
+
+async function handlePlugin(res, rest) {
+  const plugin = await readPlugin()
+  if (!plugin) return send(res, 404, { error: 'Dieser Dienst enthält kein Obsidian-Plugin (VTF_PLUGIN_DIR)' })
+  const names = Object.keys(plugin.files)
+  if (!rest) return send(res, 200, { id: plugin.id, version: plugin.version, files: Object.fromEntries(names.map((n) => [n, hashOf(plugin.files[n])])) })
+  if (rest === `/${PLUGIN_ZIP}`) {
+    return sendFile(res, 'application/zip', zip(names.map((n) => ({ name: `${plugin.id}/${n}`, data: plugin.files[n] }))), PLUGIN_ZIP)
+  }
+  const name = rest.startsWith('/files/') ? rest.slice(7) : ''
+  if (!Object.hasOwn(plugin.files, name)) return send(res, 404, { error: 'unbekannter Pfad' })
+  return sendFile(res, PLUGIN_FILES[name], plugin.files[name])
+}
+
 // ---- handlers --------------------------------------------------------------------------------
 
 async function handle(req, res) {
   const url = new URL(req.url, 'http://x')
   const path = decodeURIComponent(url.pathname).replace(/\/+$/, '')
   if (req.method === 'GET' && (path === '/health' || path === '')) {
-    return send(res, 200, { ok: true, version: VERSION, module: (await readModuleManifest())?.version ?? null })
+    return send(res, 200, { ok: true, version: VERSION, module: (await readModuleManifest())?.version ?? null, plugin: (await readPlugin())?.version ?? null })
   }
   const mod = /^\/module\/([^/]+)$/.exec(path)
   if (req.method === 'GET' && mod) return handleModule(req, res, mod[1])
+
+  const plug = /^\/v1\/plugin(\/.+)?$/.exec(path)
+  if (plug) {
+    if (!authorized(req)) return send(res, 401, { error: 'Token fehlt oder ist falsch' })
+    if (req.method !== 'GET') return send(res, 405, { error: 'Methode nicht erlaubt' })
+    return handlePlugin(res, plug[1] ?? '')
+  }
 
   const m = /^\/v1\/vaults\/([^/]+)\/(state|bundle|unused|cleanup|assets\/(.+))$/.exec(path)
   if (!m) return send(res, 404, { error: 'unbekannter Pfad' })
@@ -385,6 +447,8 @@ const server = createServer((req, res) => {
 }).listen(PORT, async () => {
   log(`vtf-sync ${VERSION} auf Port ${PORT}, Ziel ${DATA_DIR}`)
   const m = await readModuleManifest()
+  const p = await readPlugin()
+  log(p ? `Obsidian-Plugin ${p.version}: aktualisiert sich über diesen Dienst` : `kein Obsidian-Plugin in ${PLUGIN_DIR}`)
   log(m ? `Foundry-Modul ${m.version}: Manifest-URL ${PUBLIC_URL || '<öffentliche Adresse>'}/module/module.json` : `kein Foundry-Modul in ${MODULE_DIR}`)
 })
 

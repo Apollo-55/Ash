@@ -33,7 +33,7 @@ curl -s https://dsa.manic-gaming.de/vtf-sync/health   # → {"ok":true,...}
    docker exec <foundry-container> wget -qO- https://dsa.manic-gaming.de/vtf-sync/module/module.json
    ```
    Foundry-Setup → Add-on-Module → **Modul installieren** → Manifest-URL `https://dsa.manic-gaming.de/vtf-sync/module/module.json` → Installieren, dann in der Welt aktivieren.
-   **Update:** neue `vtf-sync.zip` entpacken, `docker compose up -d --build vtf-sync`, in Foundry bei den Modulen **Aktualisieren**.
+   **Update:** neue `vtf-sync.zip` entpacken, `docker compose up -d --build vtf-sync`, in Foundry bei den Modulen **Aktualisieren**. Obsidian meldet danach von selbst „Auf dem Server liegt Version …“ → **Jetzt aktualisieren** (oder Einstellungen → Vault to Foundry → „Plugin aktualisieren“).
    Klappt der `wget` nicht: wie bisher `dist/vault-to-foundry-module.zip` nach `/manic/foundry/yvtt/data/Data/modules/` entpacken (ersetzt `vault-to-foundry/`), Foundry neu laden.
 
 **D&D-Instanz später:** gleicher Ablauf mit `dnd.manic-gaming.de`, eigenem Container (`vtf-sync-dnd`, Port `127.0.0.1:8788:8787`, Mount auf deren Datenordner) und eigenem Token.

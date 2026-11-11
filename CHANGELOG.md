@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- **Sync-Dienst liefert das Obsidian-Plugin aus:** `vtf-sync.zip` enthält das Plugin aus demselben Build. Das Plugin vergleicht beim Start seine Dateien mit denen des Dienstes und holt sich die neue Fassung per Klick („Jetzt aktualisieren“, Einstellungen → „Plugin aktualisieren“, Befehl „Plugin vom Foundry-Server aktualisieren“), mit Prüfsummen und nur mit Token (`/v1/plugin`). Ein Update muss damit nur noch im Docker-Container eingespielt werden. `/health` nennt die Plugin-Version; der Build prüft, dass Dienst, Modul und Plugin dieselbe Version haben. Einmalig nötig: dieses Plugin noch von Hand installieren.
 - **NSC-Generator:** README für Plugin (`systems/dsa41/nsc-generator-plugin/`) und Logik (`systems/dsa41/nsc-generator/`) – was wohin gehört, Installieren, Einrichten, Entwickeln. Plugin-Beschreibung nennt nicht mehr das entfernte lokale Modell.
 - **Build:** `npm run build` und die anderen Skripte (`dev`, `deploy`, `build:generator`, `dev:generator`, `test`, `typecheck`) installieren in einem frischen Clone die Abhängigkeiten selbst (`tools/ensure-deps.mjs`).
 - **Systeme modular:** Systeme werden nur noch in `systems/adapters.ts` und `systems/foundry-hooks.ts` eingetragen, `packages/` ändert sich für ein neues System nicht. Der Kern kennt keine Kampfwerte mehr (`BundleItem.combat` → freies Feld `extra`, das nur die Foundry-Hooks des Systems lesen). Ein Test hält `packages/` systemfrei und prüft jeden eingetragenen Adapter. Anleitung in `systems/README.md`.
