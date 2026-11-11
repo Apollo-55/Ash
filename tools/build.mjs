@@ -5,7 +5,7 @@
 //                                      and pack dist/vault-to-foundry-module.zip for upload to the server
 //   node tools/build.mjs --watch --deploy
 import { context } from 'esbuild'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -74,6 +74,19 @@ function packSyncService() {
   rmSync(join(out, 'plugin'), { recursive: true, force: true })
   mkdirSync(join(out, 'plugin'))
   for (const f of ['main.js', 'manifest.json', 'styles.css']) cpSync(join(pluginOut, f), join(out, 'plugin', f))
+  // further Obsidian plugins that are already built (dist/*-plugin, e.g. npm run build:generator):
+  // the service offers them on its download page and Vault to Foundry keeps them up to date
+  rmSync(join(out, 'plugins'), { recursive: true, force: true })
+  mkdirSync(join(out, 'plugins'))
+  writeFileSync(join(out, 'plugins/LIESMICH.txt'), 'Weitere Obsidian-Plugins, die der Dienst ausliefert: je ein Ordner mit manifest.json, main.js, styles.css.\n')
+  for (const name of readdirSync(join(root, 'dist'))) {
+    const dir = join(root, 'dist', name)
+    if (!name.endsWith('-plugin') || dir === pluginOut || !existsSync(join(dir, 'manifest.json')) || !existsSync(join(dir, 'main.js'))) continue
+    const { id, version } = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
+    mkdirSync(join(out, 'plugins', id))
+    for (const f of ['main.js', 'manifest.json', 'styles.css']) if (existsSync(join(dir, f))) cpSync(join(dir, f), join(out, 'plugins', id, f))
+    console.log(`→ Dienst liefert zusätzlich aus: ${id} ${version}`)
+  }
 }
 
 /** Service, module and plugin are delivered together and must have the same version. */

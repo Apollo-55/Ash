@@ -135,6 +135,7 @@ describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
     }
     expect(await (await fetch(`${url}/v1/plugin`, auth)).json()).toEqual({
       id: 'vault-to-foundry',
+      name: 'Vault to Foundry',
       version: '9.8.7',
       files: { 'manifest.json': hashString(pluginManifest), 'main.js': hashString(mainJs), 'styles.css': hashString('.vtf { color: red }\n') },
     })
@@ -162,6 +163,80 @@ describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
     expect(await client.pluginFile(info, 'manifest.json')).toBe(pluginManifest)
     await expect(client.pluginFile({ ...info, files: { ...info.files, 'main.js': 'falsch' } }, 'main.js')).rejects.toThrow(/Prüfsumme/)
     await expect(new SyncClient(url, 'falsches-token-0123456789', fetchHttp).pluginInfo()).rejects.toThrow(/Token falsch/)
+  })
+
+  it('Download-Seite: fragt nach dem eigenen Passwort und liefert die ZIP; Sync-Token gilt dort nicht', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_DOWNLOAD_PASSWORD: 'drachenei' })
+    const post = (password: string) =>
+      fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password }) })
+    const page = await fetch(`${url}/plugin/`)
+    expect(page.status).toBe(200)
+    expect(page.headers.get('content-type')).toMatch(/text\/html/)
+    expect(await page.text()).toMatch(/type="password"[\s\S]*9\.8\.7|9\.8\.7[\s\S]*type="password"/)
+
+    const wrong = await post(TOKEN)
+    expect(wrong.status).toBe(401)
+    expect(await wrong.text()).toMatch(/Passwort stimmt nicht/)
+
+    const ok = await post('drachenei')
+    expect(ok.status).toBe(200)
+    expect(ok.headers.get('content-disposition')).toBe('attachment; filename="vault-to-foundry-9.8.7.zip"')
+    const zip = await JSZip.loadAsync(new Uint8Array(await ok.arrayBuffer()))
+    expect(Object.keys(zip.files).sort()).toEqual(['vault-to-foundry/main.js', 'vault-to-foundry/manifest.json', 'vault-to-foundry/styles.css'])
+    expect(await zip.file('vault-to-foundry/main.js')!.async('string')).toBe(mainJs)
+    // the page password opens nothing else
+    expect((await fetch(`${url}/v1/plugin`, { headers: { authorization: 'Bearer drachenei' } })).status).toBe(401)
+  }, 15000)
+
+  it('weitere Plugins: Liste, Dateien, Download-Seite mit Auswahl; SyncClient holt sie geprüft', async () => {
+    const extra = mkdtempSync(join(tmpdir(), 'vtf-plugins-'))
+    dirs.push(extra)
+    mkdirSync(join(extra, 'nsc-gen'))
+    const genManifest = JSON.stringify({ id: 'dsa-nsc-generator', name: 'DSA-NSC-Generator <Test>', version: '0.1.0' })
+    writeFileSync(join(extra, 'nsc-gen/manifest.json'), genManifest)
+    writeFileSync(join(extra, 'nsc-gen/main.js'), 'module.exports = "Generator"\n')
+    mkdirSync(join(extra, 'kaputt')) // no manifest: ignored
+    writeFileSync(join(extra, 'LIESMICH.txt'), 'x')
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_EXTRA_PLUGINS_DIR: extra, VTF_DOWNLOAD_PASSWORD: 'drachenei' })
+
+    expect((await fetch(`${url}/v1/plugins`)).status).toBe(401)
+    const client = new SyncClient(url, TOKEN, fetchHttp)
+    const list = await client.plugins()
+    expect(list.map((p) => [p.id, p.name, p.version])).toEqual([
+      ['vault-to-foundry', 'Vault to Foundry', '9.8.7'],
+      ['dsa-nsc-generator', 'DSA-NSC-Generator <Test>', '0.1.0'],
+    ])
+    expect(Object.keys(list[1].files).sort()).toEqual(['main.js', 'manifest.json'])
+    expect(await client.pluginFile(list[1], 'main.js', false)).toBe('module.exports = "Generator"\n')
+    expect(await client.pluginFile(list[0], 'main.js')).toBe(mainJs)
+    expect((await fetch(`${url}/v1/plugins/gibt-es-nicht/files/main.js`, auth)).status).toBe(404)
+    expect((await fetch(`${url}/v1/plugins/dsa-nsc-generator/files/data.json`, auth)).status).toBe(404)
+
+    const page = await (await fetch(`${url}/plugin`)).text()
+    expect(page).toMatch(/value="vault-to-foundry"/)
+    expect(page).toMatch(/value="dsa-nsc-generator"><span>DSA-NSC-Generator &lt;Test&gt;</)
+    const post = (plugin: string) =>
+      fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password: 'drachenei', plugin }) })
+    const gen = await post('dsa-nsc-generator')
+    expect(gen.headers.get('content-disposition')).toBe('attachment; filename="dsa-nsc-generator-0.1.0.zip"')
+    const zip = await JSZip.loadAsync(new Uint8Array(await gen.arrayBuffer()))
+    expect(Object.keys(zip.files).sort()).toEqual(['dsa-nsc-generator/main.js', 'dsa-nsc-generator/manifest.json'])
+    expect((await post('anderes')).status).toBe(404)
+  })
+
+  it('älterer Dienst ohne /v1/plugins: SyncClient nimmt das eine Plugin', async () => {
+    const info = { id: 'vault-to-foundry', version: '1.0.0', files: { 'main.js': 'h' } }
+    const old = new SyncClient('http://alt', TOKEN, async (req) =>
+      req.url.endsWith('/v1/plugin') ? { status: 200, text: JSON.stringify(info) } : { status: 404, text: '{"error":"unbekannter Pfad"}' }
+    )
+    expect(await old.plugins()).toEqual([info])
+  })
+
+  it('Download-Seite: ohne VTF_DOWNLOAD_PASSWORD aus', async () => {
+    const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_DOWNLOAD_PASSWORD: '' })
+    expect((await fetch(`${url}/plugin`)).status).toBe(404)
+    const res = await fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'password=' })
+    expect(res.status).toBe(404)
   })
 
   it('ohne Plugin: 404, SyncClient meldet null, Sync-API läuft weiter', async () => {

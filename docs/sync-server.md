@@ -15,6 +15,7 @@ Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigen
    - `user:` wie Foundry (felddy: `FOUNDRY_UID`/`FOUNDRY_GID`, Standard `421:421`), damit Foundry die Dateien lesen kann.
    - Volume: **nur** der Unterordner `Data/vault-to-foundry` aus Foundrys Volume (bzw. Bind-Mount `…/Data/vault-to-foundry:/data/vault-to-foundry`). Ordner vorher anlegen, Besitzer wie Foundry.
    - `VTF_TOKEN` setzen.
+   - Optional `VTF_DOWNLOAD_PASSWORD`: einfaches Passwort für die Download-Seite des Obsidian-Plugins (`https://<deine-domain>/vtf-sync/plugin`, siehe [Plugin vom Dienst aktualisieren](#plugin-vom-dienst-aktualisieren)).
    - `VTF_PUBLIC_URL` auf die öffentliche Adresse des Dienstes setzen (z. B. `https://<deine-domain>/vtf-sync`), damit Foundry das Modul vom Dienst installieren kann (siehe [Modul vom Dienst installieren](#modul-vom-dienst-installieren)).
 4. nginx: den Block aus [`nginx.example.conf`](../packages/sync-service/nginx.example.conf) in den `server { … }` von Foundry einfügen, nginx neu laden.
 5. `docker compose up -d vtf-sync`, dann prüfen: `curl https://<deine-domain>/vtf-sync/health` → `{"ok":true,…}`.
@@ -66,21 +67,23 @@ Das Image enthält auch das Obsidian-Plugin aus demselben Build. Obsidian kennt 
 
 1. `docker compose pull vtf-sync && docker compose up -d vtf-sync`
 2. Foundry: bei den Modulen **Aktualisieren**.
-3. Obsidian: Beim Start (und danach alle paar Stunden) vergleicht das Plugin seine Dateien mit denen des Dienstes. Weichen sie ab, erscheint „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**. Jederzeit von Hand: Einstellungen → Vault to Foundry → **Plugin aktualisieren** oder Befehl „Plugin vom Foundry-Server aktualisieren“.
+3. Obsidian: Beim Start (und danach alle paar Stunden) vergleicht das Plugin seine Dateien mit denen des Dienstes. Weichen sie ab, erscheint „Auf dem Server liegt …“ mit dem Knopf **Jetzt aktualisieren**. Jederzeit von Hand: Einstellungen → Vault to Foundry → **Plugins aktualisieren** oder Befehl „Plugins vom Foundry-Server aktualisieren“.
 
 Das Plugin lädt `main.js`, `manifest.json` und `styles.css`, prüft jede Datei gegen ihre Prüfsumme, schreibt sie in seinen Ordner und lädt sich neu. Deine Einstellungen (`data.json`) bleiben unberührt. Es wird nie ohne Klick aktualisiert. Verglichen werden die Dateien, nicht nur die Versionsnummer – ein neuer Build mit gleicher Nummer wird also auch erkannt.
 
-Anders als das Modul gibt der Dienst das Plugin **nur mit Token** heraus (`GET /v1/plugin`, `/v1/plugin/files/<name>`), denn das Plugin führt Code auf deinem Rechner aus.
+Anders als das Modul gibt der Dienst die Plugins **nur mit Token** heraus (`GET /v1/plugins`, `/v1/plugins/<id>/files/<name>`; für ältere Plugin-Fassungen weiter `/v1/plugin`), denn das Plugin führt Code auf deinem Rechner aus.
 
-**Erstinstallation** bleibt ein Handgriff, geht aber auch vom Dienst statt aus `dist/`:
+**Erstinstallation** bleibt ein Handgriff, geht aber im Browser direkt vom Dienst:
 
-```bash
-curl -H "Authorization: Bearer <VTF_TOKEN>" -o vault-to-foundry.zip https://<deine-domain>/vtf-sync/v1/plugin/vault-to-foundry.zip
-```
+1. Im Container `VTF_DOWNLOAD_PASSWORD` setzen (ein einfaches Passwort, **nicht** das Token) und den Dienst neu starten.
+2. `https://<deine-domain>/vtf-sync/plugin` öffnen, Passwort eingeben und auf das gewünschte Plugin klicken (Vault to Foundry, DSA-NSC-Generator).
+3. Die ZIP in `<vault>/.obsidian/plugins/` entpacken (Ordner `vault-to-foundry/`), Plugin in Obsidian einschalten, Server-Adresse und Token eintragen.
 
-Die ZIP in `<vault>/.obsidian/plugins/` entpacken (Ordner `vault-to-foundry/`), Plugin in Obsidian einschalten, Server-Adresse und Token eintragen.
+Das Passwort öffnet nur diese eine Seite und gibt nur die Plugin-ZIPs heraus – keine Vault-Daten, kein Sync. Falsche Eingaben werden gebremst (höchstens 10 pro Minute). Ohne `VTF_DOWNLOAD_PASSWORD` ist die Seite aus. Für Skripte gibt es dieselbe ZIP weiterhin mit Token: `curl -H "Authorization: Bearer <VTF_TOKEN>" -o vault-to-foundry.zip https://<deine-domain>/vtf-sync/v1/plugin/vault-to-foundry.zip`.
 
-Der DSA-NSC-Generator ist ein eigenes Plugin und wird nicht über den Dienst verteilt.
+**Weitere Plugins (DSA-NSC-Generator):** Das Image bringt auch den NSC-Generator mit. Auf der Download-Seite gibt es dafür einen eigenen Knopf. Ist „Vault to Foundry“ schon installiert, geht es ohne Browser: Einstellungen → Vault to Foundry → unter „Plugin-Updates“ steht der Generator mit dem Knopf **Installieren**; danach unter „Community-Plugins“ einschalten. Updates für installierte Plugins holt „Vault to Foundry“ gleich mit („Jetzt aktualisieren“ bzw. „Plugins aktualisieren“). API-Schlüssel und Regelwerke bleiben auf deinem Rechner, der Dienst liefert nur den Code.
+
+Wer selbst baut: `npm run build:generator` **vor** `npm run build` ausführen, dann landet der Generator in `vtf-sync.zip` (Ordner `plugins/`).
 
 ## 2. In Obsidian
 
@@ -143,6 +146,7 @@ sudo chown 1001:1001 /manic/foundry/yvtt/data/Data/vault-to-foundry
 
 ```
 VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
+VTF_DOWNLOAD_PASSWORD=<einfaches Passwort für die Download-Seite des Plugins, optional>
 ```
 
 **In die bestehende `docker-compose.yaml` der DSA-Instanz** unter `services:`:
@@ -155,6 +159,7 @@ VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
     restart: unless-stopped
     environment:
       - VTF_TOKEN=${VTF_TOKEN}
+      - VTF_DOWNLOAD_PASSWORD=${VTF_DOWNLOAD_PASSWORD:-}   # optional: Download-Seite …/vtf-sync/plugin
       - VTF_PUBLIC_URL=https://dsa.manic-gaming.de/vtf-sync
     volumes:
       - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry

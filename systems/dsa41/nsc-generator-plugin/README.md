@@ -15,6 +15,8 @@ Die Logik kennt Obsidian nicht. Darum lässt sie sich ohne Obsidian testen (`npm
 
 ## Installieren
 
+Mit Sync-Dienst am einfachsten: In Obsidian unter Einstellungen → Vault to Foundry → „Plugin-Updates“ auf **Installieren** klicken (oder die ZIP von der Download-Seite `https://<domain>/vtf-sync/plugin` holen). Updates kommen danach zusammen mit denen von Vault to Foundry. Von Hand geht es so:
+
 Voraussetzungen: Obsidian Desktop, die Regelwerk-PDFs in `Regelwerke/` im Projekt, ein API-Schlüssel für Claude oder OpenAI.
 
 ```bash

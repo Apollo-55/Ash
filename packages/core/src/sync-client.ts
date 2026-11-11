@@ -24,6 +24,8 @@ export interface RemoteState {
 /** The Obsidian plugin build the service carries: file name → content hash. */
 export interface PluginInfo {
   id: string
+  /** display name from the plugin's manifest */
+  name?: string
   version: string
   files: Record<string, string>
 }
@@ -87,9 +89,21 @@ export class SyncClient {
       throw e
     }
   }
-  /** One plugin file as text, checked against the hash from pluginInfo. */
-  async pluginFile(info: PluginInfo, name: string): Promise<string> {
-    const text = (await this.request('GET', `/v1/plugin/files/${encodeURIComponent(name)}`, undefined, {}, false)) as string
+  /** All Obsidian plugins the service carries: the one of its build first. Older services know only that one. */
+  async plugins(): Promise<PluginInfo[]> {
+    try {
+      const list = await this.call<PluginInfo[]>('GET', '/v1/plugins')
+      if (Array.isArray(list)) return list.filter((i) => i && typeof i.id === 'string' && typeof i.version === 'string' && i.files)
+    } catch (e) {
+      if (!(e instanceof SyncError && e.status === 404)) throw e
+    }
+    const main = await this.pluginInfo()
+    return main ? [main] : []
+  }
+  /** One plugin file as text, checked against the hash from plugins(); main: the plugin of the service's build. */
+  async pluginFile(info: PluginInfo, name: string, main = true): Promise<string> {
+    const path = main ? `/v1/plugin/files/${encodeURIComponent(name)}` : `/v1/plugins/${encodeURIComponent(info.id)}/files/${encodeURIComponent(name)}`
+    const text = (await this.request('GET', path, undefined, {}, false)) as string
     if (hashString(text) !== info.files[name]) throw new SyncError(`${name} kam beschädigt an (Prüfsumme stimmt nicht)`, 0)
     return text
   }
