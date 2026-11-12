@@ -10,12 +10,14 @@ Die PDFs bleiben auf deinem PC; an den Anbieter gehen die Beschreibung, der Rege
 
 Aufbau im Code: [Plugin](../systems/dsa41/nsc-generator-plugin/README.md) (Oberfläche in Obsidian) und [Logik](../systems/dsa41/nsc-generator/README.md) (Prompts, Werkzeuge, Prüfung, ohne Obsidian).
 
-Einen lokalen Modus (Ollama) gab es bis 2026-11-04; er ist pausiert – siehe [zukunft.md](zukunft.md).
-
 ## Einrichten
 
-1. **Index bauen** (einmalig und nach jedem PDF-Tausch): `cd ~/Projekt/Ash && npm run regelwerke`. Das erzeugt `.llm/regelwerk-seiten.json` (Volltext aller lesbaren Seiten) und `.llm/regelwerk-index.json` (welche Bücher lesbar sind) – beides nur lokal.
-2. **Plugin:** `npm run build:generator` (nicht in `npm run build` enthalten), dann `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken und „DSA-NSC-Generator“ einschalten.
+1. **Regelwerke:** die eigenen PDFs in den Ordner `Regelwerke/` im Projektordner legen (nie im Git) und den Index bauen – einmalig und nach jedem PDF-Tausch: `npm run regelwerke`. Das erzeugt `.llm/regelwerk-seiten.json` (Volltext aller lesbaren Seiten) und `.llm/regelwerk-index.json` (welche Bücher lesbar sind) – beides nur lokal. Braucht `pdftotext` (poppler-utils).
+2. **Plugin installieren:**
+   - mit Sync-Dienst: in Obsidian unter Einstellungen → Vault to Foundry → „Plugin-Updates“ auf **Installieren** klicken (oder die ZIP von `https://<domain>/vtf-sync/plugin` holen); Updates kommen danach zusammen mit denen von Vault to Foundry.
+   - von Hand: `npm run build:generator` (nicht in `npm run build` enthalten), dann `dist/dsa-nsc-generator-obsidian.zip` nach `<vault>/.obsidian/plugins/` entpacken.
+
+   Danach unter „Community-Plugins“ **DSA-NSC-Generator** einschalten und in dessen Einstellungen unter „Regelwerke“ den Pfad zur Index-Datei eintragen (`<projektordner>/.llm/regelwerk-index.json`).
 3. **Anbieter wählen** (Einstellungen → Sprachmodell):
    - **Claude:** Schlüssel von [console.anthropic.com](https://console.anthropic.com) → *API Keys* (Abrechnung pro Nutzung; ein Claude.ai-Abo enthält keinen API-Zugang). **Prüfen** zeigt „verbunden, Modell … verfügbar“ und kostet nichts. Modelle: Opus 5.5 (beste Qualität, ca. 0,20–0,40 $ pro NSC), Sonnet 5.5 (etwa die Hälfte), Haiku 5.5 (sehr günstig, für einfache Gegner).
    - **OpenAI:** Schlüssel von [platform.openai.com](https://platform.openai.com) → *API keys* (ein ChatGPT-Abo enthält keinen API-Zugang). **Prüfen** lädt kostenlos die Modelle, die der Schlüssel nutzen darf.
@@ -67,11 +69,11 @@ Steht die Kreatur in einem deiner Regelwerke (z. B. einem Bestiarium in `Regelwe
 
 ## Regelwerke
 
-Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein Commit-Hook verhindern das). Neues Buch dazulegen oder ersetzen → `npm run regelwerke` → in den Plugin-Einstellungen „Neu laden“.
+Die PDFs liegen in `Regelwerke/` im Projektordner (nie im Git, siehe `.gitignore`). Neues Buch dazulegen oder ersetzen → `npm run regelwerke` → in den Plugin-Einstellungen „Neu laden“.
 
 - **Jedes lesbare PDF** wird Seite für Seite durchsuchbar – auch unbekannte Bücher wie Bestiarien oder Regionalbände mit neuen Professionen.
 - **Kürzel:** Initialen des Titels (WdH, LL, WdZ). Teilen sich zwei Bücher Initialen, bekommen beide eine längere Form („Aventurische Magie“ → `AvMa`, „Aventurische Meisterschaft“ → `AvMe`).
-- **Nicht lesbar** sind derzeit *Wege des Schwerts* und *Liber Cantiones* (nur Bilder der Schrift). Dafür nutzen die Modelle ihr eigenes Regelwissen; Texterkennung steht in [zukunft.md](zukunft.md).
+- **Nicht lesbar** sind gescannte PDFs ohne Textebene (nur Bilder der Schrift). `npm run regelwerke` meldet sie; für diese Bücher nutzen die Modelle ihr eigenes Regelwissen. Texterkennung (OCR) ist nicht eingebaut.
 - Bücher auslassen: `Regelwerke/regelwerke.json` mit `[{ "datei": "Altes Buch.pdf", "art": "ignorieren" }]`.
 
 ## Technik
@@ -84,20 +86,20 @@ Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein
 ## Modelle vergleichen
 
 ```bash
-OPENAI_API_KEY=… node systems/dsa41/tools/eval.ts ~/Obsidian/uthuria-ob --models openai:gpt-6.1-sol,claude-opus-5-5 --only Topasa,Ralio,Haargh
+OPENAI_API_KEY=… node systems/dsa41/tools/eval.ts <vault> --models openai:gpt-6.1-sol,claude-opus-5-5 --only Name1,Name2
 ```
 
-Erzeugt die NSCs deiner Vault aus ihrer Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit, Kosten). Die Vault wird nur gelesen. **Jeder Lauf kostet Geld.** Claude-Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`, DeepSeek als `deepseek:<modell>` mit `DEEPSEEK_API_KEY`.
+Erzeugt die NSCs einer Vault aus ihrer Beschreibung neu und vergleicht mit dem vorhandenen `dsa-nsc`-Block (Gültigkeit, Übereinstimmung von Talenten und SF, Zeit, Kosten). Mit `--expect datei.json` (`{ "<Name>": "<Regex für die erwartete Profession>" }`) wird zusätzlich die gewählte Profession geprüft. Die Vault wird nur gelesen. **Jeder Lauf kostet Geld.** Claude-Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`, OpenAI aus `OPENAI_API_KEY`, DeepSeek als `deepseek:<modell>` mit `DEEPSEEK_API_KEY`.
 
-### Ergebnis OpenAI (November 2026, Topasa / Ralio / Haargh, Gründlichkeit mittel)
+Ein Vergleich im November 2026 (drei handgebaute NSCs, Gründlichkeit mittel) ergab für OpenAI:
 
-| Modell | Profession/Weihe/Zauber richtig | Talente ≈ Referenz | SF ≈ Referenz | Ø Zeit | Anmerkung |
+| Modell | Profession richtig | Talente ≈ Referenz | SF ≈ Referenz | Ø Zeit | Anmerkung |
 |---|---|---|---|---|---|
 | **gpt-6.1-sol** (Standard) | 3/3 | 56 % | 38 % | 33 s | schnell, schlüssige Werte, gibt meist beim ersten Mal korrekt ab |
 | gpt-6-astra | 3/3 | 59 % | 44 % | 51 s | sehr gut, etwas langsamer |
-| gpt-5.5 | 3/3 | 60 % | 28 % | 78 s | am ausführlichsten (≈ 25–29 Talente), langsam |
+| gpt-5.5 | 3/3 | 60 % | 28 % | 78 s | am ausführlichsten, langsam |
 | gpt-5.6-terra | 3/3 | 58 % | 30 % | 34 s | gut, braucht öfter Korrekturrunden |
 | gpt-6-luna | 3/3 | 47 % | 15 % | 39 s | dünner (13–15 Talente) |
 | gpt-5.4-mini | – | – | – | – | gibt nie ab |
 
-Claude ist noch nicht mit echtem Schlüssel verglichen.
+Claude und DeepSeek sind noch nicht auf dieselbe Weise verglichen.

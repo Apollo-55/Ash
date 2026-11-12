@@ -1,6 +1,5 @@
 node_modules/
 dist/
-ref/
 test-vault/
 *.zip
 .foundry/

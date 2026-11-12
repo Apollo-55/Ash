@@ -1,8 +1,8 @@
-// Validates every dsa-nsc block in a vault: node systems/dsa41/tools/nsc-umwandlung/pruefen.ts <vault-dir> [--info]
+// Validates every dsa-nsc block in a vault: node systems/dsa41/tools/pruefen.ts <vault-dir> [--info]
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { findFences } from '../../../../packages/core/src/index.ts'
-import * as dsa41 from '../../adapter/src/index.ts'
+import { findFences } from '../../../packages/core/src/index.ts'
+import * as dsa41 from '../adapter/src/index.ts'
 
 const [dir] = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const showInfo = process.argv.includes('--info')

@@ -1,8 +1,8 @@
 # Datenmodell des Systems dsa-41 (v13.1.4)
 
-Quelle: Klon von `gitlab.com/foundry-vtt-dsa/dsa-4.1-core/dsa-4.1-system`, Tag `v13.1.4`, nach `ref/dsa-41/` (nur zum Lesen, nicht im Git).
+Quelle: [gitlab.com/foundry-vtt-dsa/dsa-4.1-core/dsa-4.1-system](https://gitlab.com/foundry-vtt-dsa/dsa-4.1-core/dsa-4.1-system), Tag `v13.1.4`. Diese Notizen halten fest, worauf sich der Adapter in `systems/dsa41/adapter/` stützt.
 
-- `system.json`: `id: dsa-41`, `compatibility: { minimum: 13, verified: 13, maximum: 13 }`. **Das System läuft nur auf Foundry v13.** Unser Modul zielt deshalb auf v13.
+- `system.json`: `id: dsa-41`, `compatibility: { minimum: 13, verified: 13, maximum: 13 }`. **Das System läuft nur auf Foundry v13.** Das Modul zielt deshalb auf v13.
 - `template.json` ist nur ein Typ-Gerüst. Die Felder stehen in TypeDataModel-Klassen unter `src/module/data/` (Registrierung: `data/data-models.ts`).
 - Kompendien liegen als YAML-Quellen in `src/packs/<name>/*.yml` und werden beim Build zu LevelDB.
 
@@ -85,13 +85,13 @@ AT(Waffe) = AT-Basis + combatTalent.system.combat.attack + weaponMod.attack − 
 PA(Waffe) = PA-Basis + combatTalent.system.combat.parry  + weaponMod.parry  − BE …
 ```
 
-Auf der Waffe steht **kein AT/PA-Wert**. Für „Säbel AT 16 PA 18“ muss der Import also die Verteilung im Kampftalent so setzen, dass Foundry 16/18 ausrechnet. Plan: Das Modul legt den Actor an, liest die von Foundry berechneten Werte und gleicht die Differenz über `combat.attack/parry` aus. Führen zwei Waffen mit demselben Talent zu unterschiedlichen Werten, kommt der Rest in `weaponMod` der Waffe. So stimmen BE, SF und Regel-Einstellungen automatisch.
+Auf der Waffe steht **kein AT/PA-Wert**. Für „Säbel AT 16 PA 18“ muss der Import also die Verteilung im Kampftalent so setzen, dass Foundry 16/18 ausrechnet: Das Modul legt den Actor an, liest die von Foundry berechneten Werte und gleicht die Differenz über `combat.attack/parry` aus. Führen zwei Waffen mit demselben Talent zu unterschiedlichen Werten, kommt der Rest in `weaponMod` der Waffe. So stimmen BE, SF und Regel-Einstellungen automatisch.
 
 ## Kompendien (Item-Pakete, Kopie per Name möglich)
 
 Basis: `talent`, `combattalent`, `spell`, `liturgy`, `specialability`, `advantage`, `disadvantage`, `language`, `scripture`, `meleeweapon`, `rangedweapon`, `shield`, `armor`, `items`, `species`, `culture`, `profession`, `alliances`.
 
-Varianten mit Präfix `darkage*`, `myranor*`, `eg_*`, `vtuu_*` und **`uthuria*`** (Rassen, Kulturen, Professionen, Nachteile, SF, Liturgien, Sprachen, Schriften, Nah-/Fernkampfwaffen, Schilde, Rüstungen, Gegenstände). Für die Uthuria-Kampagne werden Basis- und `uthuria*`-Pakete durchsucht.
+Varianten mit Präfix `darkage*`, `myranor*`, `eg_*`, `vtuu_*` und **`uthuria*`** (Rassen, Kulturen, Professionen, Nachteile, SF, Liturgien, Sprachen, Schriften, Nah-/Fernkampfwaffen, Schilde, Rüstungen, Gegenstände). Durchsucht werden zuerst die Basis-Pakete, dann `uthuria*`, dann die übrigen.
 
 Paket-IDs in Foundry: `dsa-41.<name>`. Lookup: Name exakt (ohne Groß-/Kleinschreibung), dann normalisiert (Umlaute, Bindestriche), sonst Warnung. Waffen liegen in Unterordnern (`meleeweapon/sabers/…`), was für den Lookup egal ist.
 
@@ -100,7 +100,3 @@ Paket-IDs in Foundry: `dsa-41.<name>`. Lookup: Name exakt (ohne Groß-/Kleinschr
 - **Biografie: `system.background.description`** (StringField mit HTML, Editor „Beschreibung“ im Reiter Beschreibung). Hier kommen Text und Rücklink auf das Journal hin.
 - Kurzfelder (einzeilig): `background.species`, `.culture`, `.profession`, `.background` (max. 240 Zeichen), `appearance.*`, `background.social.titles`.
 - Bild: `img` (Porträt), `prototypeToken.texture.src` (Token). Primäres Token-Attribut: `base.resources.vitality`.
-
-## Offen, nur durch das Makro zu prüfen
-
-Nicht nötig für den Start. Falls beim Test in der Testwelt etwas abweicht, liefert das Dump-Makro aus dem Auftrag die echten Daten.

@@ -6,7 +6,7 @@ import { installFakeFoundry, type FakeWorld } from './fake-foundry.ts'
 
 let world: FakeWorld
 
-async function makeZip(notes: Record<string, string>, files: Record<string, string> = {}, idMap: Record<string, string> = {}, vaultName = 'uthuria-ob') {
+async function makeZip(notes: Record<string, string>, files: Record<string, string> = {}, idMap: Record<string, string> = {}, vaultName = 'kampagne') {
   const paths = [...Object.keys(notes), ...Object.keys(files)]
   const { bundle, assetFiles, idMap: newMap } = buildBundle({
     vaultName,
@@ -50,9 +50,9 @@ describe('Import in Foundry (Fake-API)', () => {
     const ebba = world.journal.contents.find((j) => j.name === 'Ebba')!
     expect(ebba.folder!.name).toBe('Besatzung')
     expect(ebba.folder!.folder!.name).toBe('NPC')
-    expect(ebba.flags['vault-to-foundry']).toMatchObject({ vault: 'uthuria-ob', sourcePath: 'NPC/Besatzung/Ebba.md' })
+    expect(ebba.flags['vault-to-foundry']).toMatchObject({ vault: 'kampagne', sourcePath: 'NPC/Besatzung/Ebba.md' })
     expect(ebba.pages.contents[0].text!.content).toContain('<section class="secret"')
-    expect(world.files.get('vault-to-foundry/uthuria-ob/assets/Asasets/Token/token_ebba.png')).toBe(1)
+    expect(world.files.get('vault-to-foundry/kampagne/assets/Asasets/Token/token_ebba.png')).toBe(1)
     expect(report.assets).toEqual({ uploaded: 1, unchanged: 0, failed: [] })
   })
 
@@ -64,7 +64,7 @@ describe('Import in Foundry (Fake-API)', () => {
     expect(report.updated).toEqual([])
     expect(report.skipped).toHaveLength(2)
     expect(report.assets).toEqual({ uploaded: 0, unchanged: 1, failed: [] })
-    expect(world.files.get('vault-to-foundry/uthuria-ob/assets/Asasets/Token/token_ebba.png')).toBe(1)
+    expect(world.files.get('vault-to-foundry/kampagne/assets/Asasets/Token/token_ebba.png')).toBe(1)
   })
 
   it('geänderte Notiz wird aktualisiert, aufgedeckte Secrets bleiben aufgedeckt', async () => {
@@ -137,7 +137,7 @@ describe('Import in Foundry (Fake-API)', () => {
     await run(notes, files)
     const { report } = await run(notes, { 'Asasets/Token/token_ebba.png': 'PNG2' })
     expect(report.assets.uploaded).toBe(1)
-    expect(world.files.get('vault-to-foundry/uthuria-ob/assets/Asasets/Token/token_ebba.png')).toBe(2)
+    expect(world.files.get('vault-to-foundry/kampagne/assets/Asasets/Token/token_ebba.png')).toBe(2)
   })
 
   it('warnt, wenn dieselben Notizen schon unter anderem Vault-Namen existieren', async () => {
@@ -145,7 +145,7 @@ describe('Import in Foundry (Fake-API)', () => {
     // same note, but the vault is called differently (e.g. folder name of a copy) → different ids
     const { zip, bundle } = await makeZip({ 'A.md': 'x' }, {}, {}, 'test-vault')
     const report = await importBundle(zip, bundle)
-    expect(report.errors[0]).toContain('aus einem Vault namens „uthuria-ob“, dieser Import heißt „test-vault“')
+    expect(report.errors[0]).toContain('aus einem Vault namens „kampagne“, dieser Import heißt „test-vault“')
   })
 
   it('lehnt fremde ZIPs und zu neue Bundles ab', async () => {

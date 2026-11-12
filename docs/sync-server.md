@@ -1,15 +1,15 @@
-# Sync-Dienst einrichten (M5)
+# Sync-Dienst einrichten
 
 Der Dienst `vtf-sync` nimmt die Änderungen aus Obsidian entgegen und legt sie in Foundrys Datenordner (`Data/vault-to-foundry/<vault>/`). Foundry übernimmt sie erst, wenn du in der Journal-Seitenleiste auf **„Vault synchronisieren“** klickst.
 
 ```
-Obsidian (speichern) ──HTTPS + Token──▶ nginx /vtf-sync/ ──▶ vtf-sync (Docker) ──▶ felddy-Volume: Data/vault-to-foundry/
+Obsidian (speichern) ──HTTPS + Token──▶ nginx /vtf-sync/ ──▶ vtf-sync (Docker) ──▶ Foundry-Daten: Data/vault-to-foundry/
 Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigenen Datenordner──┘
 ```
 
 ## 1. Auf dem Server
 
-1. Der Dienst kommt als fertiges Image `ghcr.io/apollo-55/vtf-sync:latest` – GitHub baut es bei jeder Änderung auf `main` (siehe [Image von GitHub](#image-von-github)). Auf dem Server muss nichts gebaut oder entpackt werden.
+1. Der Dienst kommt als fertiges Image `ghcr.io/apollo-55/vtf-sync:latest` (siehe [Image von GitHub](#image-von-github)). Auf dem Server muss nichts gebaut oder entpackt werden.
 2. Token erzeugen: `openssl rand -hex 32`.
 3. Den Dienst aus [`docker-compose.example.yml`](../packages/sync-service/docker-compose.example.yml) in deine Compose-Datei übernehmen:
    - `user:` wie Foundry (felddy: `FOUNDRY_UID`/`FOUNDRY_GID`, Standard `421:421`), damit Foundry die Dateien lesen kann.
@@ -24,17 +24,17 @@ Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigen
 
 ## Image von GitHub
 
-Der Workflow `.github/workflows/vtf-sync-image.yml` läuft bei jedem Push auf `main` (und von Hand unter Actions → „vtf-sync-Image“ → Run workflow): Tests, `npm run build`, dann das Image mit Dienst, Foundry-Modul und Obsidian-Plugin aus genau diesem Stand nach `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64). Tags: `latest`, die Version (z. B. `1.0.0`) und `sha-<commit>` zum Festnageln oder Zurückgehen.
+Der Workflow `.github/workflows/vtf-sync-image.yml` läuft bei jedem Push auf `main`: Tests, Build, dann das Image mit Dienst, Foundry-Modul und Obsidian-Plugins aus genau diesem Stand nach `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64). Tags: `latest`, die Version (z. B. `1.0.0`) und `sha-<commit>` zum Festnageln oder Zurückgehen. Das Image enthält weder Token noch Vault-Daten.
 
-Das Image enthält weder Token noch Vault-Daten. Es ist zunächst **privat**, der Server muss sich dann einmal anmelden:
+In einem Fork entsteht das Image unter `ghcr.io/<dein-benutzer>/vtf-sync` und ist zunächst privat. Dann entweder das Paket öffentlich schalten (GitHub → Profil → Packages → `vtf-sync` → Package settings → Change visibility) oder den Server einmal anmelden:
 
 ```bash
 docker login ghcr.io -u <github-benutzer>     # Passwort: ein Personal Access Token (classic) mit „read:packages“
 ```
 
-Ohne Anmeldung geht es, wenn du das Paket öffentlich machst: GitHub → dein Profil → Packages → `vtf-sync` → Package settings → Change visibility.
+### Image selbst bauen
 
-**Ohne GitHub:** `npm run build` erzeugt weiterhin `dist/vtf-sync.zip`. Auf dem Server neben die Compose-Datei entpacken, in der Compose-Datei `build: ./vtf-sync` statt `image:` eintragen und mit `docker compose up -d --build vtf-sync` starten.
+`npm run build` erzeugt `dist/vtf-sync.zip`. Auf dem Server neben die Compose-Datei entpacken, in der Compose-Datei `build: ./vtf-sync` statt `image:` eintragen und mit `docker compose up -d --build vtf-sync` starten. Soll der DSA-NSC-Generator mit ausgeliefert werden, vorher `npm run build:generator` ausführen.
 
 ## Modul vom Dienst installieren
 
@@ -83,8 +83,6 @@ Das Passwort öffnet nur diese eine Seite und gibt nur die Plugin-ZIPs heraus �
 
 **Weitere Plugins (DSA-NSC-Generator):** Das Image bringt auch den NSC-Generator mit. Auf der Download-Seite gibt es dafür einen eigenen Knopf. Ist „Vault to Foundry“ schon installiert, geht es ohne Browser: Einstellungen → Vault to Foundry → unter „Plugin-Updates“ steht der Generator mit dem Knopf **Installieren**; danach unter „Community-Plugins“ einschalten. Updates für installierte Plugins holt „Vault to Foundry“ gleich mit („Jetzt aktualisieren“ bzw. „Plugins aktualisieren“). API-Schlüssel und Regelwerke bleiben auf deinem Rechner, der Dienst liefert nur den Code.
 
-Wer selbst baut: `npm run build:generator` **vor** `npm run build` ausführen, dann landet der Generator in `vtf-sync.zip` (Ordner `plugins/`).
-
 ## 2. In Obsidian
 
 Einstellungen → Vault to Foundry → **Sync-Server**:
@@ -124,76 +122,55 @@ Der Dienst legt die echten Dateien direkt in Foundrys Datenordner. Genau von dor
 - Dateinamen werden geprüft (nur `A–Z a–z 0–9 . _ -`, keine `..`). Jede Datei wird gegen ihre Prüfsumme geprüft. `bundle.json` muss zum Vault passen.
 - „Ungenutzte Dateien entfernen“ löscht nur Dateien, die die aktuelle `bundle.json` nicht mehr verwendet.
 
-## Test ohne Server
+## Bind-Mount und Reverse Proxy
+
+Das Beispiel in `docker-compose.example.yml` nutzt ein Docker-Volume. Liegen Foundrys Daten als Bind-Mount auf dem Host (hier `/srv/foundry/data`, Foundry läuft als `1000:1000`):
 
 ```bash
-VTF_TOKEN=mein-test-token-123456 VTF_DATA_DIR=$PWD/.foundry/data/Data/vault-to-foundry VTF_PORT=8787 node packages/sync-service/server.mjs
-node tools/sync-cli.ts test-vault --name uthuria-ob --url http://127.0.0.1:8787 --token mein-test-token-123456
+sudo mkdir -p /srv/foundry/data/Data/vault-to-foundry
+sudo chown 1000:1000 /srv/foundry/data/Data/vault-to-foundry
 ```
 
-## Beispiel: DSA-Instanz auf manic (felddy, Bind-Mount)
-
-Foundry läuft dort als `1001:1001`, die Daten liegen auf dem Host unter `/manic/foundry/yvtt/data`. Pro Foundry-Instanz ein eigener `vtf-sync` mit eigenem Port.
-
-**Einmalig auf dem Host** (Ordner anlegen, gehört dem Foundry-Benutzer):
-
-```bash
-sudo mkdir -p /manic/foundry/yvtt/data/Data/vault-to-foundry
-sudo chown 1001:1001 /manic/foundry/yvtt/data/Data/vault-to-foundry
-```
-
-**`.env`** neben der `docker-compose.yaml` (nicht ins Git, Rechte 600):
+`.env` neben der `docker-compose.yaml` (nicht ins Git, Rechte 600):
 
 ```
 VTF_TOKEN=<Ausgabe von: openssl rand -hex 32>
 VTF_DOWNLOAD_PASSWORD=<einfaches Passwort für die Download-Seite des Plugins, optional>
 ```
 
-**In die bestehende `docker-compose.yaml` der DSA-Instanz** unter `services:`:
-
 ```yaml
   vtf-sync:
     image: ghcr.io/apollo-55/vtf-sync:latest
-    container_name: vtf-sync-dsa
-    user: 1001:1001
+    user: 1000:1000
     restart: unless-stopped
     environment:
       - VTF_TOKEN=${VTF_TOKEN}
-      - VTF_DOWNLOAD_PASSWORD=${VTF_DOWNLOAD_PASSWORD:-}   # optional: Download-Seite …/vtf-sync/plugin
-      - VTF_PUBLIC_URL=https://dsa.manic-gaming.de/vtf-sync
+      - VTF_DOWNLOAD_PASSWORD=${VTF_DOWNLOAD_PASSWORD:-}
+      - VTF_PUBLIC_URL=https://<deine-domain>/vtf-sync
     volumes:
-      - /manic/foundry/yvtt/data/Data/vault-to-foundry:/data/vault-to-foundry
+      - /srv/foundry/data/Data/vault-to-foundry:/data/vault-to-foundry
     ports:
       - 127.0.0.1:8787:8787      # nur lokal, nach außen geht es über den Reverse Proxy
 ```
 
-Weitere Instanzen: gleicher Block mit anderem `container_name`, eigenem Mount auf deren Datenordner, Port `127.0.0.1:8788:8787` usw.
+Das Token darf nur über HTTPS laufen. Statt nginx mit Unterpfad (`nginx.example.conf`) geht auch Caddy mit eigener Subdomain; die Plugin-Adresse ist dann `https://vtf-sync.example.com`:
 
-**Reverse Proxy** (das Token darf nur über HTTPS laufen):
+```
+vtf-sync.example.com {
+    reverse_proxy 127.0.0.1:8787
+}
+```
 
-- nginx im `server { … }` der Foundry-Domain:
-  ```nginx
-  location /vtf-sync/ {
-      proxy_pass http://127.0.0.1:8787/;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Prefix /vtf-sync;
-      client_max_body_size 512m;
-      proxy_request_buffering off;
-  }
-  ```
-  Plugin-Adresse dann `https://<foundry-domain>/vtf-sync`.
-- Alternativ Caddy mit eigener Subdomain (Caddyfile-Schreibweise):
-  ```
-  vtf-sync.manic-gaming.de {
-      reverse_proxy 127.0.0.1:8787
-  }
-  ```
-  Plugin-Adresse dann `https://vtf-sync.manic-gaming.de`.
-
-Starten und prüfen:
+Prüfen:
 
 ```bash
-docker compose up -d vtf-sync
-curl -s http://127.0.0.1:8787/health          # auf dem Server
-curl -s https://<domain>/vtf-sync/health       # von außen, über den Proxy
+curl -s http://127.0.0.1:8787/health               # auf dem Server
+curl -s https://<deine-domain>/vtf-sync/health     # von außen, über den Proxy
+```
+
+## Test ohne Server
+
+```bash
+VTF_TOKEN=mein-test-token-123456 VTF_DATA_DIR=$PWD/.foundry/data/Data/vault-to-foundry VTF_PORT=8787 node packages/sync-service/server.mjs
+node tools/sync-cli.ts test-vault --name kampagne --url http://127.0.0.1:8787 --token mein-test-token-123456
 ```

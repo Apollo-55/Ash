@@ -670,7 +670,7 @@ class VtfSettingTab extends PluginSettingTab {
     })
     new Setting(containerEl)
       .setName('Server-Adresse')
-      .setDesc('z. B. https://dsa.manic-gaming.de/vtf-sync')
+      .setDesc('z. B. https://foundry.example.com/vtf-sync')
       .addText((t) =>
         t.setPlaceholder('https://…/vtf-sync').setValue(s.syncUrl).onChange(async (v) => {
           s.syncUrl = v.trim()

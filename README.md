@@ -2,8 +2,6 @@
 
 Bringt eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-Blöcke werden spielbare Charaktere (DSA 4.1, System `dsa-41`), `szene`-Blöcke werden Szenen. Änderungen gehen beim Speichern automatisch an einen kleinen Dienst auf deinem Server; in Foundry übernimmst du sie per Knopf.
 
-Version 1.0.0 – Änderungen siehe [CHANGELOG.md](CHANGELOG.md).
-
 ## Inhalt
 
 1. [Installation](#installation)
@@ -14,22 +12,32 @@ Version 1.0.0 – Änderungen siehe [CHANGELOG.md](CHANGELOG.md).
 6. [Grenzen](#grenzen)
 7. [Probleme lösen](#probleme-lösen)
 8. [Entwicklung](#entwicklung)
+9. [Weitere Dokumentation](#weitere-dokumentation)
 
 ## Installation
 
-`npm run build` legt drei Pakete in `dist/` ab:
+Es gibt drei Teile: das **Obsidian-Plugin**, das **Foundry-Modul** (Foundry v13) und – optional, aber empfohlen – den **Sync-Dienst** `vtf-sync`, der als Docker-Container neben Foundry läuft.
+
+### Mit Sync-Dienst (empfohlen)
+
+1. Dienst auf dem Foundry-Server einrichten: [docs/sync-server.md](docs/sync-server.md). Das fertige Image ist `ghcr.io/apollo-55/vtf-sync:latest`; es bringt Modul und Plugin in derselben Version mit.
+2. Foundry-Modul: Setup → Add-on-Module → **Modul installieren** → Manifest-URL `https://<domain>/vtf-sync/module/module.json`, dann in der Welt aktivieren.
+3. Obsidian-Plugin: `https://<domain>/vtf-sync/plugin` im Browser öffnen (Passwort `VTF_DOWNLOAD_PASSWORD`), ZIP nach `<vault>/.obsidian/plugins/` entpacken und unter „Community-Plugins“ einschalten (nur Desktop).
+4. In Obsidian: Einstellungen → Vault to Foundry → **Sync mit Foundry** → Server-Adresse und Token eintragen → „Verbindung testen“.
+
+**Updates:** nur den Dienst aktualisieren (`docker compose pull vtf-sync && docker compose up -d vtf-sync`). In Foundry bei den Modulen auf **Aktualisieren** klicken; Obsidian meldet „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**.
+
+### Ohne Sync-Dienst (ZIP)
+
+`npm install && npm run build` legt die Pakete in `dist/` ab:
 
 | Datei | wohin |
 |---|---|
-| `vault-to-foundry-obsidian.zip` | einmalig (mit Sync-Dienst auch im Browser von `https://<domain>/vtf-sync/plugin`, Passwort `VTF_DOWNLOAD_PASSWORD`) in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop). Mit Sync-Dienst holt sich das Plugin spätere Updates selbst vom Dienst |
-| `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren – oder, mit Sync-Dienst, in Foundry per Manifest-URL `https://<domain>/vtf-sync/module/module.json` installieren |
-| `vtf-sync.zip` | Sync-Dienst. Normalfall: gar nicht nötig, der Server zieht das fertige Image `ghcr.io/apollo-55/vtf-sync:latest` (GitHub baut es bei jeder Änderung auf `main`). Sonst: auf dem Server neben die `docker-compose.yaml` entpacken. Siehe [docs/sync-server.md](docs/sync-server.md); fertige Dateien für manic: [deploy/manic/EINRICHTEN.md](deploy/manic/EINRICHTEN.md) |
+| `vault-to-foundry-obsidian.zip` | in `<vault>/.obsidian/plugins/` entpacken, in Obsidian unter „Community-Plugins“ einschalten |
+| `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren |
+| `vtf-sync.zip` | Sync-Dienst zum Selbstbauen, siehe [docs/sync-server.md](docs/sync-server.md#image-selbst-bauen) |
 
-Danach in Obsidian: Einstellungen → Vault to Foundry → **Sync mit Foundry** → Server-Adresse und Token eintragen → „Verbindung testen“.
-
-**Updates mit Sync-Dienst:** nur den Dienst aktualisieren (`docker compose pull vtf-sync && docker compose up -d vtf-sync`). Er bringt Modul und Plugin aus demselben Build mit: In Foundry bei den Modulen auf **Aktualisieren** klicken; Obsidian meldet „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**. Details: [docs/sync-server.md](docs/sync-server.md#plugin-vom-dienst-aktualisieren).
-
-Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
+Der Austausch läuft dann über eine ZIP-Datei (siehe [Alltag](#alltag)).
 
 ## Alltag
 
@@ -121,7 +129,7 @@ name: Sabotage an Deck                   # optional, sonst Notizname
 karte: "[[deck.webp]]"                   # Bild aus der Vault …
 leaflet: süd-map                         # … oder eine Leaflet-Karte (Bild + Marker)
 raster: { typ: quadrat, größe: 100, schritt: 1 }   # quadrat | hex | keins; Standard: quadrat 100 (karte) bzw. keins (leaflet)
-nscs: ["[[#Die Viper]]", "[[Alanfaner Sabotage#Vollstrecker]]"]   # Tokens, versteckt am oberen Rand
+nscs: ["[[#Die Viper]]", "[[Hinterhalt#Vollstrecker]]"]   # Tokens, versteckt am oberen Rand
 licht: nacht                             # tag (Standard) | nacht | dunkel
 nebel: ja                                # Sicht und Nebel des Krieges; Standard nein
 navigation: ja                           # in der Szenenleiste; Standard ja
@@ -181,48 +189,22 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 
 ## Entwicklung
 
-Das Projekt ist in **systemunabhängig** und **systemabhängig** geteilt. Alles unter `packages/` kennt kein Spielsystem; es spricht mit einem System nur über die Schnittstellen `SystemAdapter` (Obsidian/Export: Block lesen, Wertekasten, Actor-Daten) und `FoundrySystemHooks` (Foundry: Actor-Typ, Kompendien, Kampfwerte). Alles für DSA 4.1 liegt unter `systems/dsa41/`.
-
-```
-packages/                       systemunabhängig – „Vault to Foundry“
-  core/                         Markdown → HTML, Links, IDs, Bundle, Szenen, Sync, System-Schnittstelle
-  obsidian-plugin/              Obsidian-Plugin „Vault to Foundry“
-  foundry-module/               Foundry-Modul vault-to-foundry (v13)
-  sync-service/                 Sync-Dienst vtf-sync (Node, Docker)
-systems/                        systemabhängig – je Spielsystem ein Ordner
-  adapters.ts                   Liste der Systeme für Obsidian und Export
-  foundry-hooks.ts              Liste der Foundry-Teile (nach Foundry-System-ID)
-  dsa41/                        DSA 4.1 (Foundry-System dsa-41)
-    adapter/                    dsa-nsc-Block, Namenskatalog, Regeln (SF-Ketten, Energien), Wertekasten,
-                                Actor-Daten, Foundry-Teil (Kampfwerte, Kompendien)
-    nsc-generator/              NSC-/Kreatur-Generator mit Claude, OpenAI und DeepSeek, Seiten-Index, Prüfung
-    nsc-generator-plugin/       Obsidian-Plugin „DSA-NSC-Generator“ – eigenes Werkzeug, eigener Build
-                                (npm run build:generator), Vault to Foundry braucht es nicht
-    tools/                      regelwerke.ts (Seiten-Index), gen-catalog.mjs (Namenskatalog),
-                                eval.ts (Modellvergleich), nsc-umwandlung/ (einmalige Uthuria-Umwandlung)
-tools/                          Build, Tests, lokale Testumgebung (systemunabhängig)
-  build.mjs  typecheck.mjs  export-cli.ts  sync-cli.ts (--system <id> | --no-system)  foundry-local.sh  sync-local.sh  e2e/
-deploy/                         Server-Beispiele (Manic)
-docs/                           Anleitungen, Entscheidungen, zukunft.md (zurückgestellte Pläne)
-```
-
-Ein neues System (z. B. D&D 5e) bekommt `systems/dnd5e/adapter/` und je einen Eintrag in `systems/adapters.ts` und `systems/foundry-hooks.ts` – unter `packages/` ändert sich nichts. Anleitung: [systems/README.md](systems/README.md). Der Test `packages/core/test/systems.test.ts` wacht darüber, dass `packages/` systemfrei bleibt, und prüft jeden eingetragenen Adapter.
-
 ```bash
 npm install
-npm test              # vitest: packages/*/test und systems/*/*/test
-npm run typecheck     # findet alle tsconfig.json unter packages/ und systems/ selbst
-npm run build         # → dist/ (inkl. der ZIPs)
-npm run deploy        # wie build, kopiert die Plugins zusätzlich in test-vault/
-npm run dev           # wie deploy, bei jeder Änderung
-npm run build:generator   # DSA-NSC-Generator, eigenes Plugin (nicht in build enthalten); dev:generator wie dev
-
-npm run foundry       # lokale Test-Foundry auf http://localhost:30013 (.foundry/, gitignored)
-npm run sync-local    # lokaler vtf-sync vor der Test-Foundry (Token in .foundry/sync-token)
-npm run e2e           # kompletter Durchlauf im Browser (Playwright), Screenshots in dist/e2e/
-npm run regelwerke    # DSA-Regelwerke: Seiten-Index aus Regelwerke/*.pdf → .llm/
+npm test          # vitest
+npm run build     # → dist/
 ```
 
-Weitere Werkzeuge: `tools/export-cli.ts` (Export ohne Obsidian), `tools/sync-cli.ts` (Push ohne Obsidian), `systems/dsa41/tools/gen-catalog.mjs` (Namenskatalog aus den dsa-41-Quellen), `systems/dsa41/tools/nsc-umwandlung/` (einmalige Umwandlung der Uthuria-NSCs), `systems/dsa41/tools/eval.ts` (Modellvergleich des Generators, kostet Geld).
+Aufbau des Projekts, alle Befehle, Tests und wie man ein weiteres Spielsystem ergänzt: [docs/entwicklung.md](docs/entwicklung.md).
 
-Dokumentation: [docs/plan.md](docs/plan.md) (Entscheidungen), [docs/zukunft.md](docs/zukunft.md) (zurückgestellte Pläne), [docs/nsc-generator.md](docs/nsc-generator.md), [docs/dsa41-datenmodell.md](docs/dsa41-datenmodell.md), [docs/vault-analyse.md](docs/vault-analyse.md), [docs/sync-server.md](docs/sync-server.md), [docs/test-foundry.md](docs/test-foundry.md), [docs/nsc-umwandlung.md](docs/nsc-umwandlung.md).
+## Weitere Dokumentation
+
+| Dokument | Inhalt |
+|---|---|
+| [docs/sync-server.md](docs/sync-server.md) | Sync-Dienst einrichten, aktualisieren, Sicherheit |
+| [docs/nsc-generator.md](docs/nsc-generator.md) | DSA-NSC-Generator (optionales zweites Plugin) |
+| [docs/entwicklung.md](docs/entwicklung.md) | Projektaufbau, Befehle, Tests |
+| [docs/testen.md](docs/testen.md) | Testcheckliste für Foundry |
+| [docs/dsa41-datenmodell.md](docs/dsa41-datenmodell.md) | Datenmodell des Foundry-Systems `dsa-41` |
+| [systems/README.md](systems/README.md) | Neues Spielsystem hinzufügen |
+| [CHANGELOG.md](CHANGELOG.md) | Änderungen |

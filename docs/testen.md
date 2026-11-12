@@ -1,35 +1,34 @@
-# Testcheckliste Foundry (M1: Journale, M2: NSCs, M3: Szenen, M5: Sync)
+# Testcheckliste Foundry
 
 Die Import-Logik ist dreifach getestet:
 
-1. `npm test`: vitest gegen eine nachgebaute Foundry-API (`packages/foundry-module/test`).
-2. `npm run e2e`: automatisch im Browser gegen die **lokale** Foundry 13.351 (`.foundry/`, gitignored, Welt `vtf-test` mit dsa-41 v13.1.4). Vorher in einem zweiten Terminal `npm run foundry` starten. Das Skript deckt die mit **[auto]** markierten Punkte ab. Screenshots landen in `dist/e2e/`.
-3. Von Hand auf dem Server: die restlichen Punkte unten.
+1. `npm test`: vitest gegen eine nachgebaute Foundry-API (`packages/foundry-module/test`) und gegen den echten Sync-Dienst.
+2. `npm run e2e`: automatisch im Browser gegen eine lokale Foundry (siehe [entwicklung.md](entwicklung.md#lokale-testumgebung)). Das Skript deckt die mit **[auto]** markierten Punkte ab.
+3. Von Hand: die restlichen Punkte unten.
 
-Testwelt: `vtf-test` (dsa-41 v13.1.4, Foundry v13).
+Testwelt: Foundry v13 mit dem System dsa-41. Die Namen in der Liste (Shahane, Valeriano, Encounter …) stammen aus der Test-Vault der E2E-Tests; mit einer eigenen Vault entsprechend eigene Notizen einsetzen.
 
-Erkenntnisse aus dem Test gegen die echte Foundry 13.351:
+Zwei Eigenheiten von Foundry, auf die das Modul Rücksicht nimmt:
 - Foundry nimmt als Anker im Inhaltsverzeichnis das **`id`-Attribut** der Überschrift (`data-anchor` wird ignoriert). Ohne `id` würde Foundry selbst umschreiben (ü → u), Links mit Umlaut-Überschriften wären dann kaputt.
-- Foundry scrollt bei einem `#Anker`-Link nur, wenn die Seite wechselt. Bei einem frisch geöffneten Journal mit einer einzigen Seite landet man oben. Das Modul scrollt deshalb bei seinen eigenen Journalen selbst.
+- Foundry scrollt bei einem `#Anker`-Link nur, wenn die Seite wechselt. Das Modul scrollt deshalb bei seinen eigenen Journalen selbst.
 
 ## Vorbereitung
 
-1. `npm run deploy` → `dist/vault-to-foundry-module.zip`.
-2. Auf dem Server entpacken nach `<Data>/modules/` (ergibt `<Data>/modules/vault-to-foundry/`), Foundry neu laden.
-3. Testwelt starten → Einstellungen → Module verwalten → „Vault to Foundry – Import“ aktivieren.
-4. Test-Vault in Obsidian öffnen (`Ash/test-vault`), Plugin „Vault to Foundry“ unter Community-Plugins einschalten, Befehl „Vault to Foundry: Nach Foundry exportieren (ZIP)“ → ZIP in `~/Downloads/uthuria-ob-foundry.zip`.
+1. `npm run build` → `dist/vault-to-foundry-module.zip` und `dist/vault-to-foundry-obsidian.zip`.
+2. Modul nach `<Data>/modules/` entpacken, Foundry neu laden, in der Testwelt „Vault to Foundry – Import“ aktivieren.
+3. Test-Vault in Obsidian öffnen, Plugin einschalten, Befehl „Nach Foundry exportieren (ZIP)“.
 
 ## Erster Import
 
 - [ ] Journal-Seitenleiste zeigt „Vault importieren“ und das Bericht-Symbol (nur als GM, als Spieler nicht).
 - [ ] **[auto]** Dialog: ZIP wählen → Fortschrittsanzeige → Importbericht öffnet sich.
-- [ ] Bericht: 33 angelegt, 0 aktualisiert, 0 übersprungen, 1 Warnung („create a link“ in Welcome). Keine Upload-Fehler.
-- [ ] **[auto]** Ordner wie in der Vault: NPC › Besatzung, NPC › Expedition › Geweite …, Uthuria › Act1 Überfahrt › Entcounter › Alanfaner Sabotage (4 Ebenen).
+- [ ] Bericht: alles angelegt, 0 aktualisiert, 0 übersprungen, Warnungen nur für tatsächlich tote Links. Keine Upload-Fehler.
+- [ ] **[auto]** Ordner wie in der Vault, bis 4 Ebenen tief.
 - [ ] Ordner alphabetisch sortiert.
 - [ ] „Shahane ay Zedrakin“: Porträt und Token-Bild werden angezeigt, Zeilenumbrüche im Wertekasten wie in Obsidian.
 - [ ] **[auto]** „Encounter“: drei Kartenbilder (Leaflet), Tabelle, Links „Besondere Ereignisse“ usw. springen zum jeweiligen Journal.
 - [ ] „Die Singenden Inseln“: Link „Q02 - Efferds Wogen, S. 181“ öffnet das PDF-Journal. „S. 181 öffnen“ öffnet das PDF im neuen Tab auf Seite 181.
-- [ ] **[auto]** Dateibrowser: `vault-to-foundry/uthuria-ob/assets/…` enthält Asasets/Token, Maps, PDFs (Namen ohne Umlaute/Leerzeichen).
+- [ ] **[auto]** Dateibrowser: `vault-to-foundry/<vault>/assets/…` enthält Bilder, Karten und PDFs (Namen ohne Umlaute/Leerzeichen).
 - [ ] Bericht: Link auf eine Quelldatei öffnet die Notiz in Obsidian (Browser fragt nach „obsidian://“). Klappt nur auf dem Rechner mit Obsidian.
 
 ## Testnotiz mit allen Sonderfällen
@@ -80,7 +79,7 @@ LIST
 - [ ] **[auto]** Beliebige andere ZIP wählen → Meldung „enthält keine bundle.json“.
 - [ ] Als Spieler (Nicht-GM): kein Knopf sichtbar.
 
-## NSCs (M2)
+## NSCs
 
 Testdaten: `tools/e2e/fixtures/Sabotage NSC.md` (Viper, Schattenweber, Vollstrecker, Riff-Hydra) und der Block in „Shahane ay Zedrakin“. `npm run e2e` kopiert sie in die Test-Vault.
 
@@ -94,7 +93,7 @@ Testdaten: `tools/e2e/fixtures/Sabotage NSC.md` (Viper, Schattenweber, Vollstrec
 - [ ] Von Hand: Würfe vom Bogen (Talentprobe, Attacke mit Säbel, Zauber) funktionieren.
 - [ ] Von Hand in Obsidian: Wertekasten wird angezeigt, Fehler (z. B. `KK: 1a`) erscheinen rot, „gerechnet“ steht neben MR/INI/WS. Befehl „NSC-Vorlage einfügen“.
 
-## Szenen (M3)
+## Szenen
 
 Testdaten: `tools/e2e/fixtures/Szenen.md` (Leaflet-Karte `süd-map` aus „Encounter“, Kampfszene auf `Ship_full.png` mit drei Gegnern).
 
@@ -105,7 +104,7 @@ Testdaten: `tools/e2e/fixtures/Szenen.md` (Leaflet-Karte `süd-map` aus „Encou
 - [ ] Von Hand im Browser: Vorschaubild in der Szenenleiste vorhanden (entsteht nur mit Canvas), Pins anklicken, Szene aktivieren, Spieler sehen nur aufgedeckte Tokens.
 - [ ] Von Hand in Obsidian: `szene`-Block erscheint als Karte mit Vorschau; ein Tippfehler (z. B. `licht: mittag`) erscheint rot.
 
-## Sync-Dienst (M5)
+## Sync-Dienst
 
 Automatisch: `npm test` startet den Dienst und prüft Push, unveränderten Push, Einzeländerung, ungenutzte Dateien, Prüfsummen und Pfade.
 

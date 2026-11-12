@@ -155,7 +155,7 @@ export interface Bundle {
   generatedAt: string
   /** Foundry system the actor data is meant for (e.g. "dnd5e"); absent when the bundle has no actors */
   system?: string
-  /** Data-relative base directory of uploaded assets, e.g. "vault-to-foundry/uthuria-ob/assets" */
+  /** Data-relative base directory of uploaded assets, e.g. "vault-to-foundry/kampagne/assets" */
   assetsBase: string
   folders: BundleFolder[]
   documents: BundleDocument[]

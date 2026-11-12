@@ -14,7 +14,7 @@ grep -q '```dsa-nsc' "$SH" || cat tools/e2e/fixtures/shahane-block.md >> "$SH"
 
 node tools/build.mjs >/dev/null
 $E2E enable
-echo "== 1. Import";                  $EXPORT dist/e2e-1.zip --name uthuria-ob >/dev/null; $E2E import dist/e2e-1.zip | tr -d '\n '; echo
+echo "== 1. Import";                  $EXPORT dist/e2e-1.zip --name kampagne >/dev/null; $E2E import dist/e2e-1.zip | tr -d '\n '; echo
 echo "== 2. Prüfen";                  $E2E inspect | tr -d '\n'; echo
 echo "== 3. Überschriften-Links";     $E2E anchorclick
 echo "== 3b. NSCs";                   $E2E actors > dist/e2e/actors.json; grep -c '"weapons"' dist/e2e/actors.json | sed 's/^/   NSCs mit Waffen: /'
@@ -23,15 +23,15 @@ echo "== 3c. Spielstand + geänderter Block"
 $E2E play
 SH="test-vault/NPC/Besatzung/Shahane ay Zedrakin.md"; mkdir -p dist; cp "$SH" dist/shahane.md.bak
 sed -i 's/^LeP: 36$/LeP: 40/; s/Säbel: 18,/Säbel: 19,/; s/, Finte, /, /; s/Neid: 8/Neid: 9/' "$SH"
-$EXPORT dist/e2e-nsc.zip --name uthuria-ob >/dev/null; $E2E import dist/e2e-nsc.zip | tr -d '\n '; echo
+$EXPORT dist/e2e-nsc.zip --name kampagne >/dev/null; $E2E import dist/e2e-nsc.zip | tr -d '\n '; echo
 echo "   erwartet LeP 20/40, Hand-Item + Effekt da, Säbel-TaW 19, Finte weg, Neid 9:"; $E2E playcheck
 mv dist/shahane.md.bak "$SH"
 echo "== 4. Secret aufdecken";        $E2E reveal
 sed -i 's/^Privat: %%darf nie in Foundry landen%%$/&\nNeuer Satz nach dem Aufdecken./' test-vault/Test/Alles.md
-echo "== 5. Geänderte Notiz";         $EXPORT dist/e2e-2.zip --name uthuria-ob >/dev/null; $E2E import dist/e2e-2.zip | tr -d '\n '; echo
+echo "== 5. Geänderte Notiz";         $EXPORT dist/e2e-2.zip --name kampagne >/dev/null; $E2E import dist/e2e-2.zip | tr -d '\n '; echo
 echo "   Secret noch aufgedeckt?";   $E2E check
 echo "== 6. Unverändert erneut";      $E2E import dist/e2e-2.zip | tr -d '\n '; echo
-echo "== 7. Verwaist + Löschen";      $EXPORT dist/e2e-3.zip --name uthuria-ob --exclude Test/ >/dev/null; $E2E orphans dist/e2e-3.zip
+echo "== 7. Verwaist + Löschen";      $EXPORT dist/e2e-3.zip --name kampagne --exclude Test/ >/dev/null; $E2E orphans dist/e2e-3.zip
 echo "== 8. Wiederherstellen";        $E2E import dist/e2e-2.zip | tr -d '\n '; echo
 $E2E shots
 $E2E actorshots
