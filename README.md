@@ -21,11 +21,13 @@ Version 1.0.0 – Änderungen siehe [CHANGELOG.md](CHANGELOG.md).
 
 | Datei | wohin |
 |---|---|
-| `vault-to-foundry-obsidian.zip` | in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop) |
+| `vault-to-foundry-obsidian.zip` | einmalig (mit Sync-Dienst auch im Browser von `https://<domain>/vtf-sync/plugin`, Passwort `VTF_DOWNLOAD_PASSWORD`) in `<vault>/.obsidian/plugins/` entpacken, dann in Obsidian unter „Community-Plugins“ einschalten (nur Desktop). Mit Sync-Dienst holt sich das Plugin spätere Updates selbst vom Dienst |
 | `vault-to-foundry-module.zip` | auf dem Server in `<Foundry-Data>/modules/` entpacken, Foundry neu laden, Modul in der Welt aktivieren – oder, mit Sync-Dienst, in Foundry per Manifest-URL `https://<domain>/vtf-sync/module/module.json` installieren |
-| `vtf-sync.zip` | Sync-Dienst: auf dem Server neben die `docker-compose.yaml` entpacken, siehe [docs/sync-server.md](docs/sync-server.md); fertige Dateien für manic: [deploy/manic/EINRICHTEN.md](deploy/manic/EINRICHTEN.md) |
+| `vtf-sync.zip` | Sync-Dienst. Normalfall: gar nicht nötig, der Server zieht das fertige Image `ghcr.io/apollo-55/vtf-sync:latest` (GitHub baut es bei jeder Änderung auf `main`). Sonst: auf dem Server neben die `docker-compose.yaml` entpacken. Siehe [docs/sync-server.md](docs/sync-server.md); fertige Dateien für manic: [deploy/manic/EINRICHTEN.md](deploy/manic/EINRICHTEN.md) |
 
 Danach in Obsidian: Einstellungen → Vault to Foundry → **Sync mit Foundry** → Server-Adresse und Token eintragen → „Verbindung testen“.
+
+**Updates mit Sync-Dienst:** nur den Dienst aktualisieren (`docker compose pull vtf-sync && docker compose up -d vtf-sync`). Er bringt Modul und Plugin aus demselben Build mit: In Foundry bei den Modulen auf **Aktualisieren** klicken; Obsidian meldet „Auf dem Server liegt Version …“ mit dem Knopf **Jetzt aktualisieren**. Details: [docs/sync-server.md](docs/sync-server.md#plugin-vom-dienst-aktualisieren).
 
 Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 
@@ -44,7 +46,7 @@ Ohne Sync-Dienst geht alles auch per ZIP (siehe unten).
 
 **NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude, OpenAI oder DeepSeek (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
 
-**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“.
+**Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“, „Plugins vom Foundry-Server aktualisieren“.
 
 ## Notation
 
@@ -172,6 +174,8 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 | `Foundry ✗` „Server nicht erreichbar“ | Dienst läuft nicht oder nginx-`location` fehlt: `curl https://<domain>/vtf-sync/health` |
 | `Foundry ✗` „Datei zu groß“ | `VTF_MAX_MB` bzw. `client_max_body_size` erhöhen |
 | Alles erscheint in Foundry doppelt | Vault-Name im Plugin passt nicht zu dem, den Foundry kennt (der Bericht warnt davor). Unter „Fortgeschritten“ den alten Namen eintragen, Duplikate löschen |
+| „Plugins aktualisieren“: „Der Sync-Dienst liefert keine Plugins aus“ | Dienst ist älter als das Plugin-Update oder ohne Ordner `plugin/` gebaut: Dienst aktualisieren. `curl https://<domain>/vtf-sync/health` zeigt unter `plugin` die Version |
+| Nach „Plugin aktualisiert“ läuft noch die alte Fassung | Obsidian neu starten (das Neuladen nutzt eine interne Obsidian-Funktion) |
 | Knopf „Vault synchronisieren“ ohne Punkt, obwohl synchronisiert | Foundry prüft einmal pro Minute; Seite neu laden |
 | Bild in Foundry fehlt | Datei im Bericht unter Warnungen? Rechte im Server-Ordner (gleicher Benutzer wie Foundry)? |
 

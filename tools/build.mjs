@@ -5,7 +5,7 @@
 //                                      and pack dist/vault-to-foundry-module.zip for upload to the server
 //   node tools/build.mjs --watch --deploy
 import { context } from 'esbuild'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -70,20 +70,40 @@ function packSyncService() {
   // the service serves exactly this module build to Foundry (manifest URL …/module/module.json)
   rmSync(join(out, 'module'), { recursive: true, force: true })
   cpSync(moduleOut, join(out, 'module'), { recursive: true })
+  // … and this plugin build to Obsidian (the plugin updates itself from /v1/plugin)
+  rmSync(join(out, 'plugin'), { recursive: true, force: true })
+  mkdirSync(join(out, 'plugin'))
+  for (const f of ['main.js', 'manifest.json', 'styles.css']) cpSync(join(pluginOut, f), join(out, 'plugin', f))
+  // further Obsidian plugins that are already built (dist/*-plugin, e.g. npm run build:generator):
+  // the service offers them on its download page and Vault to Foundry keeps them up to date
+  rmSync(join(out, 'plugins'), { recursive: true, force: true })
+  mkdirSync(join(out, 'plugins'))
+  writeFileSync(join(out, 'plugins/LIESMICH.txt'), 'Weitere Obsidian-Plugins, die der Dienst ausliefert: je ein Ordner mit manifest.json, main.js, styles.css.\n')
+  for (const name of readdirSync(join(root, 'dist'))) {
+    const dir = join(root, 'dist', name)
+    if (!name.endsWith('-plugin') || dir === pluginOut || !existsSync(join(dir, 'manifest.json')) || !existsSync(join(dir, 'main.js'))) continue
+    const { id, version } = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
+    mkdirSync(join(out, 'plugins', id))
+    for (const f of ['main.js', 'manifest.json', 'styles.css']) if (existsSync(join(dir, f))) cpSync(join(dir, f), join(out, 'plugins', id, f))
+    console.log(`→ Dienst liefert zusätzlich aus: ${id} ${version}`)
+  }
 }
 
-/** Service and module are installed together and must have the same version. */
+/** Service, module and plugin are delivered together and must have the same version. */
 function checkVersions() {
   const moduleVersion = JSON.parse(readFileSync(join(root, 'packages/foundry-module/module.json'), 'utf8')).version
   const serviceVersion = /const VERSION = '([^']+)'/.exec(readFileSync(join(root, 'packages/sync-service/server.mjs'), 'utf8'))?.[1]
-  if (moduleVersion !== serviceVersion) throw new Error(`Version passt nicht: module.json ${moduleVersion}, server.mjs ${serviceVersion}`)
+  const pluginVersion = JSON.parse(readFileSync(join(root, 'packages/obsidian-plugin/manifest.json'), 'utf8')).version
+  if (moduleVersion !== serviceVersion || pluginVersion !== serviceVersion) {
+    throw new Error(`Version passt nicht: module.json ${moduleVersion}, manifest.json (Obsidian) ${pluginVersion}, server.mjs ${serviceVersion}`)
+  }
 }
 
 async function packZips() {
   await zipDir(moduleOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-module.zip'))
   await zipDir(pluginOut, 'vault-to-foundry', join(root, 'dist/vault-to-foundry-obsidian.zip'))
   await zipDir(join(root, 'dist/vtf-sync'), 'vtf-sync', join(root, 'dist/vtf-sync.zip'))
-  console.log('→ dist/vault-to-foundry-obsidian.zip  (Obsidian: nach <vault>/.obsidian/plugins/ entpacken)')
+  console.log('→ dist/vault-to-foundry-obsidian.zip  (Obsidian: nach <vault>/.obsidian/plugins/ entpacken; Updates holt das Plugin vom Sync-Dienst)')
   console.log('→ dist/vault-to-foundry-module.zip    (Foundry: nach <Data>/modules/ entpacken)')
   console.log('→ dist/vtf-sync.zip                   (Server: neben die docker-compose.yaml entpacken)')
 }

@@ -1,3 +1,4 @@
+import { hashString } from './ids.ts'
 import type { Bundle } from './types.ts'
 
 export interface HttpRequest {
@@ -18,6 +19,15 @@ export interface RemoteState {
   bundleHash: string | null
   updatedAt: string | null
   assets: Record<string, string>
+}
+
+/** The Obsidian plugin build the service carries: file name → content hash. */
+export interface PluginInfo {
+  id: string
+  /** display name from the plugin's manifest */
+  name?: string
+  version: string
+  files: Record<string, string>
 }
 
 export class SyncError extends Error {
@@ -42,6 +52,11 @@ export class SyncClient {
   }
 
   private async call<T>(method: HttpRequest['method'], path: string, body?: Uint8Array | string, headers: Record<string, string> = {}): Promise<T> {
+    return this.request(method, path, body, headers, true) as Promise<T>
+  }
+
+  /** json: parse the answer; otherwise return its text as is */
+  private async request(method: HttpRequest['method'], path: string, body: Uint8Array | string | undefined, headers: Record<string, string>, json: boolean): Promise<unknown> {
     let res: HttpResponse
     try {
       res = await this.http({ method, url: `${this.base}${path}`, headers: { Authorization: `Bearer ${this.token}`, ...headers }, body })
@@ -58,11 +73,39 @@ export class SyncClient {
       const hint = res.status === 401 ? 'Token falsch' : res.status === 413 ? 'Datei zu groß (VTF_MAX_MB bzw. client_max_body_size)' : (data?.error ?? `HTTP ${res.status}`)
       throw new SyncError(hint, res.status)
     }
-    return data as T
+    return json ? data : res.text
   }
 
   health() {
-    return this.call<{ ok: boolean; version: string }>('GET', '/health')
+    return this.call<{ ok: boolean; version: string; module?: string | null; plugin?: string | null }>('GET', '/health')
+  }
+  /** null: the service carries no plugin (or is older than this feature) */
+  async pluginInfo(): Promise<PluginInfo | null> {
+    try {
+      const info = await this.call<PluginInfo>('GET', '/v1/plugin')
+      return info && typeof info.id === 'string' && typeof info.version === 'string' && info.files ? info : null
+    } catch (e) {
+      if (e instanceof SyncError && e.status === 404) return null
+      throw e
+    }
+  }
+  /** All Obsidian plugins the service carries: the one of its build first. Older services know only that one. */
+  async plugins(): Promise<PluginInfo[]> {
+    try {
+      const list = await this.call<PluginInfo[]>('GET', '/v1/plugins')
+      if (Array.isArray(list)) return list.filter((i) => i && typeof i.id === 'string' && typeof i.version === 'string' && i.files)
+    } catch (e) {
+      if (!(e instanceof SyncError && e.status === 404)) throw e
+    }
+    const main = await this.pluginInfo()
+    return main ? [main] : []
+  }
+  /** One plugin file as text, checked against the hash from plugins(); main: the plugin of the service's build. */
+  async pluginFile(info: PluginInfo, name: string, main = true): Promise<string> {
+    const path = main ? `/v1/plugin/files/${encodeURIComponent(name)}` : `/v1/plugins/${encodeURIComponent(info.id)}/files/${encodeURIComponent(name)}`
+    const text = (await this.request('GET', path, undefined, {}, false)) as string
+    if (hashString(text) !== info.files[name]) throw new SyncError(`${name} kam beschädigt an (Prüfsumme stimmt nicht)`, 0)
+    return text
   }
   state(vault: string) {
     return this.call<RemoteState>('GET', `/v1/vaults/${encodeURIComponent(vault)}/state`)

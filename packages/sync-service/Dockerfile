@@ -3,7 +3,11 @@ WORKDIR /app
 COPY server.mjs ./
 # the built Foundry module (from npm run build), served under /module/ for install via manifest URL
 COPY module ./module
-ENV VTF_DATA_DIR=/data/vault-to-foundry VTF_PORT=8787 VTF_MODULE_DIR=/app/module
+# the built Obsidian plugin, fetched by the plugin itself to update (/v1/plugin, with token)
+COPY plugin ./plugin
+# further Obsidian plugins from the same build (one folder each), kept up to date by the plugin above
+COPY plugins ./plugins
+ENV VTF_DATA_DIR=/data/vault-to-foundry VTF_PORT=8787 VTF_MODULE_DIR=/app/module VTF_PLUGIN_DIR=/app/plugin VTF_EXTRA_PLUGINS_DIR=/app/plugins
 EXPOSE 8787
 # run as the same user as Foundry (felddy default: 421:421), set in docker-compose via "user:"
 HEALTHCHECK --interval=60s --timeout=5s CMD wget -qO- http://127.0.0.1:8787/health || exit 1
