@@ -1,9 +1,10 @@
 # DSA-NSC-Generator
 
-Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block – für Personen (Talente, SF, Energien nach DSA-4.1-Formel) und für Kreaturen und einfache Gegner (feste Bestiarium-Werte). Ein Sprachmodell schlägt dabei wie ein Spielleiter in deinen Regelwerken nach. Zwei Anbieter, in den Plugin-Einstellungen umschaltbar:
+Erzeugt aus einer Beschreibung einen `dsa-nsc`-Block – für Personen (Talente, SF, Energien nach DSA-4.1-Formel) und für Kreaturen und einfache Gegner (feste Bestiarium-Werte). Ein Sprachmodell schlägt dabei wie ein Spielleiter in deinen Regelwerken nach. Drei Anbieter, in den Plugin-Einstellungen umschaltbar:
 
 - **Claude** (Anthropic, Standard `claude-opus-5-5`) – Kosten werden nach jedem Lauf angezeigt.
 - **OpenAI** (Standard `gpt-6.1-sol`) – das Ergebnis nennt die verbrauchten Tokens.
+- **DeepSeek** (Standard `deepseek-reasoner`) – das Ergebnis nennt die verbrauchten Tokens. Die Server stehen in China.
 
 Die PDFs bleiben auf deinem PC; an den Anbieter gehen die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt.
 
@@ -18,7 +19,8 @@ Einen lokalen Modus (Ollama) gab es bis 2026-11-04; er ist pausiert – siehe [z
 3. **Anbieter wählen** (Einstellungen → Sprachmodell):
    - **Claude:** Schlüssel von [console.anthropic.com](https://console.anthropic.com) → *API Keys* (Abrechnung pro Nutzung; ein Claude.ai-Abo enthält keinen API-Zugang). **Prüfen** zeigt „verbunden, Modell … verfügbar“ und kostet nichts. Modelle: Opus 5.5 (beste Qualität, ca. 0,20–0,40 $ pro NSC), Sonnet 5.5 (etwa die Hälfte), Haiku 5.5 (sehr günstig, für einfache Gegner).
    - **OpenAI:** Schlüssel von [platform.openai.com](https://platform.openai.com) → *API keys* (ein ChatGPT-Abo enthält keinen API-Zugang). **Prüfen** lädt kostenlos die Modelle, die der Schlüssel nutzen darf.
-   - *Gründlichkeit* (niedrig/mittel/hoch) steuert, wie viel das Modell nachdenkt; mittel ist Standard.
+   - **DeepSeek:** Schlüssel von [platform.deepseek.com](https://platform.deepseek.com) → *API keys* (Guthaben vorab aufladen). **Prüfen** lädt kostenlos die Modelle. `deepseek-reasoner` denkt vor jeder Antwort nach, `deepseek-chat` antwortet direkt. Noch nicht mit echtem Schlüssel verglichen.
+   - *Gründlichkeit* (niedrig/mittel/hoch) steuert, wie viel das Modell nachdenkt; mittel ist Standard (bei DeepSeek nicht einstellbar).
 
 Die Schlüssel stehen in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`. Diese Datei nicht weitergeben und die Vault nicht mit diesem Ordner teilen.
 
@@ -76,7 +78,8 @@ Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein
 
 - **Claude:** offizielles Anthropic-SDK, Anfragen über Obsidians `requestUrl`, Prompt-Caching für Regeltext und Gesprächsverlauf, bei Opus/Sonnet automatisches Ausweichmodell, falls eine Anfrage abgelehnt wird (`fallbacks: "default"`).
 - **OpenAI:** offizielles `openai`-SDK, Responses-API mit Function Calling (`strict`) – neuere Modelle (gpt-5.4 bis gpt-6.1) erlauben Werkzeuge zusammen mit Nachdenken nur dort. Zustandslos (`store: false`): OpenAI speichert nichts.
-- Werkzeuge, Regeltext und Prüfung sind für beide Anbieter dieselben (`agent.ts`).
+- **DeepSeek:** `openai`-SDK mit `baseURL` `https://api.deepseek.com`, Chat Completions mit Function Calling (ohne `strict` – das gibt es bei DeepSeek nur auf dem Beta-Endpunkt mit eingeschränkten Schemas; falsche Argumente meldet der Code ans Modell zurück). Im Denkmodus geht `reasoning_content` bei Werkzeugaufrufen mit zurück. Caching macht DeepSeek automatisch (gleicher Anfang jeder Anfrage).
+- Werkzeuge, Regeltext und Prüfung sind für alle Anbieter dieselben (`agent.ts`).
 
 ## Modelle vergleichen
 
@@ -84,7 +87,7 @@ Die PDFs liegen in `~/Projekt/Ash/Regelwerke/` (nie im Git: `.gitignore` und ein
 OPENAI_API_KEY=… node systems/dsa41/tools/eval.ts ~/Obsidian/uthuria-ob --models openai:gpt-6.1-sol,claude-opus-5-5 --only Topasa,Ralio,Haargh
 ```
 
-Erzeugt die NSCs deiner Vault aus ihrer Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit, Kosten). Die Vault wird nur gelesen. **Jeder Lauf kostet Geld.** Claude-Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`.
+Erzeugt die NSCs deiner Vault aus ihrer Beschreibung neu und vergleicht mit dem vorhandenen Block (Profession, Gültigkeit, Übereinstimmung von Talenten und SF, Zeit, Kosten). Die Vault wird nur gelesen. **Jeder Lauf kostet Geld.** Claude-Schlüssel aus `ANTHROPIC_API_KEY` oder `ant auth login`, DeepSeek als `deepseek:<modell>` mit `DEEPSEEK_API_KEY`.
 
 ### Ergebnis OpenAI (November 2026, Topasa / Ralio / Haargh, Gründlichkeit mittel)
 

@@ -6,12 +6,12 @@ Der Kern des [DSA-NSC-Generators](../nsc-generator-plugin/README.md), ohne Oberf
 - `../tools/eval.ts` – dem Modellvergleich auf der Kommandozeile
 - den Tests in `test/`
 
-Sie hängt nur vom DSA-Adapter (`../adapter/`: Namenskatalog, Block-Format, SF-Regeln) und den SDKs von Anthropic und OpenAI ab, nicht von Vault to Foundry.
+Sie hängt nur vom DSA-Adapter (`../adapter/`: Namenskatalog, Block-Format, SF-Regeln) und den SDKs von Anthropic und OpenAI ab (DeepSeek läuft über das OpenAI-SDK), nicht von Vault to Foundry.
 
 ## Ablauf
 
 ```
-Beschreibung ──► Modell (Claude / OpenAI)
+Beschreibung ──► Modell (Claude / OpenAI / DeepSeek)
                    │  ruft Werkzeuge auf:
                    │    regelwerk_suchen  → PageStore.search   (lokaler Seiten-Index)
                    │    seiten_lesen      → PageStore.read
@@ -31,9 +31,10 @@ Das Modell entscheidet selbst, wie oft es nachschlägt. Die PDFs bleiben lokal, 
 
 | Datei | Inhalt |
 |---|---|
-| `src/agent.ts` | gemeinsamer Teil beider Anbieter: Werkzeug-Beschreibungen (`toolSpecs`), Regeltext (`systemPrompt`, `userPrompt`), `ToolRunner` führt Werkzeugaufrufe aus und prüft Abgaben |
+| `src/agent.ts` | gemeinsamer Teil aller Anbieter: Werkzeug-Beschreibungen (`toolSpecs`), Regeltext (`systemPrompt`, `userPrompt`), `ToolRunner` führt Werkzeugaufrufe aus und prüft Abgaben |
 | `src/cloud.ts` | Claude über das Anthropic-SDK: `generateNpcClaude`, `checkClaude`, `CLAUDE_MODELS`, Prompt-Caching, Ausweichmodell |
 | `src/openai.ts` | OpenAI über die Responses-API: `generateNpcOpenAI`, `checkOpenAI`, zustandslos (`store: false`) |
+| `src/deepseek.ts` | DeepSeek über die OpenAI-kompatiblen Chat Completions (`api.deepseek.com`): `generateNpcDeepSeek`, `checkDeepSeek`, `reasoning_content` geht bei Werkzeugaufrufen zurück |
 | `src/generate.ts` | Personen: JSON-Schema (`npcSchema`), Prüfen und Reparieren (`review`, `repair`: Namen, Kampftalente, SF-Ketten, Energien, Vor-/Nachteile), Block schreiben (`toBlock`), Erfahrungsstufen (`LEVELS`) |
 | `src/creature.ts` | Kreaturen und einfache Gegner mit festen Werten: `creatureSchema`, `reviewCreature`, `creatureToBlock` |
 | `src/pages.ts` | `PageStore`: Volltextsuche und Seitenlesen im Index `.llm/regelwerk-seiten.json`, Buchkürzel (`bookAbbreviations`) |
@@ -81,6 +82,6 @@ npx vitest run systems/dsa41/nsc-generator # nur der Generator
 | Test | prüft |
 |---|---|
 | `test/generate.test.ts` | Block aus JSON, Reparaturen (Namen, Kampftalente, SF-Ketten, Energien) |
-| `test/cloud.test.ts` | Claude und OpenAI mit simulierten Antworten, Kreatur-Modus, Seitensuche, Buchkürzel |
+| `test/cloud.test.ts` | Claude, OpenAI und DeepSeek mit simulierten Antworten, Kreatur-Modus, Seitensuche, Buchkürzel |
 
 Echte Modelle vergleicht `../tools/eval.ts`. **Das kostet Geld.** Aufruf und Ergebnisse stehen in [docs/nsc-generator.md](../../../docs/nsc-generator.md#modelle-vergleichen).

@@ -3,7 +3,11 @@ import * as dsa41 from '../../adapter/src/index.ts'
 import {
   CLAUDE_MODELS,
   checkClaude,
+  checkDeepSeek,
   checkOpenAI,
+  DEEPSEEK_MODELS,
+  deepseekClient,
+  generateNpcDeepSeek,
   claudeClient,
   generateNpcOpenAI,
   openaiClient,
@@ -16,7 +20,7 @@ import {
 } from '../../nsc-generator/src/index.ts'
 
 interface GenSettings {
-  provider: 'claude' | 'openai'
+  provider: 'claude' | 'openai' | 'deepseek'
   /** Anthropic API key (stored in the plugin's data.json inside the vault – user's choice) */
   claudeKey: string
   claudeModel: string
@@ -25,6 +29,10 @@ interface GenSettings {
   openaiModel: string
   /** models the key can use, from the last "Prüfen" */
   openaiModels: string[]
+  deepseekKey: string
+  deepseekModel: string
+  /** models the key can use, from the last "Prüfen" */
+  deepseekModels: string[]
   /** absolute path of .llm/regelwerk-index.json (the pages file lies next to it) */
   indexPath: string
   defaultLevel: Level | 'auto'
@@ -47,11 +55,14 @@ const DEFAULTS = (): GenSettings => ({
   openaiKey: '',
   openaiModel: 'gpt-6.1-sol',
   openaiModels: [],
+  deepseekKey: '',
+  deepseekModel: 'deepseek-reasoner',
+  deepseekModels: [],
   indexPath: `${home()}/Projekt/Ash/.llm/regelwerk-index.json`,
   defaultLevel: 'auto',
 })
 
-/** fetch for the Anthropic/OpenAI SDKs over Obsidian's requestUrl (no CORS in the app) */
+/** fetch for the Anthropic/OpenAI/DeepSeek SDKs over Obsidian's requestUrl (no CORS in the app) */
 const obsidianFetch = (async (url: string | URL | Request, init?: RequestInit) => {
   const headers: Record<string, string> = {}
   new Headers(init?.headers).forEach((v, k) => (headers[k] = v))
@@ -72,7 +83,7 @@ export default class NscGeneratorPlugin extends Plugin {
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS(), ...((await this.loadData()) ?? {}) }
     // the local mode (Ollama) was removed – old settings fall back to Claude (docs/zukunft.md)
-    if (!['claude', 'openai'].includes(this.settings.provider)) this.settings.provider = 'claude'
+    if (!['claude', 'openai', 'deepseek'].includes(this.settings.provider)) this.settings.provider = 'claude'
     this.addSettingTab(new GenSettingTab(this.app, this))
 
     this.addCommand({
@@ -139,6 +150,10 @@ export default class NscGeneratorPlugin extends Plugin {
     if (this.settings.provider === 'claude') {
       if (!this.settings.claudeKey) return { ok: false, message: 'Claude – API-Schlüssel fehlt (Einstellungen)' }
       return { ok: true, message: `Claude (${this.modelLabel()})` }
+    }
+    if (this.settings.provider === 'deepseek') {
+      if (!this.settings.deepseekKey) return { ok: false, message: 'DeepSeek – API-Schlüssel fehlt (Einstellungen)' }
+      return { ok: true, message: `DeepSeek (${this.settings.deepseekModel})` }
     }
     if (!this.settings.openaiKey) return { ok: false, message: 'OpenAI – API-Schlüssel fehlt (Einstellungen)' }
     return { ok: true, message: `OpenAI (${this.settings.openaiModel})` }
@@ -236,6 +251,15 @@ class GeneratorModal extends Modal {
             { model: st.claudeModel, effort: st.claudeEffort },
             (m) => progress.setText(m)
           )
+        } else if (st.provider === 'deepseek') {
+          if (!st.deepseekKey) throw new Error('Kein DeepSeek-Schlüssel – in den Plugin-Einstellungen eintragen.')
+          this.result = await generateNpcDeepSeek(
+            deepseekClient(st.deepseekKey, obsidianFetch),
+            this.plugin.pages(),
+            { ...input, profession: profession || undefined },
+            { model: st.deepseekModel },
+            (m) => progress.setText(m)
+          )
         } else {
           if (!st.openaiKey) throw new Error('Kein OpenAI-Schlüssel – in den Plugin-Einstellungen eintragen.')
           this.result = await generateNpcOpenAI(
@@ -322,11 +346,12 @@ class GenSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName('Sprachmodell').setHeading()
     new Setting(containerEl)
       .setName('Anbieter')
-      .setDesc('Beide schlagen in deinen Regelwerken nach; die Bücher bleiben auf dem PC, nur nachgeschlagene Seiten werden gesendet. Abrechnung pro Nutzung über den eigenen API-Schlüssel.')
+      .setDesc('Alle schlagen in deinen Regelwerken nach; die Bücher bleiben auf dem PC, nur nachgeschlagene Seiten werden gesendet. Abrechnung pro Nutzung über den eigenen API-Schlüssel.')
       .addDropdown((d) =>
         d
           .addOption('claude', 'Claude (Anthropic)')
           .addOption('openai', 'OpenAI')
+          .addOption('deepseek', 'DeepSeek')
           .setValue(s.provider)
           .onChange(async (v) => {
             s.provider = v as GenSettings['provider']
@@ -390,6 +415,59 @@ class GenSettingTab extends PluginSettingTab {
             })
         )
       check()
+    } else if (s.provider === 'deepseek') {
+      let modelDropdown: import('obsidian').DropdownComponent | null = null
+      const fillModels = () => {
+        if (!modelDropdown) return
+        modelDropdown.selectEl.empty()
+        const list = s.deepseekModels.length ? s.deepseekModels : DEEPSEEK_MODELS
+        for (const m of list.includes(s.deepseekModel) ? list : [s.deepseekModel, ...list]) modelDropdown.addOption(m, m)
+        modelDropdown.setValue(s.deepseekModel)
+      }
+      const check = async () => {
+        if (!s.deepseekKey) {
+          status.setText('Status: kein API-Schlüssel')
+          status.addClass('dsa-gen-bad')
+          return
+        }
+        status.setText('Prüfe …')
+        try {
+          s.deepseekModels = await checkDeepSeek(s.deepseekKey, obsidianFetch)
+          await save()
+          fillModels()
+          const has = s.deepseekModels.includes(s.deepseekModel)
+          status.setText(`Status: verbunden, ${s.deepseekModels.length} Modelle verfügbar${has ? '' : ` – „${s.deepseekModel}“ ist nicht dabei, bitte eins wählen`}`)
+          status.toggleClass('dsa-gen-bad', !has)
+        } catch (e) {
+          status.setText(`Status: ${(e as Error).message}`)
+          status.addClass('dsa-gen-bad')
+        }
+      }
+      new Setting(containerEl)
+        .setName('API-Schlüssel')
+        .setDesc('Von platform.deepseek.com → API keys (Guthaben vorab aufladen). Achtung: Beschreibung und nachgeschlagene Seiten gehen an Server in China. Wird in den Plugin-Daten dieser Vault gespeichert.')
+        .addText((t) => {
+          t.inputEl.type = 'password'
+          t.setPlaceholder('sk-…')
+            .setValue(s.deepseekKey)
+            .onChange(async (v) => {
+              s.deepseekKey = v.trim()
+              await save()
+            })
+        })
+        .addButton((b) => b.setButtonText('Prüfen').onClick(check))
+      new Setting(containerEl)
+        .setName('Modell')
+        .setDesc('„Prüfen“ lädt die Modelle des Schlüssels. deepseek-reasoner denkt vor jeder Antwort nach (gründlicher), deepseek-chat antwortet direkt (schneller). Die Gründlichkeit ist bei DeepSeek nicht einstellbar.')
+        .addDropdown((d) => {
+          modelDropdown = d
+          fillModels()
+          d.onChange(async (v) => {
+            s.deepseekModel = v
+            await save()
+          })
+        })
+      if (s.deepseekKey) check()
     } else {
       let modelDropdown: import('obsidian').DropdownComponent | null = null
       const fillModels = () => {

@@ -1,13 +1,14 @@
 // Compares models on the hand-made Uthuria NSCs (docs/nsc-umwandlung.md). Every run COSTS MONEY.
 // Usage: node systems/dsa41/tools/eval.ts <vault> --models claude-opus-5-5,openai:gpt-6.1-sol [--only Aschanka,Praiodan] [--effort medium] [--out dist/eval.json]
 // Claude models (claude-…): key from ANTHROPIC_API_KEY or `ant auth login`. OpenAI models as openai:<model>: key from OPENAI_API_KEY.
+// DeepSeek models as deepseek:<model>: key from DEEPSEEK_API_KEY.
 // The description is the note text WITHOUT its dsa-nsc block; the existing block is the reference.
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { findFences } from '../../../packages/core/src/index.ts'
 import * as dsa41 from '../adapter/src/index.ts'
 import { normalizeName } from '../adapter/src/catalog.ts'
-import { claudeClient, generateNpcClaude, generateNpcOpenAI, openaiClient, PageStore } from '../nsc-generator/src/index.ts'
+import { claudeClient, deepseekClient, generateNpcClaude, generateNpcDeepSeek, generateNpcOpenAI, openaiClient, PageStore } from '../nsc-generator/src/index.ts'
 
 const args = process.argv.slice(2)
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined }
@@ -66,7 +67,8 @@ const jaccard = (a: string[], b: string[]) => {
 const results: any[] = []
 for (const model of models) {
   const oai = model.startsWith('openai:')
-  if (!oai && !model.startsWith('claude-')) throw new Error(`Unbekanntes Modell „${model}“ – claude-… oder openai:<modell>`)
+  const ds = model.startsWith('deepseek:')
+  if (!oai && !ds && !model.startsWith('claude-')) throw new Error(`Unbekanntes Modell „${model}“ – claude-…, openai:<modell> oder deepseek:<modell>`)
   console.log(`\n=== ${model} (${cases.length} NSCs)`)
   for (const c of cases) {
     process.stdout.write(`  ${c.name.padEnd(30)} `)
@@ -75,6 +77,8 @@ for (const model of models) {
       const input = { description: c.description, name: c.name }
       const r = oai
         ? await generateNpcOpenAI(openaiClient(undefined), pages, input, { model: model.slice(7), effort })
+        : ds
+        ? await generateNpcDeepSeek(deepseekClient(undefined), pages, input, { model: model.slice(9) })
         : await generateNpcClaude(claudeClient(undefined), pages, input, { model, effort })
       const gen = dsa41.parseNscBlock(r.block.replace(/^```dsa-nsc\n|\n```$/g, '')).data!
       const ref = c.reference.data!

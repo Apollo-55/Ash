@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BetaMessage, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import * as dsa41 from '../../adapter/src/index.ts'
-import { bookAbbreviations, bookTitle, creatureToBlock, generateNpcClaude, reviewCreature, type CreatureJson, generateNpcOpenAI, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
+import { bookAbbreviations, bookTitle, creatureToBlock, generateNpcClaude, reviewCreature, type CreatureJson, generateNpcOpenAI, generateNpcDeepSeek, isRegister, PageStore, type CreateMessage, type NpcJson } from '../src/index.ts'
 
 const pages = new PageStore({
   erstellt: '',
@@ -182,6 +182,50 @@ describe('OpenAI-Modus (simuliert, Responses-API)', () => {
   it('abgeschnittene oder gefilterte Antwort wird als Fehler gemeldet', async () => {
     const create = async () => ({ ...response([], 'incomplete'), incomplete_details: { reason: 'content_filter' } })
     await expect(generateNpcOpenAI(create as any, pages, { description: 'x' }, { model: 'gpt-5.5' })).rejects.toThrow(/gefiltert/)
+  })
+})
+
+describe('DeepSeek-Modus (simuliert, Chat Completions)', () => {
+  const completion = (message: any, finish = 'tool_calls') =>
+    ({ id: 'c', object: 'chat.completion', model: 'deepseek-reasoner', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', content: null, ...message } }], usage: { prompt_tokens: 900, completion_tokens: 100, total_tokens: 1000, prompt_cache_hit_tokens: 400, prompt_cache_miss_tokens: 500 } }) as any
+  const call = (id: string, name: string, args: unknown) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } })
+
+  it('gleiche Werkzeuge, Verlauf inkl. reasoning_content zurückgeschickt, Cache-Treffer gezählt', async () => {
+    const reqs: any[] = []
+    const answers = [
+      completion({ reasoning_content: 'erst nachschlagen', tool_calls: [call('a', 'regelwerk_suchen', { anfrage: 'Handwerker', buch: null })] }),
+      completion({ tool_calls: [{ id: 'b', type: 'function', function: { name: 'seiten_lesen', arguments: '{kaputt' } }] }),
+      completion({ tool_calls: [call('c', 'nsc_abgeben', { profession: 'Handwerker', erfahrung: 'erfahren', gottheit: null, zauberkundig: false, quellen: ['WdH 151'], npc: npc([{ name: 'Grobschmied', wert: 12 }, { name: 'Feinmechanik', wert: 10 }, { name: 'Hiebwaffen', wert: 9 }]) })] }),
+    ]
+    const create = async (p: any) => (reqs.push(structuredClone(p)), answers.shift())
+    const r = await generateNpcDeepSeek(create, pages, { description: 'Schmiedin', name: 'Topasa' }, { model: 'deepseek-reasoner' })
+    expect(reqs[0].model).toBe('deepseek-reasoner')
+    expect(reqs[0].messages.map((m: any) => m.role)).toEqual(['system', 'user'])
+    expect(reqs[0].tools.map((t: any) => t.function.name)).toEqual(['regelwerk_suchen', 'seiten_lesen', 'katalog_suchen', 'nsc_abgeben', 'kreatur_abgeben'])
+    expect(reqs[0].tools.every((t: any) => t.type === 'function' && t.function.parameters.type === 'object')).toBe(true)
+    // second request: assistant message unchanged (reasoning_content) + tool output
+    expect(reqs[1].messages.map((m: any) => m.role)).toEqual(['system', 'user', 'assistant', 'tool'])
+    expect(reqs[1].messages[2].reasoning_content).toBe('erst nachschlagen')
+    expect(reqs[1].messages[3]).toMatchObject({ tool_call_id: 'a' })
+    expect(reqs[1].messages[3].content).toContain('WdH S. 151')
+    // broken JSON is reported back, not thrown
+    expect(reqs[2].messages.at(-1)).toMatchObject({ role: 'tool', tool_call_id: 'b' })
+    expect(reqs[2].messages.at(-1).content).toContain('kein gültiges JSON')
+    expect(r.lookups).toBe(1)
+    expect(r.tokens).toMatchObject({ input: 1500, cacheRead: 1200, output: 300 })
+    expect(r.block).toContain('name: Topasa')
+  })
+
+  it('erinnert einmal an die Abgabe, abgeschnittene Antwort wird gemeldet', async () => {
+    const reqs: any[] = []
+    const answers = [
+      completion({ content: 'Hier ist der NSC …' }, 'stop'),
+      completion({ tool_calls: [call('x', 'nsc_abgeben', { profession: 'Wache', erfahrung: 'unerfahren', gottheit: null, zauberkundig: false, quellen: [], npc: npc([{ name: 'Hiebwaffen', wert: 6 }]) })] }),
+    ]
+    const r = await generateNpcDeepSeek(async (p: any) => (reqs.push(structuredClone(p)), answers.shift()), pages, { description: 'Wache' }, { model: 'deepseek-chat' })
+    expect(reqs[1].messages.at(-1)).toMatchObject({ role: 'user', content: expect.stringContaining('nsc_abgeben') })
+    expect(r.rounds).toBe(1)
+    await expect(generateNpcDeepSeek(async () => completion({ content: '…' }, 'length'), pages, { description: 'x' }, { model: 'deepseek-chat' })).rejects.toThrow(/zu lang/)
   })
 })
 
