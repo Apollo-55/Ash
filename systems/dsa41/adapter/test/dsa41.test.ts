@@ -299,3 +299,58 @@ describe('SF-Voraussetzungen', () => {
     expect(dsa41.checkSfPrerequisites(parse(SHAHANE).data!)).toEqual([])
   })
 })
+
+describe('TP/KK der Waffen', () => {
+  const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+  const block = (kk: string, name = 'Dreizack') => parse(`name: X\nwaffen:\n  - { name: ${name}, KK: ${kk} }`)
+  const kkOf = (kk: string) => block(kk).data!.waffen[0].KK
+  const errors = (kk: string) => block(kk).issues.filter((i) => i.level === 'error').map((i) => i.message)
+
+  it('liest „Schwelle/Schritt“ als Text und als Liste', () => {
+    expect(kkOf('13/3')).toEqual([13, 3])
+    expect(kkOf('" 13 / 3 "')).toEqual([13, 3])
+    expect(kkOf('[13, 3]')).toEqual([13, 3])
+    expect(errors('13/3')).toEqual([])
+  })
+
+  it('Schlüssel ohne Rücksicht auf Groß-/Kleinschreibung', () => {
+    expect(parse('name: X\nwaffen:\n  - { name: Dreizack, kk: 13/3 }').data!.waffen[0].KK).toEqual([13, 3])
+  })
+
+  it('meldet unlesbare Werte und übernimmt sie nicht', () => {
+    for (const bad of ['13', 'stark', '[13]', '[13, 3, 1]', '[13, x]', '{ a: 1 }']) {
+      expect(kkOf(bad), bad).toBeUndefined()
+      expect(errors(bad).join(' '), bad).toContain('ungültig (z. B. 10/2)')
+    }
+  })
+
+  it('lehnt negative Werte ab – als Liste und als Text', () => {
+    for (const bad of ['[-13, 3]', '[13, -3]', '-13/3', '13/-3']) {
+      expect(kkOf(bad), bad).toBeUndefined()
+      expect(errors(bad).join(' '), bad).toContain('ungültig')
+    }
+  })
+
+  it('schreibt Schwelle und Schritt auf die Nahkampfwaffe', () => {
+    // dsa-41: Dreizack TP/KK 13/3 → strengthMod.threshold 13, strengthMod.hitPointStep 3
+    const a = dsa41.nscToActor(block('14/2').data!, ctx)
+    expect(a.items.find((i) => i.name === 'Dreizack')!.system).toMatchObject({ 'strengthMod.threshold': 14, 'strengthMod.hitPointStep': 2 })
+  })
+
+  it('gilt auch für Waffen, die in keinem Kompendium stehen', () => {
+    const a = dsa41.nscToActor(parse('name: X\nwaffen:\n  - { name: Knochenkeule, talent: Hiebwaffen, KK: 12/3 }').data!, ctx)
+    expect(a.items.find((i) => i.name === 'Knochenkeule')!.system).toMatchObject({ 'strengthMod.threshold': 12, 'strengthMod.hitPointStep': 3 })
+  })
+
+  it('ohne Angabe bleibt der Wert des Kompendiums unberührt', () => {
+    const a = dsa41.nscToActor(parse('name: X\nwaffen: [Dreizack]').data!, ctx)
+    const system = a.items.find((i) => i.name === 'Dreizack')!.system
+    expect(Object.keys(system).filter((k) => k.startsWith('strengthMod'))).toEqual([])
+  })
+
+  it('Fernkampfwaffen bekommen kein TP/KK', () => {
+    const a = dsa41.nscToActor(block('13/3', 'Kurzbogen').data!, ctx)
+    const system = a.items.find((i) => i.name === 'Kurzbogen')!.system
+    expect(Object.keys(system).filter((k) => k.startsWith('strengthMod'))).toEqual([])
+  })
+})
