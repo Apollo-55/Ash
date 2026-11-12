@@ -11,8 +11,8 @@ export interface NscWeapon {
   talent?: string
   AT?: number
   PA?: number
-  FK?: number  /** dice as written ("1W6+3") */
-  TP?: string
+  FK?: number
+  TP?: string /** dice as written ("1W6+3") */
   DK?: string
   INI?: number
   WM?: [number, number]
@@ -333,7 +333,7 @@ function parseTPKK(v: unknown): [number, number] | null{
       return (a !== undefined && b !== undefined) && (a >= 0 && b >= 0)? [a, b] : null
     }
     if (typeof v === 'string') {
-      const m = /^\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*$/.exec(v)
+      const m = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(v)
       if (m) return [parseInt(m[1], 10), parseInt(m[2], 10)]
     }
     return null

@@ -168,7 +168,7 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     if (w.DK && type === 'meleeWeapon') system.distanceClass = w.DK
     if (explicitTalent) system.talent = talentSid
     if (w.WM && type === 'meleeWeapon') Object.assign(system, { 'weaponMod.attack': w.WM[0], 'weaponMod.parry': w.WM[1] })
-    if (w.KK && type === 'meleeWeapon') Object.assign(system, { 'strengthMod.hitPointStep': w.KK[0], 'strengthMod.threshold': w.KK[1] })
+    if (w.KK && type === 'meleeWeapon') Object.assign(system, { 'strengthMod.threshold': w.KK[0], 'strengthMod.hitPointStep': w.KK[1] })
     items.push({
       id: itemId('weapon', w.name),
       name: hit?.n ?? w.name,
