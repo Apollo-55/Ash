@@ -12,15 +12,13 @@ export interface NscWeapon {
   AT?: number
   PA?: number
   FK?: number
-  TP?: string /** dice as written ("1W6+3") */
+  TP?: string // dice as written ("1W6+3")
   DK?: string
   INI?: number
   WM?: [number, number]
   KK?: [number, number]
-  /** Bruchfaktor (melee weapons) */
-  BF?: number
-  /** Reichweiten in Schritt (ranged weapons): sehr nah / nah / mittel / weit / sehr weit */
-  RW?: [number, number, number, number, number]
+  BF?: number  // Bruchfaktor (melee weapons)
+  RW?: [[number,number],[number,number],[number,number],[number,number],[number,number]]
 }
 
 export interface NamedEntry {
@@ -98,7 +96,7 @@ const KEYS: Record<string, string> = {
 }
 
 const WEAPON_KEYS: Record<string, string> = {
-  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk: 'KK', bf: 'BF',
+  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk: 'KK', bf: 'BF', rw: 'RW'
 }
 
 const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'RS', 'WS', 'GS', 'ausweichen'] as const
@@ -273,7 +271,7 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
       const key = WEAPON_KEYS[k.toLowerCase()]
       if (!key) {
-        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM, KK, BF).`)
+        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM, KK, BF, RW).`)
         continue
       }
       if (key === 'name' || key === 'talent') {
@@ -294,7 +292,12 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
         const kk = parseTPKK(v)
         if (!kk) error(`Waffe: KK ${show(v)} ungültig (z. B. 10/2).`)
         else w.KK = kk
-      } else {
+      } else if (key === 'RW') {
+        const rw = parseRanges(v)
+        if (!rw) error(`Waffe: RW ${show(v)} ungültig (z. B. (0/5/10/15/20) --> (1/0/0/0/-1)).`)
+        else w.RW = rw
+      }
+      else {
         const n = toInt(v)
         if (n === undefined) error(`Waffe: ${key} ${show(v)} ist keine ganze Zahl.`)
         else (w as Record<string, unknown>)[key] = n
@@ -343,6 +346,42 @@ function parseTPKK(v: unknown): [number, number] | null{
     }
     return null
   }
+
+type Range = [number, number]
+type Ranges = [Range, Range, Range, Range, Range]
+
+const RANGES_RE = /^\(\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\)\s*-->\s*\(\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\)$/
+
+function parseRanges(v: unknown): Ranges | null {
+  if (Array.isArray(v) && v.length === 5) {
+    const result: Range[] = []
+    for (const x of v) {
+      if (!(Array.isArray(x) && x.length === 2)) return null
+
+      const a = toInt(x[0]), b = toInt(x[1])
+
+      if (a === undefined || b === undefined) return null
+      if (a < 0) return null
+
+      result.push([a, b])
+    }
+    return result as Ranges
+  }
+
+  if (typeof v === 'string') {
+    const m = RANGES_RE.exec(v)
+    if (!m) return null
+
+    const result: Range[] = []
+    for (let i = 0; i < 5; i++) {
+      result.push([parseInt(m[1 + i], 10), parseInt(m[6 + i], 10)])
+    }
+    return result as Ranges
+  }
+
+  return null
+}
+
 
 function parseList(key: ListKey, value: unknown, data: NscData, error: (m: string) => void, warn: (m: string) => void, info: (m: string) => void) {
   const label = LIST_LABEL[key]

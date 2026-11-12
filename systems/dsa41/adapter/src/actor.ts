@@ -170,6 +170,10 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     if (w.WM && type === 'meleeWeapon') Object.assign(system, { 'weaponMod.attack': w.WM[0], 'weaponMod.parry': w.WM[1] })
     if (w.KK && type === 'meleeWeapon') Object.assign(system, { 'strengthMod.threshold': w.KK[0], 'strengthMod.hitPointStep': w.KK[1] })
     if (w.BF !== undefined && type === 'meleeWeapon') system.breakingFactor = w.BF
+    if (w.RW && type === 'rangedWeapon') {
+      Object.assign(system, { 'ranges.veryClose': w.RW[0][0], 'ranges.close': w.RW[1][0], 'ranges.medium': w.RW[2][0], 'ranges.far': w.RW[3][0], 'ranges.veryFar': w.RW[4][0]})
+      Object.assign(system, { 'ranges.bonusDamages': w.RW[0][1], 'ranges.close': w.RW[1][1], 'ranges.medium': w.RW[2][1], 'ranges.far': w.RW[3][1], 'ranges.veryFar': w.RW[4][1]})
+    }
     items.push({
       id: itemId('weapon', w.name),
       name: hit?.n ?? w.name,
