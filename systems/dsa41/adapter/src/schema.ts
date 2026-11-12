@@ -11,12 +11,12 @@ export interface NscWeapon {
   talent?: string
   AT?: number
   PA?: number
-  FK?: number
-  /** dice as written ("1W6+3") */
+  FK?: number  /** dice as written ("1W6+3") */
   TP?: string
   DK?: string
   INI?: number
   WM?: [number, number]
+  KK?: [number, number]
 }
 
 export interface NamedEntry {
@@ -94,7 +94,7 @@ const KEYS: Record<string, string> = {
 }
 
 const WEAPON_KEYS: Record<string, string> = {
-  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM',
+  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk:'KK'
 }
 
 const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'RS', 'WS', 'GS', 'ausweichen'] as const
@@ -269,7 +269,7 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
       const key = WEAPON_KEYS[k.toLowerCase()]
       if (!key) {
-        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM).`)
+        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM, KK).`)
         continue
       }
       if (key === 'name' || key === 'talent') {
@@ -286,6 +286,10 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
         const wm = parseWM(v)
         if (!wm) error(`Waffe: WM ${show(v)} ungültig (z. B. 0/-1).`)
         else w.WM = wm
+      } else if (key === 'KK') {
+        const kk = parseTPKK(v)
+        if (!kk) error(`Waffe: KK ${show(v)} ungültig (z. B. 10/2).`)
+        else w.KK = kk
       } else {
         const n = toInt(v)
         if (n === undefined) error(`Waffe: ${key} ${show(v)} ist keine ganze Zahl.`)
@@ -307,7 +311,8 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
 function parseWM(v: unknown): [number, number] | null {
   if (Array.isArray(v) && v.length === 2) {
     const a = toInt(v[0]), b = toInt(v[1])
-    return a !== undefined && b !== undefined ? [a, b] : null
+
+    return (a !== undefined && b !== undefined)? [a, b] : null
   }
   if (typeof v === 'number') return [v, v]
   if (typeof v === 'string') {
@@ -321,6 +326,18 @@ function parseWM(v: unknown): [number, number] | null {
   }
   return null
 }
+
+function parseTPKK(v: unknown): [number, number] | null{
+    if (Array.isArray(v) && v.length === 2) {
+      const a = toInt(v[0]), b = toInt(v[1])
+      return (a !== undefined && b !== undefined) && (a >= 0 && b >= 0)? [a, b] : null
+    }
+    if (typeof v === 'string') {
+      const m = /^\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*$/.exec(v)
+      if (m) return [parseInt(m[1], 10), parseInt(m[2], 10)]
+    }
+    return null
+  }
 
 function parseList(key: ListKey, value: unknown, data: NscData, error: (m: string) => void, warn: (m: string) => void, info: (m: string) => void) {
   const label = LIST_LABEL[key]
