@@ -58,8 +58,10 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
   push('SO', d.SO)
   const valueLine = vals.length ? `<p class="vtf-nsc-values">${vals.join(' · ')}</p>` : ''
 
+  // TP/KK is not in the catalog, so the column only appears when a weapon of the block gives it
+  const showKK = d.waffen.some((w) => w.KK)
   const weapons = d.waffen.length
-    ? `<table class="vtf-nsc-weapons"><tr><th>Waffe</th><th>INI</th><th>AT</th><th>PA</th><th>TP</th><th>DK</th></tr>${d.waffen
+    ? `<table class="vtf-nsc-weapons"><tr><th>Waffe</th><th>INI</th><th>AT</th><th>PA</th><th>TP</th>${showKK ? '<th>TP/KK</th>' : ''}<th>DK</th></tr>${d.waffen
         .map((w) => {
           const known = findWeapon(w.name, w.talent)
           const talent = w.talent ?? (known?.talent ? findBySid(known.talent)?.n : undefined)
@@ -67,7 +69,7 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
           const dk = w.DK ?? known?.dk ?? ''
           const at = w.FK !== undefined ? `FK ${w.FK}` : (w.AT ?? '')
           const talentHint = opts.showCalculated && talent && talent !== w.name ? ` <span class="vtf-nsc-calc">(${esc(talent)})</span>` : ''
-          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${w.INI ?? ''}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td><td>${esc(dk)}</td></tr>`
+          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${w.INI ?? ''}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td>${showKK ? `<td>${w.KK ? w.KK.join('/') : ''}</td>` : ''}<td>${esc(dk)}</td></tr>`
         })
         .join('')}</table>`
     : ''

@@ -111,6 +111,16 @@ describe('Rechenwerte', () => {
     expect(journal).toContain('@UUID[Actor.abc]{Zum Charakter}')
   })
 
+  it('Wertekasten zeigt TP/KK nur, wenn eine Waffe es angibt', () => {
+    const html = dsa41Adapter.renderStatblock(parse('name: X\nwaffen:\n  - { name: Dreizack, KK: 13/3 }\n  - { name: Dolch }'), {})
+    expect(html).toContain('<th>TP</th><th>TP/KK</th><th>DK</th>')
+    expect(html).toContain('<td>13/3</td>')
+    expect(html.match(/<td><\/td><td>[A-Z]*<\/td><\/tr>/g)).toHaveLength(1) // Dolch: leere TP/KK-Zelle
+    const without = dsa41Adapter.renderStatblock(parse('name: X\nwaffen:\n  - { name: Dolch }'), {})
+    expect(without).not.toContain('TP/KK')
+    expect(without).toContain('<th>TP</th><th>DK</th>')
+  })
+
   it('Fehler im Wertekasten', () => {
     const html = dsa41Adapter.renderStatblock(parse('name: X\nKK: 1a'), { showIssues: true })
     expect(html).toContain('<li class="vtf-nsc-error">✖ KK: „1a“ ist keine ganze Zahl.</li>')
