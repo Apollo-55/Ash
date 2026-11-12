@@ -1,5 +1,5 @@
 // Pushes a vault folder to a vtf-sync service (same code path as the Obsidian plugin's auto-sync).
-// Usage: node tools/sync-cli.ts <vault-dir> --url http://localhost:8787 --token … [--name uthuria-ob] [--unused] [--cleanup] [--system <id> | --no-system]
+// Usage: node tools/sync-cli.ts <vault-dir> --url http://localhost:8787 --token … [--name kampagne] [--unused] [--cleanup] [--system <id> | --no-system]
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, join, relative, sep } from 'node:path'
 import { actorsOf, buildBundle, createSimpleResolver, fetchHttp, hashBytes, journalsOf, LEAFLET_DATA_PATH, leafletMarkersFromPluginData, pushBundle, scenesOf, SyncClient } from '../packages/core/src/index.ts'

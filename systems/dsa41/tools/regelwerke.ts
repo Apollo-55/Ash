@@ -5,8 +5,6 @@
 // the books and whether they are readable. Regelwerke/regelwerke.json can leave books out:
 //   [{ "datei": "Altes Buch.pdf", "art": "ignorieren" }]
 // Both files contain rulebook text – they stay local (.llm/ is git-ignored).
-// (Until 2026-11-04 this also extracted professions, liturgies and SF prerequisites for the local
-//  mode – see docs/zukunft.md.)
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'

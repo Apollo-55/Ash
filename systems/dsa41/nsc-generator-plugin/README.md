@@ -13,53 +13,20 @@ Das Ergebnis ist ein normaler `dsa-nsc`-Block. **Vault to Foundry** zeigt ihn al
 
 Die Logik kennt Obsidian nicht. Darum lässt sie sich ohne Obsidian testen (`npm test`) und vom Modellvergleich `../tools/eval.ts` direkt auf der Kommandozeile nutzen. Das Plugin ist eine dünne Schicht darüber.
 
-## Installieren
+## Installieren, Einrichten, Benutzen
 
-Mit Sync-Dienst am einfachsten: In Obsidian unter Einstellungen → Vault to Foundry → „Plugin-Updates“ auf **Installieren** klicken (oder die ZIP von der Download-Seite `https://<domain>/vtf-sync/plugin` holen). Updates kommen danach zusammen mit denen von Vault to Foundry. Von Hand geht es so:
+Die Anleitung für Anwender steht in [docs/nsc-generator.md](../../../docs/nsc-generator.md): Regelwerk-Index bauen, Plugin installieren, Anbieter und Schlüssel, Befehle, Prüfregeln, Kreaturen.
 
-Voraussetzungen: Obsidian Desktop, die Regelwerk-PDFs in `Regelwerke/` im Projekt, ein API-Schlüssel für Claude oder OpenAI.
+Kurzfassung von Hand:
 
 ```bash
-npm run regelwerke        # einmalig und nach jedem PDF-Tausch: Seiten-Index nach .llm/
+npm run regelwerke        # einmalig und nach jedem PDF-Tausch: Seiten-Index aus Regelwerke/*.pdf nach .llm/
 npm run build:generator   # → dist/dsa-nsc-generator-obsidian.zip
 ```
 
-Die ZIP nach `<vault>/.obsidian/plugins/` entpacken (es entsteht `dsa-nsc-generator/`), Obsidian neu laden und unter „Community-Plugins“ **DSA-NSC-Generator** einschalten.
-
-`npm run build` (Vault to Foundry) baut den Generator **nicht** mit.
-
-## Einrichten
-
-Einstellungen → DSA-NSC-Generator:
-
-| Abschnitt | Einstellung | Standard |
-|---|---|---|
-| Sprachmodell | Anbieter | Claude |
-| | API-Schlüssel, „Prüfen“ (kostenlos) | – |
-| | Modell | `claude-opus-5-5`, `gpt-6.1-sol` bzw. `deepseek-reasoner` |
-| | Gründlichkeit (niedrig / mittel / hoch; nicht bei DeepSeek) | mittel |
-| Regelwerke | Index-Datei, „Neu laden“ | `~/Projekt/Ash/.llm/regelwerk-index.json` |
-| Vorgaben | Erfahrung | automatisch |
-
-Liegt das Projekt woanders, die Index-Datei anpassen. Die Seiten-Datei `regelwerk-seiten.json` wird im selben Ordner erwartet.
+Die ZIP nach `<vault>/.obsidian/plugins/` entpacken, **DSA-NSC-Generator** einschalten, in den Einstellungen API-Schlüssel und den Pfad zu `.llm/regelwerk-index.json` eintragen. `npm run build` (Vault to Foundry) baut den Generator **nicht** mit.
 
 **Schlüssel:** Sie stehen im Klartext in `<vault>/.obsidian/plugins/dsa-nsc-generator/data.json`. Diese Datei nicht weitergeben und den Ordner nicht mit anderen teilen (auch nicht per Sync oder Git).
-
-## Benutzen
-
-Befehlspalette (`Strg+P`):
-
-- **NSC aus Markierung erzeugen** – Beschreibung markieren, der Block kommt darunter.
-- **NSC aus dieser Notiz erzeugen** – nimmt den Text der Notiz, der Block kommt ans Ende.
-- **NSC-Generator öffnen** – leeres Formular, der Block kommt an den Cursor.
-
-Im Formular Name, Beschreibung, Art (automatisch / Person / Kreatur), Erfahrung und optional Profession angeben → **Erzeugen** (≈ 10–90 s) → Vorschau mit Quellen und Korrekturen → **Einfügen**.
-
-Das Ergebnis ist ein Vorschlag: Im Wertekasten von Vault to Foundry stehen Fehler rot und Warnungen orange.
-
-## Was das Programm verlässt
-
-Die PDFs bleiben auf deinem PC. An den Anbieter gehen nur die Beschreibung, der Regeltext des Generators und genau die Seiten, die das Modell nachschlägt. OpenAI wird mit `store: false` angefragt und speichert nichts. Claude zeigt nach jedem Lauf die ungefähren Kosten (Opus etwa 0,20–0,40 $ pro NSC), OpenAI und DeepSeek die verbrauchten Tokens. **DeepSeek:** die Server stehen in China – Beschreibung und nachgeschlagene Seiten gehen dorthin.
 
 ## Entwickeln
 
@@ -78,6 +45,4 @@ npm test                  # Tests der Logik liegen in ../nsc-generator/test/
 
 ## Mehr
 
-- Ausführliche Anleitung (Werkzeuge des Modells, Prüfregeln, Kreaturen, Regelwerke, Modellvergleich): [docs/nsc-generator.md](../../../docs/nsc-generator.md)
 - Das Block-Format `dsa-nsc`: [README von Vault to Foundry](../../../README.md#nscs-der-dsa-nsc-block)
-- Zurückgestellt (lokales Modell, Texterkennung): [docs/zukunft.md](../../../docs/zukunft.md)

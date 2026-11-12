@@ -58,7 +58,7 @@ const DEFAULTS = (): GenSettings => ({
   deepseekKey: '',
   deepseekModel: 'deepseek-reasoner',
   deepseekModels: [],
-  indexPath: `${home()}/Projekt/Ash/.llm/regelwerk-index.json`,
+  indexPath: '',
   defaultLevel: 'auto',
 })
 
@@ -82,7 +82,7 @@ export default class NscGeneratorPlugin extends Plugin {
 
   async onload(): Promise<void> {
     this.settings = { ...DEFAULTS(), ...((await this.loadData()) ?? {}) }
-    // the local mode (Ollama) was removed – old settings fall back to Claude (docs/zukunft.md)
+    // the local mode (Ollama) was removed – old settings fall back to Claude
     if (!['claude', 'openai', 'deepseek'].includes(this.settings.provider)) this.settings.provider = 'claude'
     this.addSettingTab(new GenSettingTab(this.app, this))
 
@@ -124,6 +124,7 @@ export default class NscGeneratorPlugin extends Plugin {
   bookStatus(): { erstellt: string; buecher: { datei: string; kurz?: string; lesbar: boolean; ignoriert?: boolean }[] } {
     const fs = nodeRequire('fs')
     const path = this.settings.indexPath.replace(/^~/, home())
+    if (!path) throw new Error('Noch keine Index-Datei eingetragen (Pfad zu .llm/regelwerk-index.json im Projektordner).')
     if (!fs.existsSync(path)) throw new Error(`Regelwerk-Index fehlt: ${path} – im Projekt „npm run regelwerke“ ausführen.`)
     return JSON.parse(fs.readFileSync(path, 'utf8'))
   }
@@ -133,6 +134,7 @@ export default class NscGeneratorPlugin extends Plugin {
     if (this.pageStore) return this.pageStore
     const fs = nodeRequire('fs')
     const path = this.settings.indexPath.replace(/^~/, home()).replace(/[^/\\]+$/, 'regelwerk-seiten.json')
+    if (!this.settings.indexPath) throw new Error('Noch keine Index-Datei eingetragen – Einstellungen → DSA-NSC-Generator → Regelwerke.')
     if (!fs.existsSync(path)) throw new Error(`Seiten-Index fehlt: ${path} – im Projekt „npm run regelwerke“ ausführen.`)
     this.pageStore = new PageStore(JSON.parse(fs.readFileSync(path, 'utf8')))
     return this.pageStore
@@ -556,7 +558,7 @@ class GenSettingTab extends PluginSettingTab {
       .setName('Index-Datei')
       .setDesc('Wird im Projekt mit „npm run regelwerke“ aus den PDFs in Regelwerke/ gebaut. Bücher tauschen → neu bauen → hier „Neu laden“.')
       .addText((t) =>
-        t.setValue(s.indexPath).onChange(async (v) => {
+        t.setPlaceholder('~/vault-to-foundry/.llm/regelwerk-index.json').setValue(s.indexPath).onChange(async (v) => {
           s.indexPath = v.trim()
           this.plugin.resetPages()
           await save()

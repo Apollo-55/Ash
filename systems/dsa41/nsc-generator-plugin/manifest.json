@@ -3,7 +3,7 @@
   "name": "DSA-NSC-Generator",
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
-  "description": "Erzeugt aus einer Beschreibung einen dsa-nsc-Block (DSA 4.1) – mit Claude oder OpenAI und deinen Regelwerken.",
+  "description": "Erzeugt aus einer Beschreibung einen dsa-nsc-Block (DSA 4.1) – mit Claude, OpenAI oder DeepSeek und deinen Regelwerken.",
   "author": "Martin Lilienthal",
   "isDesktopOnly": true
 }

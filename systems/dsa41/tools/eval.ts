@@ -1,5 +1,5 @@
-// Compares models on the hand-made Uthuria NSCs (docs/nsc-umwandlung.md). Every run COSTS MONEY.
-// Usage: node systems/dsa41/tools/eval.ts <vault> --models claude-opus-5-5,openai:gpt-6.1-sol [--only Aschanka,Praiodan] [--effort medium] [--out dist/eval.json]
+// Compares models on the hand-made NSCs of a vault. Every run COSTS MONEY.
+// Usage: node systems/dsa41/tools/eval.ts <vault> --models claude-opus-5-5,openai:gpt-6.1-sol [--only Name1,Name2] [--effort medium] [--expect professions.json] [--out dist/eval.json]
 // Claude models (claude-…): key from ANTHROPIC_API_KEY or `ant auth login`. OpenAI models as openai:<model>: key from OPENAI_API_KEY.
 // DeepSeek models as deepseek:<model>: key from DEEPSEEK_API_KEY.
 // The description is the note text WITHOUT its dsa-nsc block; the existing block is the reference.
@@ -18,17 +18,11 @@ const only = opt('--only')?.split(',').map((s) => s.toLowerCase())
 const out = opt('--out') ?? 'dist/eval.json'
 const pages = new PageStore(JSON.parse(readFileSync('.llm/regelwerk-seiten.json', 'utf8')))
 
-/** expected profession (word in the chosen name) per NSC, from docs/nsc-umwandlung.md */
-const EXPECT: Record<string, RegExp> = {
-  'Aschanka Malefsunni': /wundarzt|medicus|heiler/i, 'Darion Pulverberg': /seefahrer|schmuggler|schiffer/i, 'Dioptus aus Zwerch': /söldner|artillerist|gelehrter|mechan/i,
-  'Leta Sjenskoje': /handwerker/i, 'Shahane ay Zedrakin': /.*/, 'Haargh-Ma-Mu': /kor/i, 'Praiodan von Luring': /praios/i,
-  'Zulhaminja saba Zulyoya': /nandus/i, 'Frederik Narciso': /jäger|kopfgeld/i, 'Sir Rondrigo von Talfenn': /ritter|krieger/i,
-  'Valeriano di Salsavarda': /schwertgesell|fedorino/i, 'Arvid Frenhilddotter': /druide/i, 'Ralio Derenvay': /magier/i,
-  'Topasa': /handwerker/i, 'Ebba': /seefahrer|handwerker|wirt/i, 'Kapitän Persiphone von Rethis': /seefahrer|schiffer|fähnrich zur see/i, 'Vittorio di Belhanka': /entdecker|kartograph/i, 'Sjadjana die Brutale': /seefahrer|fähnrich zur see|schiffer/i,
-}
-
-/** creatures have no profession (fixed values, see docs/nsc-umwandlung.md) */
-const SKIP = new Set(['Thalassische Riff-Hydra'])
+/** optional expectations: JSON file { "<NSC name>": "<regex the chosen profession must match>" } */
+const expectFile = opt('--expect')
+const EXPECT: Record<string, RegExp> = Object.fromEntries(
+  Object.entries(expectFile ? (JSON.parse(readFileSync(expectFile, 'utf8')) as Record<string, string>) : {}).map(([k, v]) => [k, new RegExp(v, 'i')]),
+)
 
 const walk = (d: string, acc: string[] = []): string[] => {
   for (const e of readdirSync(d)) {
@@ -48,7 +42,6 @@ for (const file of walk(vault)) {
   if (fences.length !== 1) continue
   const reference = dsa41.parseNscBlock(fences[0].content)
   const name = reference.name!
-  if (SKIP.has(name)) continue
   if (only && !only.some((o) => name.toLowerCase().includes(o))) continue
   const description = text
     .replace(/```dsa-nsc[\s\S]*?```/g, '')
