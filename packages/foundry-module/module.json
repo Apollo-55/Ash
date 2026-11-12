@@ -2,7 +2,7 @@
   "id": "vault-to-foundry",
   "title": "Vault to Foundry – Import",
   "description": "Übernimmt Journale, NSCs (z. B. dsa-41) und Szenen aus Obsidian (Plugin „Vault to Foundry“) – per Sync-Dienst oder ZIP.",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "authors": [
     {
       "name": "Martin Lilienthal"

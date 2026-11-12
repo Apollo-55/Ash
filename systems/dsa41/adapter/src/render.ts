@@ -1,10 +1,13 @@
 import type { ParsedBlock, StatblockOptions } from '../../../../packages/core/src/systems/adapter.ts'
 import { findBySid, findWeapon } from './catalog.ts'
 import { computeDerived, overrides } from './derived.ts'
-import { ATTRIBUTES, type NamedEntry, type NscData } from './schema.ts'
+import { ATTRIBUTES, type NamedEntry, type NscData, type NscWeapon } from './schema.ts'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** ranges and TP+ as written in the block: "(5/15/25/40/60) --> (1/1/0/0/-1)" */
+const rangesText = (rw: NonNullable<NscWeapon['RW']>) => `(${rw.map((r) => r[0]).join('/')}) --> (${rw.map((r) => r[1]).join('/')})`
 
 const entryText = (e: NamedEntry) => `${esc(e.name)}${e.value !== null ? ` ${e.value}` : ''}`
 
@@ -58,8 +61,12 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
   push('SO', d.SO)
   const valueLine = vals.length ? `<p class="vtf-nsc-values">${vals.join(' · ')}</p>` : ''
 
+  // TP/KK, BF and ranges (with TP+) are not in the catalog, so their columns only appear when a weapon of the block gives them
+  const showKK = d.waffen.some((w) => w.KK)
+  const showBF = d.waffen.some((w) => w.BF !== undefined)
+  const showRW = d.waffen.some((w) => w.RW)
   const weapons = d.waffen.length
-    ? `<table class="vtf-nsc-weapons"><tr><th>Waffe</th><th>INI</th><th>AT</th><th>PA</th><th>TP</th><th>DK</th></tr>${d.waffen
+    ? `<table class="vtf-nsc-weapons"><tr><th>Waffe</th><th>INI</th><th>AT</th><th>PA</th><th>TP</th>${showKK ? '<th>TP/KK</th>' : ''}${showBF ? '<th>BF</th>' : ''}<th>DK</th>${showRW ? '<th>Reichweite</th>' : ''}</tr>${d.waffen
         .map((w) => {
           const known = findWeapon(w.name, w.talent)
           const talent = w.talent ?? (known?.talent ? findBySid(known.talent)?.n : undefined)
@@ -67,7 +74,7 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
           const dk = w.DK ?? known?.dk ?? ''
           const at = w.FK !== undefined ? `FK ${w.FK}` : (w.AT ?? '')
           const talentHint = opts.showCalculated && talent && talent !== w.name ? ` <span class="vtf-nsc-calc">(${esc(talent)})</span>` : ''
-          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${w.INI ?? ''}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td><td>${esc(dk)}</td></tr>`
+          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${w.INI ?? ''}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td>${showKK ? `<td>${w.KK ? w.KK.join('/') : ''}</td>` : ''}${showBF ? `<td>${w.BF ?? ''}</td>` : ''}<td>${esc(dk)}</td>${showRW ? `<td>${w.RW ? esc(rangesText(w.RW)) : ''}</td>` : ''}</tr>`
         })
         .join('')}</table>`
     : ''

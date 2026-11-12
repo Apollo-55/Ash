@@ -162,12 +162,18 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     const explicitTalent = w.talent ? find(['combatTalent'], w.talent) : undefined
     const hit = findWeapon(w.name, w.talent)
     const talentSid = explicitTalent?.s ?? hit?.talent ?? 'talent-raufen'
-    const type = hit?.t ?? (w.FK !== undefined ? 'rangedWeapon' : 'meleeWeapon')
+    const type = hit?.t ?? (w.FK !== undefined || w.RW ? 'rangedWeapon' : 'meleeWeapon')
     const system: Record<string, unknown> = {}
     if (w.TP) system.damage = diceToFoundry(w.TP) ?? w.TP
     if (w.DK && type === 'meleeWeapon') system.distanceClass = w.DK
     if (explicitTalent) system.talent = talentSid
     if (w.WM && type === 'meleeWeapon') Object.assign(system, { 'weaponMod.attack': w.WM[0], 'weaponMod.parry': w.WM[1] })
+    if (w.KK && type === 'meleeWeapon') Object.assign(system, { 'strengthMod.threshold': w.KK[0], 'strengthMod.hitPointStep': w.KK[1] })
+    if (w.BF !== undefined && type === 'meleeWeapon') system.breakingFactor = w.BF
+    if (w.RW && type === 'rangedWeapon') {
+      Object.assign(system, { 'ranges.veryClose': w.RW[0][0], 'ranges.close': w.RW[1][0], 'ranges.medium': w.RW[2][0], 'ranges.far': w.RW[3][0], 'ranges.veryFar': w.RW[4][0]})
+      Object.assign(system, { 'bonusDamages.veryClose': w.RW[0][1], 'bonusDamages.close': w.RW[1][1], 'bonusDamages.medium': w.RW[2][1], 'bonusDamages.far': w.RW[3][1], 'bonusDamages.veryFar': w.RW[4][1]})
+    }
     items.push({
       id: itemId('weapon', w.name),
       name: hit?.n ?? w.name,
