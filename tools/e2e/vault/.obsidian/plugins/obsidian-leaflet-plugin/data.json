@@ -1,0 +1,12 @@
+{
+  "mapMarkers": [
+    {
+      "id": "süd-map",
+      "markers": [
+        { "id": "m1", "type": "default", "loc": [-1.0, 2.0], "link": "Hinterhalt an Deck", "layer": true },
+        { "id": "m2", "type": "default", "loc": [-2.2, 3.1], "link": "Die Nebelinseln", "layer": true },
+        { "id": "m3", "type": "default", "loc": [-0.5, 0.5], "link": null, "layer": true }
+      ]
+    }
+  ]
+}

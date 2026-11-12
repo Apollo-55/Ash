@@ -1,4 +1,6 @@
-# Alanfaner Sabotage – Gegner
+# Hinterhalt an Deck
+
+In der zweiten Nachtwache klettern drei Gestalten über die Reling.
 
 ```dsa-nsc
 name: Die Viper
@@ -42,7 +44,7 @@ zauber:
   Psychostabilis: 9
   Schattenschleier: { ZfW: 12, probe: MU/IN/CH, kosten: 8 AsP, wirkung: Hüllt den Zauberer in Schatten }
 ```
-![[token_mage.png]]
+![[token_magier.png]]
 
 ```dsa-nsc
 name: Vollstrecker
@@ -56,7 +58,7 @@ waffen:
   - { name: Schwert, AT: 16, PA: 16, TP: 1W+4 }
 sonderfertigkeiten: [Linkhand]
 ```
-![[token_assasine_fem.png]]
+![[token_vollstrecker.png]]
 
 ```dsa-nsc
 name: Thalassische Riff-Hydra
@@ -67,4 +69,4 @@ waffen:
 verknüpft: nein
 ```
 
-Verweis auf [[Sabotage NSC#Die Viper]] und [[Shahane ay Zedrakin]].
+Verweis auf [[Hinterhalt an Deck#Die Viper]] und [[Mira Dornhag]].

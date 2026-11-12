@@ -16,7 +16,8 @@ systems/                        systemabhängig – je Spielsystem ein Ordner
   adapters.ts                   Liste der Systeme für Obsidian und Export
   foundry-hooks.ts              Liste der Foundry-Teile (nach Foundry-System-ID)
   dsa41/                        DSA 4.1 (Foundry-System dsa-41), siehe systems/dsa41/README.md
-tools/                          Build, Typecheck, Kommandozeilen-Export, lokale Testumgebung, E2E
+tools/                          Build, Typecheck, Kommandozeilen-Export, lokale Testumgebung
+  e2e/                          End-to-End-Test mit eigener Test-Vault (e2e/vault/)
 docs/                           Anleitungen
 ```
 
@@ -46,21 +47,37 @@ Weitere Werkzeuge:
 
 ## Lokale Testumgebung
 
-Folgende Ordner sind nicht im Git und müssen selbst angelegt werden:
+Diese Ordner sind nicht im Git und werden nur für die jeweilige Aufgabe gebraucht:
 
 | Ordner | Inhalt |
 |---|---|
-| `test-vault/` | eine Obsidian-Vault zum Ausprobieren; `npm run deploy` kopiert das Plugin hinein |
+| `test-vault/` | eine eigene Obsidian-Vault zum Ausprobieren; `npm run deploy` kopiert das Plugin hinein |
 | `.foundry/app/` | eine entpackte Foundry-Node-Version (eigene Lizenz nötig), Daten in `.foundry/data/` |
 | `Regelwerke/` | eigene Regelwerk-PDFs für den NSC-Generator (urheberrechtlich geschützt, nie einchecken) |
 
 ```bash
 npm run foundry       # lokale Foundry auf http://localhost:30013
 npm run sync-local    # lokaler vtf-sync davor (Token in .foundry/sync-token)
-npm run e2e           # Durchlauf im Browser (Playwright), Screenshots in dist/e2e/
 ```
 
-`npm run e2e` erwartet eine Welt `vtf-test` mit dem System dsa-41 und in `test-vault/` einige Notizen, auf die sich `tools/e2e/foundry-e2e.mjs` und die Fixtures in `tools/e2e/fixtures/` beziehen (u. a. `NPC/Besatzung/Shahane ay Zedrakin.md`, „Valeriano di Salsavarda“, „Encounter“ mit der Leaflet-Karte `süd-map`, „Alanfaner Sabotage“). Diese Vault liegt dem Projekt nicht bei; ohne sie laufen nur `npm test` und die Checkliste in [testen.md](testen.md).
+## End-to-End-Test
+
+`npm run e2e` spielt einen kompletten Durchlauf im Browser (Playwright) gegen die lokale Foundry: Export, Import, Links, NSCs, Szenen, geänderte Notiz, Secrets, Verwaiste. Die Testdaten liegen im Projekt: `tools/e2e/vault/` ist eine kleine, erfundene Vault (Notizen, Bilder, Karte mit Leaflet-Markern, PDF). Jeder Lauf arbeitet auf einer frischen Kopie in `dist/e2e-vault/`.
+
+Einmalig vorbereiten:
+
+1. Foundry v13 (Node-Version) nach `.foundry/app/FoundryVTT-Node-<version>/` entpacken, `npm run foundry` starten, Lizenz eintragen.
+2. Im Setup das System **dsa-41** installieren und eine Welt mit der ID `vtf-test` anlegen (andere ID: `VTF_WORLD=…`).
+3. In der Welt einen Benutzer „E2E“ mit der Rolle Spielleiter und ohne Passwort anlegen (oder den Gamemaster ohne Passwort lassen und abgemeldet sein).
+4. Browser für Playwright laden: `PLAYWRIGHT_BROWSERS_PATH=.foundry/pw-browsers npx playwright install chromium` (das Skript sucht dort, solange `PLAYWRIGHT_BROWSERS_PATH` nicht gesetzt ist).
+
+Dann, während `npm run foundry` läuft:
+
+```bash
+npm run e2e
+```
+
+Das Skript baut das Modul, kopiert es nach `.foundry/data/Data/modules/` (anderer Ort: `VTF_FOUNDRY_MODULES=…`), aktiviert es in der Welt und gibt je Schritt die gefundenen Werte aus; Screenshots landen in `dist/e2e/`. Welche Punkte der Checkliste damit abgedeckt sind, steht in [testen.md](testen.md) (**[auto]**). Weitere Variablen: `VTF_FOUNDRY_URL` (Standard `http://localhost:30013`), `VTF_E2E_OUT`.
 
 ## Versionen
 

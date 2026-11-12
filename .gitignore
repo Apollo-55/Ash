@@ -11,3 +11,6 @@ Regelwerke/
 # Regelwerk-Index (enthält Buchtext, nie ins Git)
 .llm/
 __pycache__/
+
+# synthetic test vault for npm run e2e
+!tools/e2e/vault/**/*.pdf

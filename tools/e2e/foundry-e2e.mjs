@@ -1,5 +1,6 @@
 // End-to-end test against the local Foundry instance (tools/foundry-local.sh must be running).
-// Usage: node tools/e2e/foundry-e2e.mjs <step> [zip] — steps: launch, enable, import <zip>, inspect, reveal, shots
+// Usage: node tools/e2e/foundry-e2e.mjs <step> [zip] — steps: launch, enable, import <zip>, inspect, reveal, shots, …
+// Document names refer to the test vault in tools/e2e/vault/ (run-all.sh works on a copy of it).
 import { createRequire } from 'node:module'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -37,12 +38,12 @@ async function launchWorld() {
 async function joinAsGM(page) {
   await page.goto(`${BASE}/join`)
   await page.waitForSelector('select[name="userid"]')
-  // prefer an own account ("Claude"), so a GM who is logged in by hand is not blocked; options of logged-in users are disabled
+  // prefer an own account ("E2E"), so a GM who is logged in by hand is not blocked; options of logged-in users are disabled
   const gm = await page.$eval('select[name="userid"]', (sel) => {
     const free = [...sel.options].filter((o) => !o.disabled && o.value)
-    return (free.find((o) => /^claude$/i.test(o.textContent.trim())) ?? free.find((o) => /gamemaster/i.test(o.textContent)))?.value
+    return (free.find((o) => /^(e2e|claude)$/i.test(o.textContent.trim())) ?? free.find((o) => /gamemaster/i.test(o.textContent)))?.value
   })
-  if (!gm) throw new Error('Kein freier GM-Benutzer: In vtf-test einen Benutzer „Claude“ (Rolle Spielleiter, ohne Passwort) anlegen oder als Gamemaster abmelden.')
+  if (!gm) throw new Error('Kein freier GM-Benutzer: In der Testwelt einen Benutzer „E2E“ (Rolle Spielleiter, ohne Passwort) anlegen oder als Gamemaster abmelden.')
   await page.selectOption('select[name="userid"]', gm)
   await page.click('button[name="join"]')
   await page.waitForFunction(() => window.game?.ready === true, null, { timeout: 60000 })
@@ -149,7 +150,7 @@ const steps = {
         out.callout = /vtf-callout-warning/.test(html)
         out.mark = /<mark>wichtig<\/mark>/.test(html)
         out.footnote = /vtf-footnotes/.test(html) && /Wege der Helden, S\. 132/.test(html)
-        out.embedShahane = /vtf-embed/.test(html) && /Zum Charakter/.test(html) && /Belkelel/.test(html)
+        out.embedSection = /vtf-embed/.test(html) && /Zum Charakter/.test(html) && /Schmugglerin/.test(html)
         // all links in all journals resolvable?
         let broken = 0, total = 0
         for (const j of game.journal) for (const p of j.pages) {
@@ -170,9 +171,9 @@ const steps = {
           }
         }
         out.anchors = anchors
-        const pdf = byName('Q02 - Efferds Wogen')
+        const pdf = byName('Handout')
         out.pdfPage = pdf?.pages.contents[0] ? { type: pdf.pages.contents[0].type, src: pdf.pages.contents[0].src } : null
-        const img = byName('Shahane ay Zedrakin').pages.contents[0].text.content.match(/src="([^"]+)"/)[1]
+        const img = byName('Mira Dornhag').pages.contents[0].text.content.match(/src="([^"]+)"/)[1]
         out.imageStatus = (await fetch(img)).status
         out.folderDepthMax = Math.max(...game.folders.map((f) => f.depth))
         return out
@@ -232,7 +233,7 @@ const steps = {
     await withPage(async (page) => {
       await page.evaluate(() => { ui.sidebar.changeTab('journal', 'primary'); ui.sidebar.toggleExpanded?.(true) })
       const results = []
-      for (const [label, id] of [['Valeriano', 'der-hintergrund-(der-skandal):'], ['Gerüchte', 'wahre-gerüchte-(oder-nah-an-der-wahrheit):']]) {
+      for (const [label, id] of [['Jorn', 'der-hintergrund-(der-skandal):'], ['Gerüchte', 'wahre-gerüchte-(oder-nah-an-der-wahrheit):']]) {
         await page.evaluate(() => Object.values(ui.windows).concat([...foundry.applications.instances.values()]).forEach((a) => a.document?.documentName === 'JournalEntry' && a.close()))
         await page.waitForTimeout(500)
         await page.evaluate(() => game.journal.getName('Alles').sheet.render(true))
@@ -240,7 +241,7 @@ const steps = {
         await page.locator('a.content-link', { hasText: label }).first().click()
         await page.waitForTimeout(1500)
         results.push(await page.evaluate(([id]) => {
-          const sheet = game.journal.getName('Valeriano di Salsavarda').sheet
+          const sheet = game.journal.getName('Jorn Halvik').sheet
           const el = sheet.element?.querySelector(`[id="${CSS.escape(id)}"]`)
           const scroller = sheet.element?.querySelector('.journal-entry-pages')
           if (!el) return { id, ok: false, reason: 'heading not found' }
@@ -299,10 +300,10 @@ const steps = {
   },
 
   async play() {
-    // simulate game state on Shahane: damage, a hand-added item, an effect
+    // simulate game state on the linked NSC: damage, a hand-added item, an effect
     await withPage(async (page) => {
       const r = await page.evaluate(async () => {
-        const a = game.actors.getName('Shahane ay Zedrakin')
+        const a = game.actors.getName('Mira Dornhag')
         await a.update({ 'system.base.resources.vitality.value': 20, 'system.base.resources.endurance.value': 11 })
         await a.createEmbeddedDocuments('Item', [{ name: 'Beutel mit Gift', type: 'genericItem' }])
         await a.createEmbeddedDocuments('ActiveEffect', [{ name: 'Vergiftet', changes: [] }])
@@ -315,7 +316,7 @@ const steps = {
   async playcheck() {
     await withPage(async (page) => {
       const r = await page.evaluate(() => {
-        const a = game.actors.getName('Shahane ay Zedrakin')
+        const a = game.actors.getName('Mira Dornhag')
         const s = a.system
         const t = a.items.find((i) => i.system.sid === 'talent-saebel')
         return {
@@ -333,12 +334,12 @@ const steps = {
 
   async actorshots() {
     await withPage(async (page) => {
-      await page.evaluate(() => game.journal.getName('Sabotage NSC').sheet.render(true))
+      await page.evaluate(() => game.journal.getName('Hinterhalt an Deck').sheet.render(true))
       await page.waitForTimeout(2000)
-      let sel = await page.evaluate(() => `#${game.journal.getName('Sabotage NSC').sheet.id}`)
+      let sel = await page.evaluate(() => `#${game.journal.getName('Hinterhalt an Deck').sheet.id}`)
       await page.locator(sel).screenshot({ path: `${OUT}/30-journal-statblock.png` })
-      await page.evaluate(() => game.journal.getName('Sabotage NSC').sheet.close())
-      for (const [name, file] of [['Shahane ay Zedrakin', '31-shahane'], ['Die Viper', '32-viper']]) {
+      await page.evaluate(() => game.journal.getName('Hinterhalt an Deck').sheet.close())
+      for (const [name, file] of [['Mira Dornhag', '31-mira'], ['Die Viper', '32-viper']]) {
         await page.evaluate((n) => game.actors.getName(n).sheet.render(true), name)
         await page.waitForTimeout(2500)
         sel = await page.evaluate((n) => `#${game.actors.getName(n).sheet.id}`, name)
@@ -398,7 +399,7 @@ const steps = {
         let thumb = null
         try { thumb = !!(await s.createThumbnail())?.thumb } catch (e) { thumb = String(e) }
         return { canvas: !!canvas?.ready, thumb }
-      }, arg ?? 'Südaventurien')
+      }, arg ?? 'Seekarte')
       await page.waitForTimeout(2500)
       await page.screenshot({ path: `${OUT}/40-szene.png` })
       console.log(JSON.stringify(r))
@@ -414,7 +415,7 @@ const steps = {
     await withPage(async (page) => {
       await page.evaluate(() => { ui.sidebar.changeTab('journal', 'primary'); (ui.sidebar.toggleExpanded?.(true) ?? ui.sidebar.expand?.()) })
       await page.waitForTimeout(800)
-      for (const [name, file] of [['Encounter', '10-encounter'], ['Alles', '11-alles'], ['Shahane ay Zedrakin', '12-shahane']]) {
+      for (const [name, file] of [['Reise', '10-reise'], ['Alles', '11-alles'], ['Mira Dornhag', '12-mira']]) {
         await page.evaluate((n) => game.journal.getName(n).sheet.render(true), name)
         await page.waitForTimeout(1500)
         const sel = await page.evaluate((n) => `#${game.journal.getName(n).sheet.id}`, name)
@@ -424,7 +425,7 @@ const steps = {
       // follow heading link in "Alles"
       await page.evaluate(() => game.journal.getName('Alles').sheet.render(true))
       await page.waitForTimeout(1500)
-      const link = page.locator('a.content-link', { hasText: 'Valeriano' }).first()
+      const link = page.locator('a.content-link', { hasText: 'Jorn' }).first()
       await link.click()
       await page.waitForTimeout(2000)
       await page.screenshot({ path: `${OUT}/13-heading-link.png` })
