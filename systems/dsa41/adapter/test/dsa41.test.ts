@@ -354,3 +354,53 @@ describe('TP/KK der Waffen', () => {
     expect(Object.keys(system).filter((k) => k.startsWith('strengthMod'))).toEqual([])
   })
 })
+
+describe('BF der Waffen', () => {
+  const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+  const block = (bf: string, name = 'Dreizack') => parse(`name: X\nwaffen:\n  - { name: ${name}, BF: ${bf} }`)
+  const systemOf = (b: ReturnType<typeof parse>, name: string) => dsa41.nscToActor(b.data!, ctx).items.find((i) => i.name === name)!.system
+
+  it('liest ganze Zahlen, auch 0 und negative', () => {
+    for (const [text, value] of [['3', 3], ['0', 0], ['-2', -2], ['"4"', 4]] as const) {
+      const b = block(text)
+      expect(b.data!.waffen[0].BF, text).toBe(value)
+      expect(b.issues, text).toEqual([])
+    }
+    expect(parse('name: X\nwaffen:\n  - { name: Dreizack, bf: 3 }').data!.waffen[0].BF).toBe(3)
+  })
+
+  it('meldet alles andere und übernimmt es nicht', () => {
+    for (const bad of ['hoch', '2.5', '[1, 2]']) {
+      const b = block(bad)
+      expect(b.data!.waffen[0].BF, bad).toBeUndefined()
+      expect(b.issues.map((i) => `${i.level}: ${i.message}`).join(' '), bad).toContain('error: Waffe: BF')
+    }
+  })
+
+  it('schreibt den Bruchfaktor auf die Nahkampfwaffe – auch 0 und bei eigenen Waffen', () => {
+    expect(systemOf(block('5'), 'Dreizack')).toMatchObject({ breakingFactor: 5 })
+    expect(systemOf(block('0'), 'Dreizack')).toMatchObject({ breakingFactor: 0 })
+    const own = parse('name: X\nwaffen:\n  - { name: Knochenkeule, talent: Hiebwaffen, BF: -1 }')
+    expect(systemOf(own, 'Knochenkeule')).toMatchObject({ breakingFactor: -1 })
+  })
+
+  it('ohne Angabe bleibt der Wert des Kompendiums unberührt', () => {
+    expect(systemOf(parse('name: X\nwaffen: [Dreizack]'), 'Dreizack')).not.toHaveProperty('breakingFactor')
+  })
+
+  it('Fernkampfwaffen: Warnung, kein Bruchfaktor', () => {
+    const b = block('3', 'Kurzbogen')
+    expect(b.issues).toEqual([{ level: 'warning', message: 'Waffe „Kurzbogen“ ist eine Fernkampfwaffe, BF wird ignoriert.' }])
+    expect(systemOf(b, 'Kurzbogen')).not.toHaveProperty('breakingFactor')
+  })
+
+  it('Wertekasten zeigt BF nur, wenn eine Waffe es angibt', () => {
+    const html = dsa41Adapter.renderStatblock(parse('name: X\nwaffen:\n  - { name: Dreizack, KK: 13/3, BF: 0 }\n  - Dolch'), {})
+    expect(html).toContain('<th>TP</th><th>TP/KK</th><th>BF</th><th>DK</th>')
+    expect(html).toContain('<td>13/3</td><td>0</td>')
+    const only = dsa41Adapter.renderStatblock(block('4'), {})
+    expect(only).toContain('<th>TP</th><th>BF</th><th>DK</th>')
+    expect(only).toContain('<td>4</td>')
+    expect(dsa41Adapter.renderStatblock(parse('name: X\nwaffen: [Dolch]'), {})).not.toContain('<th>BF</th>')
+  })
+})

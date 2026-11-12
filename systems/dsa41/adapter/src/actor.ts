@@ -169,6 +169,7 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     if (explicitTalent) system.talent = talentSid
     if (w.WM && type === 'meleeWeapon') Object.assign(system, { 'weaponMod.attack': w.WM[0], 'weaponMod.parry': w.WM[1] })
     if (w.KK && type === 'meleeWeapon') Object.assign(system, { 'strengthMod.threshold': w.KK[0], 'strengthMod.hitPointStep': w.KK[1] })
+    if (w.BF !== undefined && type === 'meleeWeapon') system.breakingFactor = w.BF
     items.push({
       id: itemId('weapon', w.name),
       name: hit?.n ?? w.name,

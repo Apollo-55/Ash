@@ -17,6 +17,8 @@ export interface NscWeapon {
   INI?: number
   WM?: [number, number]
   KK?: [number, number]
+  /** Bruchfaktor (melee weapons) */
+  BF?: number
 }
 
 export interface NamedEntry {
@@ -94,7 +96,7 @@ const KEYS: Record<string, string> = {
 }
 
 const WEAPON_KEYS: Record<string, string> = {
-  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk:'KK'
+  name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk: 'KK', bf: 'BF',
 }
 
 const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'RS', 'WS', 'GS', 'ausweichen'] as const
@@ -269,7 +271,7 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
       const key = WEAPON_KEYS[k.toLowerCase()]
       if (!key) {
-        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM, KK).`)
+        error(`Waffe: unbekannter Schlüssel „${k}“ (erlaubt: name, talent, AT, PA, FK, TP, DK, INI, WM, KK, BF).`)
         continue
       }
       if (key === 'name' || key === 'talent') {
@@ -304,6 +306,7 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     if (w.talent && !find(['combatTalent'], w.talent)) error(`Waffe „${w.name}“: Kampftalent „${w.talent}“ gibt es nicht${didYouMean(['combatTalent'], w.talent)}.`)
     if (!known && !w.talent) warn(`Waffe „${w.name}“ steht in keinem Kompendium – gib „talent:“ an (z. B. talent: Dolche), sonst wird Raufen verwendet.`)
     if (known && w.FK !== undefined && known.t === 'meleeWeapon') warn(`Waffe „${w.name}“ ist eine Nahkampfwaffe, FK wird ignoriert.`)
+    if (known && w.BF !== undefined && known.t === 'rangedWeapon') warn(`Waffe „${w.name}“ ist eine Fernkampfwaffe, BF wird ignoriert.`)
     data.waffen.push(w as NscWeapon)
   }
 }
