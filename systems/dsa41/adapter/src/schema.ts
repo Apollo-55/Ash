@@ -311,6 +311,7 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     if (w.talent && !find(['combatTalent'], w.talent)) error(`Waffe „${w.name}“: Kampftalent „${w.talent}“ gibt es nicht${didYouMean(['combatTalent'], w.talent)}.`)
     if (!known && !w.talent) warn(`Waffe „${w.name}“ steht in keinem Kompendium – gib „talent:“ an (z. B. talent: Dolche), sonst wird Raufen verwendet.`)
     if (known && w.FK !== undefined && known.t === 'meleeWeapon') warn(`Waffe „${w.name}“ ist eine Nahkampfwaffe, FK wird ignoriert.`)
+    if (known && w.RW && known.t === 'meleeWeapon') warn(`Waffe „${w.name}“ ist eine Nahkampfwaffe, RW wird ignoriert.`)
     if (known && w.BF !== undefined && known.t === 'rangedWeapon') warn(`Waffe „${w.name}“ ist eine Fernkampfwaffe, BF wird ignoriert.`)
     data.waffen.push(w as NscWeapon)
   }
@@ -350,7 +351,7 @@ function parseTPKK(v: unknown): [number, number] | null{
 type Range = [number, number]
 type Ranges = [Range, Range, Range, Range, Range]
 
-const RANGES_RE = /^\(\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\)\s*-->\s*\(\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\/\s*(-?\d+)\s*\)$/
+const RANGES_RE = /^\(\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\)\s*-->\s*\(\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*\/\s*([+-]?\d+)\s*\)$/
 
 function parseRanges(v: unknown): Ranges | null {
   if (Array.isArray(v) && v.length === 5) {

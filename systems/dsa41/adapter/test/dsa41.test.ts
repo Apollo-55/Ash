@@ -405,82 +405,104 @@ describe('BF der Waffen', () => {
   })
 })
 
-// Reichweiten der Fernkampfwaffen: im Block „RW: 5/15/25/40/60“ (sehr nah / nah / mittel / weit / sehr weit, in Schritt).
-// dsa-41 speichert sie auf dem Item unter system.ranges.{veryClose, close, medium, far, veryFar}.
+// Reichweiten der Fernkampfwaffen: im Block „RW: (5/15/25/40/60) --> (1/1/0/0/-1)“ –
+// links die Reichweiten in Schritt, rechts TP+ je Entfernungsklasse (sehr nah / nah / mittel / weit / sehr weit).
+// dsa-41 speichert sie unter system.ranges.* und system.bonusDamages.* mit veryClose, close, medium, far, veryFar.
 describe('Reichweiten der Fernkampfwaffen', () => {
   const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+  const KURZBOGEN = [[5, 1], [15, 1], [25, 0], [40, 0], [60, -1]]
   const block = (rw: string, name = 'Kurzbogen') => parse(`name: X\nwaffen:\n  - { name: ${name}, RW: ${rw} }`)
   const rwOf = (rw: string) => block(rw).data!.waffen[0].RW
   const errors = (rw: string) => block(rw).issues.filter((i) => i.level === 'error').map((i) => i.message)
-  const systemOf = (b: ReturnType<typeof parse>, name: string) => dsa41.nscToActor(b.data!, ctx).items.find((i) => i.name === name)!.system
-  const rangeKeys = (system: Record<string, unknown>) => Object.keys(system).filter((k) => k.startsWith('ranges'))
+  const itemOf = (b: ReturnType<typeof parse>, name: string) => dsa41.nscToActor(b.data!, ctx).items.find((i) => i.name === name)!
+  const rangeKeys = (system: Record<string, unknown>) => Object.keys(system).filter((k) => k.startsWith('ranges') || k.startsWith('bonusDamages'))
 
   describe('Block lesen', () => {
-    it('liest fünf Werte als Text und als Liste', () => {
-      expect(rwOf('5/15/25/40/60')).toEqual([5, 15, 25, 40, 60])
-      expect(rwOf('" 5 / 15 / 25 / 40 / 60 "')).toEqual([5, 15, 25, 40, 60])
-      expect(rwOf('[5, 15, 25, 40, 60]')).toEqual([5, 15, 25, 40, 60])
-      expect(errors('5/15/25/40/60')).toEqual([])
+    it('liest „(Reichweiten) --> (TP+)“ als Paare [Reichweite, TP+]', () => {
+      expect(rwOf('(5/15/25/40/60) --> (1/1/0/0/-1)')).toEqual(KURZBOGEN)
+      expect(rwOf('"(5/15/25/40/60) --> (1/1/0/0/-1)"')).toEqual(KURZBOGEN)
+      expect(rwOf('( 5 / 15 / 25 / 40 / 60 )-->( 1 / 1 / 0 / 0 / -1 )')).toEqual(KURZBOGEN)
+      expect(block('(5/15/25/40/60) --> (1/1/0/0/-1)').issues).toEqual([])
+    })
+
+    it('TP+ darf ein Vorzeichen haben', () => {
+      expect(rwOf('(5/15/25/40/60) --> (+1/+1/0/0/-1)')).toEqual(KURZBOGEN)
+    })
+
+    it('liest eine Liste aus fünf Paaren', () => {
+      expect(rwOf('[[5, 1], [15, 1], [25, 0], [40, 0], [60, -1]]')).toEqual(KURZBOGEN)
     })
 
     it('Schlüssel ohne Rücksicht auf Groß-/Kleinschreibung', () => {
-      expect(parse('name: X\nwaffen:\n  - { name: Kurzbogen, rw: 5/15/25/40/60 }').data!.waffen[0].RW).toEqual([5, 15, 25, 40, 60])
+      expect(parse('name: X\nwaffen:\n  - { name: Kurzbogen, rw: (5/15/25/40/60) --> (1/1/0/0/-1) }').data!.waffen[0].RW).toEqual(KURZBOGEN)
     })
 
     it('meldet zu wenige, zu viele und unlesbare Werte', () => {
-      for (const bad of ['5/15/25/40', '5/15/25/40/60/80', '[5, 15, 25]', '60', 'weit', '5/15/x/40/60', '[5, 15, x, 40, 60]']) {
-        expect(rwOf(bad), bad).toBeUndefined()
-        expect(errors(bad).join(' '), bad).toContain('Waffe: RW')
+      const bad = [
+        '5/15/25/40/60', '(5/15/25/40/60)', '(5/15/25/40) --> (1/1/0/0)', '(5/15/25/40/60/80) --> (1/1/0/0/-1/-2)',
+        '(5/15/25/40/60) --> (1/1/0/0)', '(5/15/x/40/60) --> (1/1/0/0/-1)', '60', 'weit',
+        '[5, 15, 25, 40, 60]', '[[5, 1], [15, 1], [25, 0]]', '[[5, 1], [15, 1], [25, 0], [40, 0], [60]]', '[[5, 1], [15, 1], [25, x], [40, 0], [60, -1]]',
+      ]
+      for (const rw of bad) {
+        expect(rwOf(rw), rw).toBeUndefined()
+        expect(errors(rw).join(' '), rw).toContain('Waffe: RW')
       }
     })
 
-    it('lehnt negative Werte ab', () => {
-      for (const bad of ['-5/15/25/40/60', '[5, 15, 25, 40, -60]']) {
-        expect(rwOf(bad), bad).toBeUndefined()
-        expect(errors(bad).join(' '), bad).toContain('Waffe: RW')
+    it('lehnt negative Reichweiten ab, negative TP+ nicht', () => {
+      for (const rw of ['(-5/15/25/40/60) --> (1/1/0/0/-1)', '[[5, 1], [15, 1], [25, 0], [40, 0], [-60, -1]]']) {
+        expect(rwOf(rw), rw).toBeUndefined()
+        expect(errors(rw).join(' '), rw).toContain('Waffe: RW')
       }
+      expect(rwOf('(5/15/25/40/60) --> (-1/-2/-3/-4/-5)')).toEqual([[5, -1], [15, -2], [25, -3], [40, -4], [60, -5]])
+    })
+
+    it('warnt bei einer Nahkampfwaffe', () => {
+      expect(block('(5/15/25/40/60) --> (1/1/0/0/-1)', 'Dreizack').issues).toEqual([{ level: 'warning', message: 'Waffe „Dreizack“ ist eine Nahkampfwaffe, RW wird ignoriert.' }])
     })
   })
 
   describe('Export nach Foundry', () => {
-    it('schreibt die fünf Reichweiten auf die Fernkampfwaffe', () => {
-      expect(systemOf(block('10/20/30/50/80'), 'Kurzbogen')).toMatchObject({
+    it('schreibt Reichweiten und TP+ auf die Fernkampfwaffe', () => {
+      const system = itemOf(block('(10/20/30/50/80) --> (3/2/1/0/-1)'), 'Kurzbogen').system
+      expect(system).toMatchObject({
         'ranges.veryClose': 10, 'ranges.close': 20, 'ranges.medium': 30, 'ranges.far': 50, 'ranges.veryFar': 80,
+        'bonusDamages.veryClose': 3, 'bonusDamages.close': 2, 'bonusDamages.medium': 1, 'bonusDamages.far': 0, 'bonusDamages.veryFar': -1,
       })
+      expect(rangeKeys(system)).toHaveLength(10) // nichts außer den zehn Feldern des Systems
     })
 
-    it('gilt auch für eigene Fernkampfwaffen (mit FK)', () => {
-      const own = parse('name: X\nwaffen:\n  - { name: Knochenschleuder, talent: Schleuder, FK: 12, RW: 2/5/10/20/30 }')
-      expect(dsa41.nscToActor(own.data!, ctx).items.find((i) => i.name === 'Knochenschleuder')!.types).toEqual(['rangedWeapon'])
-      expect(systemOf(own, 'Knochenschleuder')).toMatchObject({ 'ranges.veryClose': 2, 'ranges.veryFar': 30 })
+    it('eigene Waffe mit RW wird Fernkampfwaffe – mit und ohne FK', () => {
+      for (const fk of ['FK: 12, ', '']) {
+        const own = itemOf(parse(`name: X\nwaffen:\n  - { name: Knochenschleuder, talent: Schleuder, ${fk}RW: (2/5/10/20/30) --> (1/0/0/0/-1) }`), 'Knochenschleuder')
+        expect(own.types, fk).toEqual(['rangedWeapon'])
+        expect(own.system, fk).toMatchObject({ 'ranges.veryClose': 2, 'ranges.veryFar': 30, 'bonusDamages.veryClose': 1, 'bonusDamages.veryFar': -1 })
+      }
     })
 
-    it('ohne Angabe bleiben die Reichweiten des Kompendiums unberührt', () => {
-      expect(rangeKeys(systemOf(parse('name: X\nwaffen: [Kurzbogen]'), 'Kurzbogen'))).toEqual([])
+    it('ohne Angabe bleiben die Werte des Kompendiums unberührt', () => {
+      expect(rangeKeys(itemOf(parse('name: X\nwaffen: [Kurzbogen]'), 'Kurzbogen').system)).toEqual([])
     })
 
     it('Nahkampfwaffen bekommen keine Reichweiten', () => {
-      expect(rangeKeys(systemOf(block('5/15/25/40/60', 'Dreizack'), 'Dreizack'))).toEqual([])
+      const dreizack = itemOf(block('(5/15/25/40/60) --> (1/1/0/0/-1)', 'Dreizack'), 'Dreizack')
+      expect(dreizack.types).toEqual(['meleeWeapon'])
+      expect(rangeKeys(dreizack.system)).toEqual([])
     })
   })
 
-  // Die Anzeige ist fertig; diese Tests setzen RW direkt und hängen deshalb nicht am Lesen des Blocks.
   describe('Wertekasten', () => {
-    const withRW = (source: string, rw: Record<string, [number, number, number, number, number]>) => {
-      const b = parse(source)
-      for (const w of b.data!.waffen) if (rw[w.name]) w.RW = rw[w.name]
-      return dsa41Adapter.renderStatblock(b, {})
-    }
+    const render = (source: string) => dsa41Adapter.renderStatblock(parse(source), {})
 
-    it('zeigt die Spalte „Reichweite“ hinter DK, sobald eine Waffe sie angibt', () => {
-      const html = withRW('name: X\nwaffen: [Kurzbogen, Dolch]', { Kurzbogen: [5, 15, 25, 40, 60] })
+    it('zeigt die Spalte „Reichweite“ hinter DK so, wie man sie in den Block schreibt', () => {
+      const html = render('name: X\nwaffen:\n  - { name: Kurzbogen, RW: (5/15/25/40/60) --> (+1/+1/0/0/-1) }\n  - Dolch')
       expect(html).toContain('<th>DK</th><th>Reichweite</th></tr>')
-      expect(html).toContain('<td>5/15/25/40/60</td></tr>')
+      expect(html).toContain('<td>(5/15/25/40/60) --&gt; (1/1/0/0/-1)</td></tr>')
       expect(html.match(/<td><\/td><\/tr>/g)).toHaveLength(1) // Dolch: leere Zelle
     })
 
     it('ohne Angabe gibt es keine Spalte', () => {
-      expect(withRW('name: X\nwaffen: [Kurzbogen, Dolch]', {})).not.toContain('Reichweite')
+      expect(render('name: X\nwaffen: [Kurzbogen, Dolch]')).not.toContain('Reichweite')
     })
   })
 })
