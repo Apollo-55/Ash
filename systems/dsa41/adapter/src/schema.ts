@@ -19,6 +19,8 @@ export interface NscWeapon {
   KK?: [number, number]
   /** Bruchfaktor (melee weapons) */
   BF?: number
+  /** Reichweiten in Schritt (ranged weapons): sehr nah / nah / mittel / weit / sehr weit */
+  RW?: [number, number, number, number, number]
 }
 
 export interface NamedEntry {
