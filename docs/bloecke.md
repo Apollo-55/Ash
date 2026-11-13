@@ -115,7 +115,7 @@ sonderfertigkeiten: []
 | `GS` | – | Zahl | sonst gerechnet |
 | `WS` | – | Zahl | Wundschwelle, sonst gerechnet |
 | `ausweichen` | `AW` | Zahl | sonst gerechnet |
-| `RS` | – | Zahl | Gesamt-RS |
+| `RS` | – | Zahl | Zusatz-RS zur Rüstung |
 | `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` (RS auch als Zonen) oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
 | `waffen` | – | Liste | |
 | `talente` | – | Liste / Zuordnung | inkl. Kampftalente, Sprachen, Schriften |
@@ -240,7 +240,7 @@ rüstung:                                     # mit eigenen Werten
   - Lederharnisch
   - { name: Lastgeschirr, RS: 0, BE: 2 }     # nur Behinderung
   - { name: Lederhelm, BE: 0 }               # Kompendium-Rüstung, BE überschrieben
-RS: 4
+RS: 1                                        # zusätzlich zu den Rüstungen
 ```
 
 - Rüstungsteile werden aus dem Kompendium geholt und angelegt (angelegt = getragen).
@@ -268,8 +268,8 @@ RS: 4
   - **Zonen:** jede Zone ihren RS, die Zonen-BE die BE. Eine einzelne Zahl bei `RS` steht auf allen Zonen.
   - **Einfach:** RS und BE direkt. Aus Zonen wird der Gesamt-RS wie im System berechnet – Summe aus Zone × Gewicht, geteilt durch 20 – und kaufmännisch gerundet. Der Topfhelm oben hat damit RS 0 (4 · 2 / 20 = 0,4).
   - Bei einem anderen Zonenfaktor als 20 rechnet das System selbst um; der Import geht immer von 20 aus.
-- **`RS`** ist der **Gesamt-RS**, den der NSC haben soll. Das Plugin zieht den RS der genannten Rüstungen ab (eigener `RS` vor Kompendium, bei Zonen der gerundete Gesamt-RS); der Rest wird als „Zusatz-RS“ eingetragen (nie negativ). Beispiel: Lederharnisch (RS 3) + `RS: 4` → Zusatz-RS 1.
-- Nur `RS` ohne Rüstung = natürlicher Rüstungsschutz (z. B. Kreaturen mit Schuppen).
+- **`RS`** ist der **Zusatz-RS**, der **zusätzlich zu den Rüstungen** gilt; er landet unverändert im Feld „Zusatz-RS“ des Bogens. Die Rüstungen bringen ihren RS selbst mit, es wird nichts verrechnet. Beispiel: Lederharnisch (RS 3) + `RS: 1` → Gesamt-RS 4 in Foundry. Soll der NSC nur den RS seiner Rüstung haben, `RS` weglassen (oder `RS: 0`).
+- `RS` ohne Rüstung = natürlicher Rüstungsschutz (z. B. Kreaturen mit Schuppen).
 - Eine BE ohne Rüstung gibt es im System nicht als eigenes Feld – dafür ein Rüstungsteil mit `RS: 0` und der gewünschten `BE` anlegen.
 - Unbekannte Rüstungen ohne `RS`/`BE`: Warnung; in Foundry wird in den Welt-Gegenständen gesucht, sonst ein Rüstungsteil ohne Werte (RS 0, BE 0) angelegt. Mit eigenen Werten gibt es keine Warnung.
 

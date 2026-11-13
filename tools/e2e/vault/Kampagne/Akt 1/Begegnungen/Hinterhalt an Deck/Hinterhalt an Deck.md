@@ -11,7 +11,6 @@ MR: 8
 INI: 22
 ausweichen: 15
 rüstung: [Lederharnisch]
-RS: 3
 waffen:
   - { name: Schwert, AT: 19, PA: 17, TP: 1W+4, DK: N }
   - { name: Schwert, AT: 17, PA: 13, TP: 1W+4, DK: N }

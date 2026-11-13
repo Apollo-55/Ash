@@ -54,7 +54,7 @@ Ein Feld für SO gibt es nicht. Es gibt nur `background.social.socialStatus.valu
 | RS         | **kein gespeichertes Feld.** Summe der angelegten `armor`-Items + `modifiers.additionalRS` + Vorteil „Natürlicher Rüstungsschutz“ | immer berechnet                                  |
 | BE         | **kein setzbares Feld.** Summe `encumbrance` (Zonen: `zonedEncumbrance`) der angelegten `armor`-Items + `load.encumbrance` (Last, wird vom System bei jedem Laden neu berechnet) | immer berechnet; Import: Rüstung `{ name, RS, BE }` |
 
-Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. RS ohne Rüstungs-Item geht nach `modifiers.additionalRS`.
+Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. `RS` aus dem Block geht unverändert nach `modifiers.additionalRS` und gilt zusätzlich zu den angelegten `armor`-Items.
 
 INI-Würfel (`+1W6`) sind nicht gespeichert. Sie kommen aus den Regeln (`ComputeInitiativeFormula`, z. B. Klingentänzer). Aus „INI 12+1W6“ wird nur die 12 übernommen.
 

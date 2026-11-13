@@ -102,7 +102,7 @@ LeP: 36                            # auch LE; AuP/AU, AsP/AE, KaP/KE
 MR: 6                              # MR, INI, GS, WS, ausweichen: angegeben = fest, sonst rechnet das System
 INI: 12+1W6                        # gespeichert wird 12, Würfel kommen aus den Regeln
 rüstung: [Lederharnisch]           # aus dem Kompendium
-RS: 3                              # Gesamt-RS; Rüstungen werden abgezogen, der Rest ist Zusatz-RS
+RS: 1                              # Zusatz-RS zur Rüstung (z. B. natürlicher Rüstungsschutz)
 waffen:
   - Säbel                          # Normalfall: AT/PA rechnet das System aus dem TaW
   - { name: Orchidee, AT: 17, PA: 15 }   # optional feste Werte
