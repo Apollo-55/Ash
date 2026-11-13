@@ -103,8 +103,10 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     data['base.combatAttributes.passive.woundThresholds.third'] = d.WS * 3
   }
   // RS: total from the block minus what listed armor already gives
-  const armorRS = d.ruestung.reduce((s, r) => s + (r.RS ?? find(['armor'], r.name)?.rs ?? 0), 0)
-  data['modifiers.additionalRS'] = d.RS !== undefined ? Math.max(0, d.RS - armorRS) : 0
+  //const armorRS = d.ruestung.reduce((s, r) => s + (r.RS ?? find(['armor'], r.name)?.rs ?? 0), 0)
+  //const armorRS = d.RS
+  //data['modifiers.additionalRS'] = d.RS !== undefined ? Math.max(0, d.RS - armorRS) : 0
+  data['modifiers.additionalRS'] = d.RS !== undefined ? d.RS : 0
   if (d.SO !== undefined) data['background.social.socialStatus.value'] = d.SO
   data['background.profession'] = d.rolle ?? ''
   data['background.description'] =
