@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 1.0.6 (2026-11-13)
+
 **Sync-Dienst**
 
 - Fertiges Image `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64), gebaut von GitHub Actions. Versionen per Knopf: GitHub → Actions → „Version veröffentlichen“ erhöht die Nummer überall (`tools/release.mjs`), schließt diesen Abschnitt im Changelog, taggt `v<Version>` und baut erst dann das Image als `latest` und `<Version>`, dazu ein GitHub-Release mit den ZIPs. Ein Push auf `main` baut nur das Image `dev` (und `sha-<commit>`); `latest` ändert sich dadurch nicht. Ein Update ist `docker compose pull vtf-sync && docker compose up -d vtf-sync`; der Weg über `vtf-sync.zip` bleibt möglich.
