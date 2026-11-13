@@ -597,11 +597,13 @@ describe('Rüstung mit eigenen Werten', () => {
     expect(armorOf('name: X\nrüstung: [Lederharnisch]', 'Lederharnisch').system).toEqual({ equipped: true })
   })
 
-  it('Gesamt-RS rechnet mit den eigenen RS-Werten', () => {
+  it('RS ist Zusatz-RS und wird nicht mit den Rüstungen verrechnet', () => {
     const rs = (s: string) => actorOf(s).data['modifiers.additionalRS']
-    expect(rs('name: X\nrüstung: [Lederharnisch, { name: Lastgeschirr, RS: 1, BE: 2 }]\nRS: 5')).toBe(1)
-    expect(rs('name: X\nrüstung: [{ name: Lederharnisch, RS: 4 }]\nRS: 5')).toBe(1)
+    expect(rs('name: X\nrüstung: [Lederharnisch, { name: Lastgeschirr, RS: 1, BE: 2 }]\nRS: 5')).toBe(5)
+    expect(rs('name: X\nrüstung: [{ name: Lederharnisch, RS: 4 }]\nRS: 2')).toBe(2)
     expect(rs('name: X\nrüstung: [{ name: Lastgeschirr, BE: 2 }]\nRS: 2')).toBe(2)
+    expect(rs('name: X\nrüstung: [Lederharnisch]')).toBe(0)
+    expect(rs('name: X\nRS: 3')).toBe(3)
   })
 
   it('Zonen: Kurz- und Langnamen, Arme/Beine, fehlende Zonen 0, Gesamt-RS gerundet', () => {
@@ -624,13 +626,13 @@ describe('Rüstung mit eigenen Werten', () => {
     expect(parse('name: X\nrüstung: [{ name: A, RS: { Kopf: x } }]').data!.ruestung[0]).toEqual({ name: 'A' })
   })
 
-  it('Zonen: jede Zone einzeln, Gesamt-RS für einfache Rüstung und Verrechnung', () => {
+  it('Zonen: jede Zone einzeln, Gesamt-RS für einfache Rüstung, Zusatz-RS bleibt unberührt', () => {
     const a = armorOf('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4, Brust: 2 }, BE: 1 }]', 'Helm')
     expect(a.system).toMatchObject({
       armorClass: 1, 'zonedArmorClass.total': 0.8, encumbrance: 1, zonedEncumbrance: 1,
       'zonedArmorClass.head': 4, 'zonedArmorClass.chest': 2, 'zonedArmorClass.back': 0, 'zonedArmorClass.rightLeg': 0,
     })
-    expect(actorOf('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4, Brust: 2 } }]\nRS: 3').data['modifiers.additionalRS']).toBe(2)
+    expect(actorOf('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4, Brust: 2 } }]\nRS: 3').data['modifiers.additionalRS']).toBe(3)
   })
 
   it('Wertekasten zeigt die eigenen Werte', () => {
