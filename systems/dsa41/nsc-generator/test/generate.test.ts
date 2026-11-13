@@ -99,3 +99,24 @@ describe('Reparaturen', () => {
     expect(r.npc).toMatchObject({ AsP: null, zauber: [], KaP: null, liturgien: [] })
   })
 })
+
+describe('Sprachen und Schriften', () => {
+  it('Buch-Schreibweise und doppelte Namen bekommen den Zusatz nur wo nötig', () => {
+    const n = base()
+    n.talente.push(
+      { name: 'Sprachen Kennen [Garethi]', wert: 12 },
+      { name: 'Lesen/Schreiben [Garethi]', wert: 6 },
+      { name: 'Sprachen Kennen [Tulamidya]', wert: 10 },
+      { name: 'Lesen/Schreiben [Tulamidya]', wert: 4 },
+      { name: 'Zhayad', wert: 7 },
+      { name: 'Zhayad', wert: 3 },
+    )
+    const r = repair(n, 'erfahren', false, false)
+    expect(r.npc.talente.map((t) => t.name)).toEqual(
+      expect.arrayContaining(['Garethi', 'Kusliker Zeichen', 'Tulamidya(Sprache)', 'Tulamidya(Schrift)', 'Zhayad(Sprache)', 'Zhayad(Schrift)']),
+    )
+    const p = dsa41.parseNscBlock(toBlock(r.npc))
+    expect(p.issues.filter((i) => i.level === 'warning')).toEqual([])
+    expect(p.data!.talente.filter((t) => t.name === 'Tulamidya').map((t) => [t.kind, t.value])).toEqual([['language', 10], ['scripture', 4]])
+  })
+})

@@ -1,6 +1,6 @@
 import { parseDocument } from 'yaml'
 import type { BlockIssue, ParsedBlock } from '../../../../packages/core/src/systems/adapter.ts'
-import { find, findWeapon, normalizeName, suggest } from './catalog.ts'
+import { find, findWeapon, isLanguageAndScript, KIND_LABEL, normalizeName, splitKind, suggest, type TalentKind } from './catalog.ts'
 import { checkSfPrerequisites } from './rules.ts'
 
 export const ATTRIBUTES = ['MU', 'KL', 'IN', 'CH', 'FF', 'GE', 'KO', 'KK'] as const
@@ -26,6 +26,18 @@ export interface NamedEntry {
   value: number | null
   /** own definition (probe, beschreibung …) when the entry is not taken from a compendium */
   custom?: Record<string, unknown>
+  /** talente: "Zhayad(Schrift)" → name Zhayad, kind scripture (catalog lookup only in that type) */
+  kind?: TalentKind
+}
+
+/** Name as written in the block: the suffix only where the name is both language and script. */
+export function entryLabel(e: NamedEntry): string {
+  return e.kind && isLanguageAndScript(e.name) ? `${e.name} (${KIND_LABEL[e.kind]})` : e.name
+}
+
+/** Catalog types to look an entry up in. */
+export function entryTypes(key: ListKey, e: NamedEntry): string[] {
+  return e.kind ? [e.kind] : LIST_TYPES[key]
 }
 
 export type ListKey = 'talente' | 'zauber' | 'liturgien' | 'vorteile' | 'nachteile' | 'sonderfertigkeiten'
@@ -391,6 +403,19 @@ function parseList(key: ListKey, value: unknown, data: NscData, error: (m: strin
     name = name.trim()
     if (!name) return
     const entry: NamedEntry = { name, value: null }
+    if (key === 'talente') {
+      const { base, kind } = splitKind(name)
+      const other: TalentKind = kind === 'language' ? 'scripture' : 'language'
+      if (kind && !find([kind], base) && find([other], base)) {
+        warn(`Talent „${name}“: ${find([other], base)!.n} ist eine ${KIND_LABEL[other]}, keine ${KIND_LABEL[kind]}. Wird als ${KIND_LABEL[other]} übernommen.`)
+        entry.kind = other
+      } else if (kind) entry.kind = kind
+      else if (isLanguageAndScript(base)) {
+        warn(`Talent „${base}“ gibt es als Sprache und als Schrift – bitte „${base}(Sprache)“ oder „${base}(Schrift)“ angeben. Wird als Sprache übernommen.`)
+        entry.kind = 'language'
+      }
+      entry.name = name = base
+    }
     if (v === null || v === undefined || v === '') {
       // name only
     } else if (typeof v === 'object' && !Array.isArray(v)) {
@@ -421,10 +446,10 @@ function parseList(key: ListKey, value: unknown, data: NscData, error: (m: strin
       }
       entry.value = n
     }
-    const known = find(LIST_TYPES[key], name)
+    const known = find(entryTypes(key, entry), name)
     if (known && normalizeName(known.n) !== normalizeName(name)) info(`${label} „${name}“ als „${known.n}“ erkannt.`)
     if (!known && !entry.custom) {
-      warn(`${label} „${name}“ steht in keinem dsa-41-Kompendium${didYouMean(LIST_TYPES[key], name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst neu angelegt.`)
+      warn(`${label} „${name}“ steht in keinem dsa-41-Kompendium${didYouMean(entryTypes(key, entry), name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst neu angelegt.`)
     }
     if (key === 'zauber' && entry.value === null && !entry.custom) warn(`Zauber „${name}“ ohne ZfW.`)
     out.push(entry)

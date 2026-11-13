@@ -1,5 +1,5 @@
 import * as dsa41 from '../../adapter/src/index.ts'
-import { find, findWeapon, normalizeName, searchNames, suggest } from '../../adapter/src/catalog.ts'
+import { find, findWeapon, isLanguageAndScript, KIND_LABEL, normalizeName, searchNames, splitKind, suggest, type TalentKind } from '../../adapter/src/catalog.ts'
 import { SF_RULES } from '../../adapter/src/rules.ts'
 import { LIST_TYPES } from '../../adapter/src/schema.ts'
 
@@ -146,13 +146,14 @@ export function repair(
     hints.push(alt.length ? ` – meintest du: ${alt.join(', ')}? Sonst weglassen.` : ' – weglassen.')
     return name
   }
-  // book notation → item names: "Sprachen Kennen [Garethi]" → Garethi, "Lesen/Schreiben [Garethi]" → Kusliker Zeichen
+  // book notation → item names: "Sprachen Kennen [Garethi]" → Garethi, "Lesen/Schreiben [Garethi]" → Kusliker Zeichen,
+  // "Lesen/Schreiben [Tulamidya]" → Tulamidya(Schrift)
   const SCRIPT_OF: Record<string, string> = { garethi: 'Kusliker Zeichen', bosparano: 'Kusliker Zeichen', 'muttersprache': 'Kusliker Zeichen' }
   n.talente = n.talente.map((t) => {
     const lang = /^Sprachen? Kennen\s*[[(](.+?)[\])]/i.exec(t.name)
-    if (lang) return { ...t, name: lang[1].trim() }
+    if (lang) return { ...t, name: `${lang[1].trim()}(Sprache)` }
     const script = /^Lesen\/Schreiben\s*[[(](.+?)[\])]/i.exec(t.name)
-    if (script) return { ...t, name: SCRIPT_OF[script[1].trim().toLowerCase()] ?? script[1].trim() }
+    if (script) return { ...t, name: `${SCRIPT_OF[script[1].trim().toLowerCase()] ?? script[1].trim()}(Schrift)` }
     return t
   })
   // advantages filed as disadvantages (and vice versa), e.g. Vorteil „Neugier“ → Nachteil
@@ -172,7 +173,18 @@ export function repair(
       return name ? [{ ...x, name }] : []
     })
   const nameFix = (arr: string[], types: string[], label: string) => arr.flatMap((x) => fixName(types, x, label) ?? [])
-  n.talente = listFix(n.talente, LIST_TYPES.talente, 'Talent')
+  // talents: "(Sprache)"/"(Schrift)" only on names that are both; a second plain "Zhayad" is the script
+  const kinds = new Set<string>()
+  n.talente = n.talente.flatMap((t) => {
+    const { base, kind } = splitKind(t.name)
+    const types = kind ? [kind, kind === 'language' ? 'scripture' : 'language'] : LIST_TYPES.talente
+    const name = fixName(types, base, 'Talent')
+    if (!name) return []
+    if (!isLanguageAndScript(name)) return [{ ...t, name }]
+    const k: TalentKind = kind ?? (kinds.has(`${normalizeName(name)}|language`) ? 'scripture' : 'language')
+    kinds.add(`${normalizeName(name)}|${k}`)
+    return [{ ...t, name: `${name}(${KIND_LABEL[k]})` }]
+  })
   n.zauber = listFix(n.zauber, LIST_TYPES.zauber, 'Zauber')
   n.vorteile = listFix(n.vorteile, LIST_TYPES.vorteile, 'Vorteil')
   n.nachteile = listFix(n.nachteile, LIST_TYPES.nachteile, 'Nachteil')

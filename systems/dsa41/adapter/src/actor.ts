@@ -3,7 +3,7 @@ import type { BundleItem } from '../../../../packages/core/src/types.ts'
 import type { ActorContext, SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
 import type { Dsa41Combat } from './combat.ts'
 import { find, findBySid, findWeapon, normalizeName } from './catalog.ts'
-import { diceToFoundry, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscData } from './schema.ts'
+import { diceToFoundry, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscData } from './schema.ts'
 
 export const ATTR_KEYS: Record<Attr, string> = {
   MU: 'courage', KL: 'cleverness', IN: 'intuition', CH: 'charisma', FF: 'dexterity', GE: 'agility', KO: 'constitution', KK: 'strength',
@@ -102,8 +102,9 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
   }
 
   const listItem = (key: ListKey, e: NamedEntry): BundleItem => {
-    const hit = find(LIST_TYPES[key], e.name)
-    const type = hit?.t ?? LIST_TYPES[key][0]
+    const types = entryTypes(key, e)
+    const hit = find(types, e.name)
+    const type = hit?.t ?? types[0]
     const system: Record<string, unknown> = {}
     const fallbackSystem: Record<string, unknown> = { description: customDescription(e.custom) }
     switch (key) {
@@ -133,9 +134,10 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
         break
     }
     return {
-      id: itemId(key, e.name),
+      // language keeps the plain id (blocks written before the suffix existed), the script gets its own
+      id: itemId(key, e.kind === 'scripture' ? entryLabel(e) : e.name),
       name: hit?.n ?? e.name,
-      types: hit ? [hit.t] : LIST_TYPES[key],
+      types: hit ? [hit.t] : types,
       source: hit && !e.custom ? { pack: hit.p, sid: hit.s, type: hit.t } : undefined,
       system,
       fallback: { type, system: fallbackSystem },

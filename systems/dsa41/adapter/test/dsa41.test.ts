@@ -506,3 +506,49 @@ describe('Reichweiten der Fernkampfwaffen', () => {
     })
   })
 })
+
+describe('Sprachen und Schriften unter talente', () => {
+  const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'x', journalName: 'x', resolveImage: () => null, nearbyImages: {}, linkedDefault: true }
+  const warnings = (r: ReturnType<typeof parse>) => r.issues.filter((i) => i.level === 'warning').map((i) => i.message)
+  const items = (s: string) => dsa41.nscToActor(parse(s).data!, ctx).items.map((i) => ({ id: i.id, name: i.name, type: i.source?.type }))
+
+  it('eindeutige Namen brauchen keinen Zusatz', () => {
+    const r = parse('name: X\ntalente: { Sinnenschärfe: 10, Garethi: 12, Kusliker Zeichen: 6 }')
+    expect(warnings(r)).toEqual([])
+    expect(items('name: X\ntalente: { Garethi: 12, Kusliker Zeichen: 6 }')).toMatchObject([
+      { name: 'Garethi', type: 'language' },
+      { name: 'Kusliker Zeichen', type: 'scripture' },
+    ])
+  })
+
+  it('Zusatz mit und ohne Leerzeichen trennt Sprache und Schrift gleichen Namens', () => {
+    const r = parse('name: X\ntalente: { Zhayad(Sprache): 8, Zhayad (Schrift): 5, Garethi(Sprache): 12 }')
+    expect(warnings(r)).toEqual([])
+    expect(r.data!.talente).toEqual([
+      { name: 'Zhayad', value: 8, kind: 'language' },
+      { name: 'Zhayad', value: 5, kind: 'scripture' },
+      { name: 'Garethi', value: 12, kind: 'language' },
+    ])
+    const it = items('name: X\ntalente: { Zhayad(Sprache): 8, Zhayad(Schrift): 5 }')
+    expect(it).toMatchObject([{ name: 'Zhayad', type: 'language' }, { name: 'Zhayad', type: 'scripture' }])
+    expect(it[0].id).not.toBe(it[1].id)
+  })
+
+  it('mehrdeutiger Name ohne Zusatz: Warnung, wird Sprache mit derselben ID wie bisher', () => {
+    const r = parse('name: X\ntalente: { Tulamidya: 12 }')
+    expect(warnings(r)).toEqual(['Talent „Tulamidya“ gibt es als Sprache und als Schrift – bitte „Tulamidya(Sprache)“ oder „Tulamidya(Schrift)“ angeben. Wird als Sprache übernommen.'])
+    expect(items('name: X\ntalente: { Tulamidya: 12 }')).toEqual(items('name: X\ntalente: { Tulamidya(Sprache): 12 }'))
+    expect(items('name: X\ntalente: { Tulamidya: 12 }')[0].type).toBe('language')
+  })
+
+  it('falscher Zusatz: Warnung, richtiger Typ', () => {
+    const r = parse('name: X\ntalente: { Kusliker Zeichen(Sprache): 6 }')
+    expect(warnings(r)).toEqual(['Talent „Kusliker Zeichen(Sprache)“: Kusliker Zeichen ist eine Schrift, keine Sprache. Wird als Schrift übernommen.'])
+    expect(r.data!.talente[0]).toEqual({ name: 'Kusliker Zeichen', value: 6, kind: 'scripture' })
+  })
+
+  it('Wertekasten zeigt den Zusatz nur bei mehrdeutigen Namen', () => {
+    const html = dsa41.renderStatblock(parse('name: X\ntalente: { Garethi(Sprache): 12, Tulamidya(Schrift): 4 }'), { showIssues: false, showCalculated: false })
+    expect(html).toContain('Garethi 12, Tulamidya (Schrift) 4')
+  })
+})

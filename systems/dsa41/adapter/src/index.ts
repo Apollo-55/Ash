@@ -34,6 +34,6 @@ export const dsa41Adapter: SystemAdapter<NscData> = {
 export { parseNscBlock, renderStatblock, nscToActor, combatOf }
 export type { Dsa41Combat } from './combat.ts'
 export { computeDerived, overrides } from './derived.ts'
-export { findWeapon, find as findCatalog, findBySid, normalizeName, suggest, CATALOG_VERSION } from './catalog.ts'
+export { findWeapon, find as findCatalog, findBySid, normalizeName, suggest, splitKind, isLanguageAndScript, CATALOG_VERSION } from './catalog.ts'
 export type { NscData, NscWeapon, NamedEntry } from './schema.ts'
 export { checkSfPrerequisites, baseEnergies, SF_RULES } from './rules.ts'
