@@ -64,6 +64,22 @@ export function find(types: string[], name: string): CatalogEntry | undefined {
   return findAll(types, name)[0]
 }
 
+export type TalentKind = 'language' | 'scripture'
+export const KIND_LABEL: Record<TalentKind, string> = { language: 'Sprache', scripture: 'Schrift' }
+
+/** "Zhayad(Schrift)" / "Zhayad (Schrift)" → { base: 'Zhayad', kind: 'scripture' }; without suffix only base. */
+export function splitKind(name: string): { base: string; kind?: TalentKind } {
+  const m = /^(.*?)\s*\(\s*(sprache|schrift)\s*\)\s*$/i.exec(name)
+  if (!m) return { base: name.trim() }
+  return { base: m[1].trim(), kind: m[2].toLowerCase() === 'sprache' ? 'language' : 'scripture' }
+}
+
+/** Names that exist as language and as script (Tulamidya, Zhayad …) – these need "(Sprache)"/"(Schrift)". */
+export function isLanguageAndScript(name: string): boolean {
+  const n = normalizeName(name)
+  return byKey.has(`language|${n}`) && byKey.has(`scripture|${n}`)
+}
+
 export function findBySid(sid: string): CatalogEntry | undefined {
   return bySid.get(sid)
 }

@@ -1,7 +1,7 @@
 import type { ParsedBlock, StatblockOptions } from '../../../../packages/core/src/systems/adapter.ts'
 import { findBySid, findWeapon } from './catalog.ts'
 import { computeDerived, overrides } from './derived.ts'
-import { ATTRIBUTES, type NamedEntry, type NscData, type NscWeapon } from './schema.ts'
+import { ATTRIBUTES, entryLabel, type NamedEntry, type NscData, type NscWeapon } from './schema.ts'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -9,7 +9,7 @@ const esc = (s: unknown) =>
 /** ranges and TP+ as written in the block: "(5/15/25/40/60) --> (1/1/0/0/-1)" */
 const rangesText = (rw: NonNullable<NscWeapon['RW']>) => `(${rw.map((r) => r[0]).join('/')}) --> (${rw.map((r) => r[1]).join('/')})`
 
-const entryText = (e: NamedEntry) => `${esc(e.name)}${e.value !== null ? ` ${e.value}` : ''}`
+const entryText = (e: NamedEntry) => `${esc(entryLabel(e))}${e.value !== null ? ` ${e.value}` : ''}`
 
 function issuesHtml(block: ParsedBlock<NscData>): string {
   if (!block.issues.length) return ''

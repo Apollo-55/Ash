@@ -131,7 +131,7 @@ Dir liegen diese Regelwerke als Seiten vor: ${books}. Seitenzahlen sind PDF-Seit
 Vorgehen:
 1. Beschreibung verstehen: Was macht die Figur, wie gut ist sie darin, kämpft sie, zaubert sie, ist sie heute geweiht? Die Beschreibung hat Vorrang. Eine Profession aus „Wege der Helden“ ist nur Orientierung, kein Korsett – bei einfachen Gegnern (Wache, Bandit, Schläger, Tier) reicht oft gar keine.
 2. Gezielt nachschlagen, was du nicht sicher weißt (Professionspaket, SF-Voraussetzungen, Liturgien eines Gottes, Zauber). Sparsam: meist reichen 2–6 Abfragen, bei einfachen Gegnern 0–2.
-3. Offizielle Namen mit katalog_suchen prüfen, wenn du unsicher bist – nur Namen aus dem Katalog werden in Foundry erkannt (Sprachen heißen z. B. „Garethi“, Schriften „Kusliker Zeichen“).
+3. Offizielle Namen mit katalog_suchen prüfen, wenn du unsicher bist – nur Namen aus dem Katalog werden in Foundry erkannt (Sprachen heißen z. B. „Garethi“, Schriften „Kusliker Zeichen“; gibt es einen Namen als Sprache und als Schrift, „Tulamidya(Sprache)“ bzw. „Tulamidya(Schrift)“ schreiben).
 4. Mit nsc_abgeben abgeben. Kommen Probleme zurück, korrigieren und erneut abgeben.
 
 Regeln:
