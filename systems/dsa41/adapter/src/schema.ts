@@ -21,6 +21,26 @@ export interface NscWeapon {
   RW?: [[number,number],[number,number],[number,number],[number,number],[number,number]]
 }
 
+export const ARMOR_ZONES = ['head', 'chest', 'back', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'] as const
+export type ArmorZone = (typeof ARMOR_ZONES)[number]
+/** weights of dsa-41's zoned total: sum(zone × weight) / zoned-armor-factor (default 20 = sum of weights) */
+export const ZONE_WEIGHT: Record<ArmorZone, number> = { head: 2, chest: 4, back: 4, torso: 4, leftArm: 1, rightArm: 1, leftLeg: 2, rightLeg: 2 }
+export const ZONE_LABEL: Record<ArmorZone, string> = {
+  head: 'Kopf', chest: 'Brust', back: 'Rücken', torso: 'Bauch', leftArm: 'LA', rightArm: 'RA', leftLeg: 'LB', rightLeg: 'RB',
+}
+
+export interface NscArmor {
+  name: string
+  /** overrides the compendium value; with zones: the rounded zoned total */
+  RS?: number
+  /** RS per zone (zones not given are 0) */
+  zones?: Record<ArmorZone, number>
+  BE?: number
+}
+
+/** Gesamt-RS of zones as dsa-41 computes it with the default factor (exact, may be fractional). */
+export const zonedTotal = (z: Record<ArmorZone, number>) => ARMOR_ZONES.reduce((s, k) => s + z[k] * ZONE_WEIGHT[k], 0) / 20
+
 export interface NamedEntry {
   name: string
   value: number | null
@@ -60,7 +80,7 @@ export interface NscData {
   GS?: number
   INI?: number
   ausweichen?: number
-  ruestung: string[]
+  ruestung: NscArmor[]
   waffen: NscWeapon[]
   talente: NamedEntry[]
   zauber: NamedEntry[]
@@ -109,6 +129,48 @@ const KEYS: Record<string, string> = {
 
 const WEAPON_KEYS: Record<string, string> = {
   name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk: 'KK', bf: 'BF', rw: 'RW'
+}
+
+const ARMOR_KEYS: Record<string, 'name' | 'RS' | 'BE'> = { name: 'name', rs: 'RS', be: 'BE' }
+
+/** zone names in the block (lower-cased, without spaces/dots/hyphens) → zones */
+const ZONE_KEYS: Record<string, ArmorZone[]> = {
+  kopf: ['head'], brust: ['chest'], 'rücken': ['back'], ruecken: ['back'], bauch: ['torso'],
+  la: ['leftArm'], linkerarm: ['leftArm'], armlinks: ['leftArm'],
+  ra: ['rightArm'], rechterarm: ['rightArm'], armrechts: ['rightArm'],
+  lb: ['leftLeg'], linkesbein: ['leftLeg'], beinlinks: ['leftLeg'],
+  rb: ['rightLeg'], rechtesbein: ['rightLeg'], beinrechts: ['rightLeg'],
+  arme: ['leftArm', 'rightArm'], beine: ['leftLeg', 'rightLeg'],
+}
+const ZONE_NAMES = 'Kopf, Brust, Rücken, Bauch, LA/linker Arm, RA/rechter Arm, LB/linkes Bein, RB/rechtes Bein, Arme, Beine'
+
+function parseZones(v: Record<string, unknown>, name: string, error: (m: string) => void): Record<ArmorZone, number> | undefined {
+  const zones = Object.fromEntries(ARMOR_ZONES.map((z) => [z, 0])) as Record<ArmorZone, number>
+  const seen = new Set<ArmorZone>()
+  let ok = true
+  for (const [k, raw] of Object.entries(v)) {
+    const targets = ZONE_KEYS[k.toLowerCase().replace(/[\s.\-_]/g, '')]
+    if (!targets) {
+      error(`Rüstung „${name}“: unbekannte Zone „${k}“ (erlaubt: ${ZONE_NAMES}).`)
+      ok = false
+      continue
+    }
+    const n = toInt(raw)
+    if (n === undefined || n < 0) {
+      error(`Rüstung „${name}“: RS ${k} ${show(raw)} ist keine ganze Zahl ≥ 0.`)
+      ok = false
+      continue
+    }
+    for (const z of targets) {
+      if (seen.has(z)) {
+        error(`Rüstung „${name}“: Zone ${ZONE_LABEL[z]} ist doppelt angegeben („${k}“).`)
+        ok = false
+      }
+      seen.add(z)
+      zones[z] = n
+    }
+  }
+  return ok ? zones : undefined
 }
 
 const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'RS', 'WS', 'GS', 'ausweichen'] as const
@@ -210,14 +272,7 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
         break
       }
       case 'ruestung':
-        for (const r of Array.isArray(value) ? value : [value]) {
-          if (typeof r !== 'string' || !r.trim()) {
-            error(`Rüstung: ${show(r)} ist kein Name.`)
-            continue
-          }
-          data.ruestung.push(r.trim())
-          if (!find(['armor'], r)) warn(`Rüstung „${r}“ steht in keinem dsa-41-Kompendium${didYouMean(['armor'], r)}. Wird in Foundry in den Welt-Gegenständen gesucht.`)
-        }
+        parseArmor(value, data, error, warn)
         break
       case 'waffen':
         parseWeapons(value, data, error, warn)
@@ -326,6 +381,66 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
     if (known && w.RW && known.t === 'meleeWeapon') warn(`Waffe „${w.name}“ ist eine Nahkampfwaffe, RW wird ignoriert.`)
     if (known && w.BF !== undefined && known.t === 'rangedWeapon') warn(`Waffe „${w.name}“ ist eine Fernkampfwaffe, BF wird ignoriert.`)
     data.waffen.push(w as NscWeapon)
+  }
+}
+
+function parseArmor(value: unknown, data: NscData, error: (m: string) => void, warn: (m: string) => void) {
+  // "rüstung: X", "[X, { name: Y, BE: 2 }]", "{ name: Y, BE: 2 }" or "{ Y: { BE: 2 } }"
+  const isEntry = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).some((k) => k.trim().toLowerCase() === 'name')
+  const list = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && !isEntry(value)
+      ? Object.entries(value).map(([name, v]) => (v && typeof v === 'object' && !Array.isArray(v) ? { name, ...v } : v === null ? name : { name, _bad: v }))
+      : [value]
+  const unknown = (name: string) =>
+    warn(`Rüstung „${name}“ steht in keinem dsa-41-Kompendium${didYouMean(['armor'], name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst ohne Werte angelegt – gib RS und BE an, z. B. { name: ${name}, RS: 2, BE: 1 }.`)
+  for (const entry of list) {
+    if (typeof entry === 'string') {
+      if (!entry.trim()) {
+        error(`Rüstung: ${show(entry)} ist kein Name.`)
+        continue
+      }
+      const name = entry.trim()
+      data.ruestung.push({ name })
+      if (!find(['armor'], name)) unknown(name)
+      continue
+    }
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      error(`Rüstung: ${show(entry)} ist kein Eintrag (z. B. Lederharnisch oder { name: Lastgeschirr, RS: 0, BE: 2 }).`)
+      continue
+    }
+    const a: Partial<NscArmor> = {}
+    for (const [k, v] of Object.entries(entry as Record<string, unknown>)) {
+      if (k === '_bad') {
+        error(`Rüstung „${(entry as { name: string }).name}“: ${show(v)} ist kein Eintrag (z. B. { RS: 0, BE: 2 }).`)
+        continue
+      }
+      const key = ARMOR_KEYS[k.trim().toLowerCase()]
+      if (!key) {
+        error(`Rüstung: unbekannter Schlüssel „${k}“ (erlaubt: name, RS, BE).`)
+        continue
+      }
+      if (key === 'name') {
+        if (typeof v === 'string' && v.trim()) a.name = v.trim()
+        continue
+      }
+      if (key === 'RS' && v && typeof v === 'object' && !Array.isArray(v)) {
+        const zones = parseZones(v as Record<string, unknown>, String((entry as Record<string, unknown>).name ?? '?'), error)
+        if (zones) Object.assign(a, { zones, RS: Math.round(zonedTotal(zones)) })
+        continue
+      }
+      const n = toInt(v)
+      if (n === undefined || n < 0) error(`Rüstung: ${key} ${show(v)} ist keine ganze Zahl ≥ 0${key === 'RS' ? ' (oder Zonen wie { Kopf: 3, Brust: 4 })' : ''}.`)
+      else a[key] = n
+    }
+    if (!a.name) {
+      error('Rüstung ohne „name“.')
+      continue
+    }
+    data.ruestung.push(a as NscArmor)
+    if (!find(['armor'], a.name) && a.RS === undefined && a.BE === undefined) {
+      unknown(a.name)
+    }
   }
 }
 

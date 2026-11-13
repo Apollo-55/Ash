@@ -52,7 +52,7 @@ Ein Feld für SO gibt es nicht. Es gibt nur `background.social.socialStatus.valu
 | WS         | `…passive.woundThresholds.{first,second,third,mod}`                                                                               | `autoCalcWoundThresholds`, KO/2, KO, KO·1,5      |
 | GS         | `base.movement.speed.value`                                                                                                       | `autoCalcSpeed`                                  |
 | RS         | **kein gespeichertes Feld.** Summe der angelegten `armor`-Items + `modifiers.additionalRS` + Vorteil „Natürlicher Rüstungsschutz“ | immer berechnet                                  |
-| BE         | aus Rüstung (`load.encumbrance` nur Last)                                                                                         | berechnet                                        |
+| BE         | **kein setzbares Feld.** Summe `encumbrance` (Zonen: `zonedEncumbrance`) der angelegten `armor`-Items + `load.encumbrance` (Last, wird vom System bei jedem Laden neu berechnet) | immer berechnet; Import: Rüstung `{ name, RS, BE }` |
 
 Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. RS ohne Rüstungs-Item geht nach `modifiers.additionalRS`.
 

@@ -552,3 +552,91 @@ describe('Sprachen und Schriften unter talente', () => {
     expect(html).toContain('Garethi 12, Tulamidya (Schrift) 4')
   })
 })
+
+describe('Rüstung mit eigenen Werten', () => {
+  const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+  const actorOf = (s: string) => dsa41.nscToActor(parse(s).data!, ctx)
+  const armorOf = (s: string, name: string) => actorOf(s).items.find((i) => i.name === name)!
+
+  it('liest Namen, Einträge, Einzel-Eintrag und Namens-Liste', () => {
+    const list = parse('name: X\nrüstung:\n  - Lederharnisch\n  - { name: Lastgeschirr, RS: 0, BE: 2 }')
+    expect(list.issues).toEqual([])
+    expect(list.data!.ruestung).toEqual([{ name: 'Lederharnisch' }, { name: 'Lastgeschirr', RS: 0, BE: 2 }])
+    expect(parse('name: X\nrüstung: { name: Lastgeschirr, be: 2 }').data!.ruestung).toEqual([{ name: 'Lastgeschirr', BE: 2 }])
+    expect(parse('name: X\nrüstung: { Lastgeschirr: { BE: 2 }, Lederhelm: }').data!.ruestung).toEqual([{ name: 'Lastgeschirr', BE: 2 }, { name: 'Lederhelm' }])
+    expect(parse('name: X\nrüstung: Lederhelm').data!.ruestung).toEqual([{ name: 'Lederhelm' }])
+  })
+
+  it('unbekannte Rüstung warnt nur ohne eigene Werte', () => {
+    expect(levels('name: X\nrüstung: [{ name: Lastgeschirr, BE: 2 }]', 'warning')).toEqual([])
+    expect(levels('name: X\nrüstung: [Lastgeschirr]', 'warning')[0]).toMatch(/Lastgeschirr.*gib RS und BE an/)
+  })
+
+  it('meldet falsche Werte und unbekannte Schlüssel', () => {
+    expect(levels('name: X\nrüstung: [{ name: A, BE: viel }]')).toEqual(['Rüstung: BE „viel“ ist keine ganze Zahl ≥ 0.'])
+    expect(levels('name: X\nrüstung: [{ name: A, RS: -1 }]')).toEqual(['Rüstung: RS -1 ist keine ganze Zahl ≥ 0 (oder Zonen wie { Kopf: 3, Brust: 4 }).'])
+    expect(levels('name: X\nrüstung: [{ name: A, Gewicht: 3 }]')).toEqual(['Rüstung: unbekannter Schlüssel „Gewicht“ (erlaubt: name, RS, BE).'])
+    expect(levels('name: X\nrüstung: [{ BE: 2 }]')).toEqual(['Rüstung ohne „name“.'])
+    expect(levels('name: X\nrüstung: [[1, 2]]')[0]).toMatch(/^Rüstung: .* ist kein Eintrag/)
+  })
+
+  it('schreibt RS und BE für einfache und Zonenrüstung, angelegt', () => {
+    const a = armorOf('name: X\nrüstung: [{ name: Lastgeschirr, RS: 1, BE: 2 }]', 'Lastgeschirr')
+    expect(a.source).toBeUndefined()
+    expect(a.system).toMatchObject({
+      equipped: true, armorClass: 1, encumbrance: 2, zonedEncumbrance: 2,
+      'zonedArmorClass.head': 1, 'zonedArmorClass.rightLeg': 1, 'zonedArmorClass.total': 1,
+    })
+    expect(a.fallback).toEqual({ type: 'armor', system: { equipped: true, armorClass: 0, encumbrance: 0 } })
+  })
+
+  it('überschreibt Kompendiumswerte nur, wenn angegeben', () => {
+    const only = armorOf('name: X\nrüstung: [{ name: Lederharnisch, BE: 1 }]', 'Lederharnisch')
+    expect(only.source).toMatchObject({ sid: 'armor-ave-Lederharnisch' })
+    expect(only.system).toEqual({ equipped: true, encumbrance: 1, zonedEncumbrance: 1 })
+    expect(armorOf('name: X\nrüstung: [Lederharnisch]', 'Lederharnisch').system).toEqual({ equipped: true })
+  })
+
+  it('Gesamt-RS rechnet mit den eigenen RS-Werten', () => {
+    const rs = (s: string) => actorOf(s).data['modifiers.additionalRS']
+    expect(rs('name: X\nrüstung: [Lederharnisch, { name: Lastgeschirr, RS: 1, BE: 2 }]\nRS: 5')).toBe(1)
+    expect(rs('name: X\nrüstung: [{ name: Lederharnisch, RS: 4 }]\nRS: 5')).toBe(1)
+    expect(rs('name: X\nrüstung: [{ name: Lastgeschirr, BE: 2 }]\nRS: 2')).toBe(2)
+  })
+
+  it('Zonen: Kurz- und Langnamen, Arme/Beine, fehlende Zonen 0, Gesamt-RS gerundet', () => {
+    const r = parse('name: X\nrüstung:\n  - { name: Platte, RS: { Kopf: 3, Brust: 5, rücken: 4, Bauch: 4, Arme: 2, linkes Bein: 2, RB: 1 }, BE: 4 }')
+    expect(r.issues).toEqual([])
+    expect(r.data!.ruestung[0]).toEqual({
+      name: 'Platte', BE: 4, RS: 3, // (3·2 + 5·4 + 4·4 + 4·4 + 2·1 + 2·1 + 2·2 + 1·2) / 20 = 68/20 = 3,4
+      zones: { head: 3, chest: 5, back: 4, torso: 4, leftArm: 2, rightArm: 2, leftLeg: 2, rightLeg: 1 },
+    })
+    expect(parse('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4 } }]').data!.ruestung[0]).toMatchObject({
+      RS: 0, zones: { head: 4, chest: 0, leftLeg: 0 },
+    })
+    expect(parse('name: X\nrüstung: [{ name: A, RS: { LA: 1, rechter Arm: 1, Bein links: 1, Ruecken: 1 } }]').issues).toEqual([])
+  })
+
+  it('Zonen: Fehler bei unbekannter Zone, doppelter Zone, falschem Wert', () => {
+    expect(levels('name: X\nrüstung: [{ name: A, RS: { Hals: 2 } }]')[0]).toMatch(/^Rüstung „A“: unbekannte Zone „Hals“/)
+    expect(levels('name: X\nrüstung: [{ name: A, RS: { Arme: 2, LA: 3 } }]')).toEqual(['Rüstung „A“: Zone LA ist doppelt angegeben („LA“).'])
+    expect(levels('name: X\nrüstung: [{ name: A, RS: { Kopf: -1 } }]')).toEqual(['Rüstung „A“: RS Kopf -1 ist keine ganze Zahl ≥ 0.'])
+    expect(parse('name: X\nrüstung: [{ name: A, RS: { Kopf: x } }]').data!.ruestung[0]).toEqual({ name: 'A' })
+  })
+
+  it('Zonen: jede Zone einzeln, Gesamt-RS für einfache Rüstung und Verrechnung', () => {
+    const a = armorOf('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4, Brust: 2 }, BE: 1 }]', 'Helm')
+    expect(a.system).toMatchObject({
+      armorClass: 1, 'zonedArmorClass.total': 0.8, encumbrance: 1, zonedEncumbrance: 1,
+      'zonedArmorClass.head': 4, 'zonedArmorClass.chest': 2, 'zonedArmorClass.back': 0, 'zonedArmorClass.rightLeg': 0,
+    })
+    expect(actorOf('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4, Brust: 2 } }]\nRS: 3').data['modifiers.additionalRS']).toBe(2)
+  })
+
+  it('Wertekasten zeigt die eigenen Werte', () => {
+    const html = dsa41.renderStatblock(parse('name: X\nrüstung: [Lederhelm, { name: Lastgeschirr, RS: 0, BE: 2 }]'), { showIssues: false, showCalculated: false })
+    expect(html).toContain('<b>Rüstung:</b> Lederhelm, Lastgeschirr (RS 0, BE 2)</p>')
+    const zoned = dsa41.renderStatblock(parse('name: X\nrüstung: [{ name: Helm, RS: { Kopf: 4 }, BE: 1 }]'), { showIssues: false, showCalculated: false })
+    expect(zoned).toContain('Helm (RS 0 [Kopf 4 Brust 0 Rücken 0 Bauch 0 LA 0 RA 0 LB 0 RB 0], BE 1)')
+  })
+})
