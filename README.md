@@ -6,7 +6,7 @@ Bringt eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-
 
 1. [Installation](#installation)
 2. [Alltag](#alltag)
-3. [Notation](#notation) – Frontmatter, was umgewandelt wird, NSCs, Szenen
+3. [Notation](#notation) – Frontmatter, was umgewandelt wird, NSCs, Szenen (ausführlich: [docs/bloecke.md](docs/bloecke.md))
 4. [Einstellungen](#einstellungen)
 5. [Was beim erneuten Übernehmen passiert](#was-beim-erneuten-übernehmen-passiert)
 6. [Grenzen](#grenzen)
@@ -85,6 +85,8 @@ foundry:
 
 ### NSCs: der `dsa-nsc`-Block
 
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#dsa-nsc--nichtspielercharaktere).
+
 Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
 
 ~~~markdown
@@ -121,6 +123,8 @@ notiz: Freitext für die Biografie
 - Im Journal erscheint der Wertekasten mit „Zum Charakter“. `[[Notiz#Die Viper]]` verlinkt direkt den Charakter.
 
 ### Szenen: der `szene`-Block
+
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#szene--szenen).
 
 Beliebig viele pro Notiz. Befehl **„Szenen-Vorlage einfügen“** setzt eine Vorlage ein (Cursor steht hinter `karte:`). Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
 
@@ -202,6 +206,7 @@ Aufbau des Projekts, alle Befehle, Tests und wie man ein weiteres Spielsystem er
 
 | Dokument | Inhalt |
 |---|---|
+| [docs/bloecke.md](docs/bloecke.md) | Nachschlagewerk `dsa-nsc`- und `szene`-Block: alle Schlüssel, Schreibweisen, Standardwerte, häufige Fehler |
 | [docs/sync-server.md](docs/sync-server.md) | Sync-Dienst einrichten, aktualisieren, Sicherheit |
 | [docs/nsc-generator.md](docs/nsc-generator.md) | DSA-NSC-Generator (optionales zweites Plugin) |
 | [docs/entwicklung.md](docs/entwicklung.md) | Projektaufbau, Befehle, Tests |
