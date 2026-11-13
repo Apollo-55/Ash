@@ -116,7 +116,7 @@ sonderfertigkeiten: []
 | `WS` | – | Zahl | Wundschwelle, sonst gerechnet |
 | `ausweichen` | `AW` | Zahl | sonst gerechnet |
 | `RS` | – | Zahl | Gesamt-RS |
-| `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
+| `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` (RS auch als Zonen) oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
 | `waffen` | – | Liste | |
 | `talente` | – | Liste / Zuordnung | inkl. Kampftalente, Sprachen, Schriften |
 | `zauber` | – | Liste / Zuordnung | |
@@ -244,9 +244,31 @@ RS: 4
 ```
 
 - Rüstungsteile werden aus dem Kompendium geholt und angelegt (angelegt = getragen).
-- **Eigene Werte** wie bei Waffen: `{ name: …, RS: …, BE: … }` (ganze Zahlen ≥ 0, beide optional). Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht angegebene bleiben, wie sie sind. So lässt sich auch ein Rüstungsteil anlegen, das in keinem Kompendium steht – etwa eine reine Behinderung `{ name: Lastgeschirr, RS: 0, BE: 2 }`.
-- Die Werte gelten für beide Rüstungssysteme von dsa-41 (Welt-Einstellung „Rüstungssystem“): Bei Zonenrüstung bekommt jede Zone den RS und die Zonen-BE die BE. Mit dem Standard-Zonenfaktor 20 ergibt das wieder den angegebenen RS.
-- **`RS`** ist der **Gesamt-RS**, den der NSC haben soll. Das Plugin zieht den RS der genannten Rüstungen ab (eigener `RS` vor Kompendium); der Rest wird als „Zusatz-RS“ eingetragen (nie negativ). Beispiel: Lederharnisch (RS 3) + `RS: 4` → Zusatz-RS 1.
+- **Eigene Werte** wie bei Waffen: `{ name: …, RS: …, BE: … }` (ganze Zahlen ≥ 0, beide optional; `RS` auch als Zonen, siehe unten). Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht angegebene bleiben, wie sie sind. So lässt sich auch ein Rüstungsteil anlegen, das in keinem Kompendium steht – etwa eine reine Behinderung `{ name: Lastgeschirr, RS: 0, BE: 2 }`.
+- **Zonenrüstung:** Statt einer Zahl kann `RS` die Zonen einzeln angeben. Nicht genannte Zonen haben RS 0.
+
+  ```yaml
+  rüstung:
+    - { name: Kettenhemd, RS: { Kopf: 0, Brust: 4, Rücken: 4, Bauch: 4, Arme: 3, Beine: 1 }, BE: 3 }
+    - { name: Topfhelm, RS: { Kopf: 4 } }
+  ```
+
+  | Zone | Schreibweisen | Gewicht |
+  |---|---|---|
+  | Kopf | `Kopf` | 2 |
+  | Brust | `Brust` | 4 |
+  | Rücken | `Rücken`, `Ruecken` | 4 |
+  | Bauch | `Bauch` | 4 |
+  | linker / rechter Arm | `LA`, `linker Arm`, `Arm links` / `RA`, `rechter Arm`, `Arm rechts` | je 1 |
+  | linkes / rechtes Bein | `LB`, `linkes Bein`, `Bein links` / `RB`, `rechtes Bein`, `Bein rechts` | je 2 |
+  | beide Arme / Beine | `Arme` / `Beine` | |
+
+  Groß-/Kleinschreibung und Leerzeichen sind egal; jede Zone darf nur einmal vorkommen (also nicht `Arme` und `LA` zusammen).
+- Beide Rüstungssysteme von dsa-41 (Welt-Einstellung „Rüstungssystem“) bekommen passende Werte:
+  - **Zonen:** jede Zone ihren RS, die Zonen-BE die BE. Eine einzelne Zahl bei `RS` steht auf allen Zonen.
+  - **Einfach:** RS und BE direkt. Aus Zonen wird der Gesamt-RS wie im System berechnet – Summe aus Zone × Gewicht, geteilt durch 20 – und kaufmännisch gerundet. Der Topfhelm oben hat damit RS 0 (4 · 2 / 20 = 0,4).
+  - Bei einem anderen Zonenfaktor als 20 rechnet das System selbst um; der Import geht immer von 20 aus.
+- **`RS`** ist der **Gesamt-RS**, den der NSC haben soll. Das Plugin zieht den RS der genannten Rüstungen ab (eigener `RS` vor Kompendium, bei Zonen der gerundete Gesamt-RS); der Rest wird als „Zusatz-RS“ eingetragen (nie negativ). Beispiel: Lederharnisch (RS 3) + `RS: 4` → Zusatz-RS 1.
 - Nur `RS` ohne Rüstung = natürlicher Rüstungsschutz (z. B. Kreaturen mit Schuppen).
 - Eine BE ohne Rüstung gibt es im System nicht als eigenes Feld – dafür ein Rüstungsteil mit `RS: 0` und der gewünschten `BE` anlegen.
 - Unbekannte Rüstungen ohne `RS`/`BE`: Warnung; in Foundry wird in den Welt-Gegenständen gesucht, sonst ein Rüstungsteil ohne Werte (RS 0, BE 0) angelegt. Mit eigenen Werten gibt es keine Warnung.

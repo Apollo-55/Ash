@@ -3,7 +3,7 @@ import type { BundleItem } from '../../../../packages/core/src/types.ts'
 import type { ActorContext, SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
 import type { Dsa41Combat } from './combat.ts'
 import { find, findBySid, findWeapon, normalizeName } from './catalog.ts'
-import { diceToFoundry, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscArmor, type NscData } from './schema.ts'
+import { ARMOR_ZONES, diceToFoundry, zonedTotal, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscArmor, type NscData } from './schema.ts'
 
 export const ATTR_KEYS: Record<Attr, string> = {
   MU: 'courage', KL: 'cleverness', IN: 'intuition', CH: 'charisma', FF: 'dexterity', GE: 'agility', KO: 'constitution', KK: 'strength',
@@ -20,19 +20,18 @@ const SF_TYPE: Record<string, string> = {
   magisch: 'magical', magie: 'magical', ritual: 'ritual', karmal: 'karma', klerikal: 'karma', karma: 'karma',
 }
 
-const ARMOR_ZONES = ['head', 'chest', 'back', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'] as const
-
 /**
  * RS/BE from the block for both armor systems of dsa-41 (world setting "armor-system"):
  * basic reads armorClass/encumbrance, zoned reads zonedArmorClass/zonedEncumbrance.
- * The same RS on every zone gives a zoned total of RS (zone weights add up to the default factor 20).
+ * A single RS goes on every zone (zone weights add up to the default factor 20, so the total is RS again);
+ * with zones, armorClass gets the rounded zoned total.
  */
 function armorValues(r: NscArmor): Record<string, unknown> {
   const system: Record<string, unknown> = {}
   if (r.RS !== undefined) {
     system.armorClass = r.RS
-    for (const z of ARMOR_ZONES) system[`zonedArmorClass.${z}`] = r.RS
-    system['zonedArmorClass.total'] = r.RS
+    for (const z of ARMOR_ZONES) system[`zonedArmorClass.${z}`] = r.zones?.[z] ?? r.RS
+    system['zonedArmorClass.total'] = r.zones ? zonedTotal(r.zones) : r.RS
   }
   if (r.BE !== undefined) {
     system.encumbrance = r.BE

@@ -1,7 +1,7 @@
 import type { ParsedBlock, StatblockOptions } from '../../../../packages/core/src/systems/adapter.ts'
 import { findBySid, findWeapon } from './catalog.ts'
 import { computeDerived, overrides } from './derived.ts'
-import { ATTRIBUTES, entryLabel, type NamedEntry, type NscArmor, type NscData, type NscWeapon } from './schema.ts'
+import { ARMOR_ZONES, ATTRIBUTES, entryLabel, ZONE_LABEL, type NamedEntry, type NscArmor, type NscData, type NscWeapon } from './schema.ts'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -12,7 +12,8 @@ const rangesText = (rw: NonNullable<NscWeapon['RW']>) => `(${rw.map((r) => r[0])
 const entryText = (e: NamedEntry) => `${esc(entryLabel(e))}${e.value !== null ? ` ${e.value}` : ''}`
 
 const armorText = (r: NscArmor) => {
-  const values = [r.RS !== undefined ? `RS ${r.RS}` : '', r.BE !== undefined ? `BE ${r.BE}` : ''].filter(Boolean)
+  const zones = r.zones ? ` [${ARMOR_ZONES.map((z) => `${ZONE_LABEL[z]} ${r.zones![z]}`).join(' ')}]` : ''
+  const values = [r.RS !== undefined ? `RS ${r.RS}${zones}` : '', r.BE !== undefined ? `BE ${r.BE}` : ''].filter(Boolean)
   return `${esc(r.name)}${values.length ? ` (${values.join(', ')})` : ''}`
 }
 

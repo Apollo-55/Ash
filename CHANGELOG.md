@@ -5,6 +5,7 @@
 **Vault to Foundry**
 
 - `dsa-nsc`: Rüstungen können wie Waffen eigene Werte bekommen: `rüstung: [Lederharnisch, { name: Lastgeschirr, RS: 0, BE: 2 }]`. RS und BE überschreiben die Werte des Kompendiums (einfache und Zonenrüstung) und gehen in die Verrechnung mit dem Gesamt-`RS` ein; Rüstungen, die in keinem Kompendium stehen, werden mit diesen Werten angelegt.
+- `dsa-nsc`: Zonenrüstung: `RS` einer Rüstung kann die Zonen einzeln angeben, z. B. `{ name: Topfhelm, RS: { Kopf: 4 } }` (Kopf, Brust, Rücken, Bauch, LA/linker Arm, RA, LB, RB, Arme, Beine). Für das einfache Rüstungssystem wird daraus der Gesamt-RS wie in dsa-41 berechnet.
 
 ## 1.0.6 (2026-11-13)
 
