@@ -1,7 +1,6 @@
-# Baut den Sync-Dienst vtf-sync (mit Foundry-Modul und den Obsidian-Plugins aus demselben Build) als
-# Docker-Image und legt es in die GitHub Container Registry: ghcr.io/<owner>/vtf-sync
-# Auf dem Server reicht danach: docker compose pull vtf-sync && docker compose up -d vtf-sync
-name: vtf-sync-Image
+# Jeder Push auf main: Tests und Build, dann das Image mit dem Tag "dev" zum Ausprobieren.
+# "latest" und die Versionsnummer vergibt nur der Workflow "Version veröffentlichen" (release.yml).
+name: vtf-sync-Image (dev)
 
 on:
   push:
@@ -30,21 +29,9 @@ jobs:
       # first the further plugins, so the service build picks them up
       - run: npm run build:generator
       - run: npm run build
-      - name: Image bauen und hochladen
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/vtf-sync"
-          version="$(sed -n "s/^const VERSION = '\(.*\)'$/\1/p" packages/sync-service/server.mjs)"
-          test -n "$version"
-          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          # the Dockerfile only copies files, so both platforms build without emulation
-          docker buildx create --use
-          docker buildx build dist/vtf-sync \
-            --platform linux/amd64,linux/arm64 \
-            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
-            --label "org.opencontainers.image.version=$version" \
-            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
-            --tag "$image:latest" --tag "$image:$version" --tag "$image:sha-${GITHUB_SHA::7}" \
-            --push
-          echo "Image: \`$image:latest\`, \`$image:$version\`, \`$image:sha-${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+      - id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/vtf-sync-image
+        with:
+          tags: dev sha-${{ steps.sha.outputs.short }}
+          token: ${{ secrets.GITHUB_TOKEN }}

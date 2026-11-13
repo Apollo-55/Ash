@@ -4,7 +4,7 @@
 
 **Sync-Dienst**
 
-- Fertiges Image `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64; Tags `latest`, Version, `sha-<commit>`), gebaut von GitHub Actions bei jedem Push auf `main`. Ein Update ist `docker compose pull vtf-sync && docker compose up -d vtf-sync`; der Weg über `vtf-sync.zip` bleibt möglich.
+- Fertiges Image `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64), gebaut von GitHub Actions. Versionen per Knopf: GitHub → Actions → „Version veröffentlichen“ erhöht die Nummer überall (`tools/release.mjs`), schließt diesen Abschnitt im Changelog, taggt `v<Version>` und baut erst dann das Image als `latest` und `<Version>`, dazu ein GitHub-Release mit den ZIPs. Ein Push auf `main` baut nur das Image `dev` (und `sha-<commit>`); `latest` ändert sich dadurch nicht. Ein Update ist `docker compose pull vtf-sync && docker compose up -d vtf-sync`; der Weg über `vtf-sync.zip` bleibt möglich.
 - Der Dienst liefert das Foundry-Modul aus: Installation und Update per Manifest-URL `<VTF_PUBLIC_URL>/module/module.json` (ohne Token).
 - Der Dienst liefert die Obsidian-Plugins aus (Vault to Foundry, DSA-NSC-Generator): Das Plugin vergleicht seine Dateien mit denen des Dienstes und aktualisiert sich per Klick, mit Prüfsummen und nur mit Token (`/v1/plugins`, `/v1/plugins/<id>/files/<name>`; `/v1/plugin` bleibt für ältere Fassungen).
 - Download-Seite `<VTF_PUBLIC_URL>/plugin` für die Erstinstallation, geschützt durch `VTF_DOWNLOAD_PASSWORD` (unabhängig vom Sync-Token); ohne die Variable ist die Seite aus.

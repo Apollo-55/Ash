@@ -1,0 +1,69 @@
+# Knopf "Version veröffentlichen": Actions → Version veröffentlichen → Run workflow.
+# Erhöht die Versionsnummer überall (tools/release.mjs), schließt den Abschnitt "Unveröffentlicht" im
+# Changelog, schreibt das als Commit mit Tag v<Version> nach main und baut erst dann das Image als
+# "latest" und "<Version>". Dazu ein GitHub-Release mit den ZIPs.
+# Schlägt ein Schritt fehl, wird nichts veröffentlicht.
+name: Version veröffentlichen
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Art der Version: patch = Korrektur (1.0.5 → 1.0.6), minor = neue Funktion (→ 1.1.0), major = großer Sprung (→ 2.0.0)'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: vtf-sync-image
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nur von main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Veröffentlicht wird nur von main (gewählt: $GITHUB_REF_NAME)."
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Versionsnummer erhöhen
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: node tools/release.mjs "$BUMP" --notes "$RUNNER_TEMP/notes.md"
+      - run: npm ci
+      - run: npm test
+      # first the further plugins, so the service build picks them up
+      - run: npm run build:generator
+      - run: npm run build
+      - name: Commit und Tag nach main
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Version $VERSION"
+          git tag "v$VERSION"
+          git push origin HEAD:main "v$VERSION"
+      - uses: ./.github/actions/vtf-sync-image
+        with:
+          tags: latest ${{ steps.bump.outputs.version }} dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: GitHub-Release mit den ZIPs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          gh release create "v$VERSION" --title "Version $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+            dist/vtf-sync.zip dist/vault-to-foundry-obsidian.zip dist/vault-to-foundry-module.zip dist/dsa-nsc-generator-obsidian.zip
+          echo "Veröffentlicht: Version $VERSION (vorher ${{ steps.bump.outputs.previous }})" >> "$GITHUB_STEP_SUMMARY"
