@@ -1,0 +1,36 @@
+# Lädt das fertig gebaute dist/vtf-sync als Image nach ghcr.io/<owner>/vtf-sync hoch.
+# Vorher müssen "npm run build:generator" und "npm run build" gelaufen sein.
+name: vtf-sync-Image hochladen
+description: Baut dist/vtf-sync als Docker-Image (amd64, arm64) und lädt es mit den angegebenen Tags nach ghcr.io
+inputs:
+  tags:
+    description: Tags, durch Leerzeichen getrennt (z. B. "latest 1.0.6")
+    required: true
+  token:
+    description: GITHUB_TOKEN mit packages:write
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        TAGS: ${{ inputs.tags }}
+        TOKEN: ${{ inputs.token }}
+      run: |
+        image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/vtf-sync"
+        version="$(sed -n "s/^const VERSION = '\(.*\)'$/\1/p" packages/sync-service/server.mjs)"
+        test -n "$version"
+        revision="$(git rev-parse HEAD)"
+        tag_args=()
+        for tag in $TAGS; do tag_args+=(--tag "$image:$tag"); done
+        echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        # the Dockerfile only copies files, so both platforms build without emulation
+        docker buildx create --use
+        docker buildx build dist/vtf-sync \
+          --platform linux/amd64,linux/arm64 \
+          --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+          --label "org.opencontainers.image.version=$version" \
+          --label "org.opencontainers.image.revision=$revision" \
+          "${tag_args[@]}" \
+          --push
+        echo "Image \`$image\` ($version): $(printf '`%s` ' $TAGS)" >> "$GITHUB_STEP_SUMMARY"

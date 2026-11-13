@@ -24,7 +24,25 @@ Foundry: Knopf „Vault synchronisieren“ ──liest bundle.json aus dem eigen
 
 ## Image von GitHub
 
-Der Workflow `.github/workflows/vtf-sync-image.yml` läuft bei jedem Push auf `main`: Tests, Build, dann das Image mit Dienst, Foundry-Modul und Obsidian-Plugins aus genau diesem Stand nach `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64). Tags: `latest`, die Version (z. B. `1.0.0`) und `sha-<commit>` zum Festnageln oder Zurückgehen. Das Image enthält weder Token noch Vault-Daten.
+GitHub baut das Image `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64) mit Dienst, Foundry-Modul und den Obsidian-Plugins aus demselben Stand. Es gibt zwei Wege dorthin:
+
+| Auslöser | Tags | wofür |
+|---|---|---|
+| Knopf **Version veröffentlichen** | `latest`, die Version (z. B. `1.0.6`), `dev` | das, was dein Server zieht |
+| jeder Push auf `main` | `dev`, `sha-<commit>` | Zwischenstände zum Ausprobieren; `latest` bleibt unberührt |
+
+**Eine Version veröffentlichen:** GitHub → Actions → **Version veröffentlichen** → Run workflow → Art wählen (`patch` = Korrektur, 1.0.5 → 1.0.6; `minor` = neue Funktion, → 1.1.0; `major` = großer Sprung, → 2.0.0). Der Workflow (`.github/workflows/release.yml`)
+
+1. setzt die neue Nummer überall (`tools/release.mjs`: Dienst, Modul, Plugin, `package.json`) und macht im Changelog aus „Unveröffentlicht“ den Abschnitt der neuen Version,
+2. lässt Tests und Build laufen,
+3. schreibt das als Commit „Version x.y.z“ mit Tag `vx.y.z` nach `main`,
+4. lädt das Image als `latest` und `x.y.z` hoch und legt ein GitHub-Release mit den ZIPs an.
+
+Schlägt ein Schritt fehl, wird nichts veröffentlicht. Der Workflow schreibt direkt nach `main`; ist `main` so geschützt, dass nur Pull Requests erlaubt sind, braucht `github-actions[bot]` dort eine Ausnahme. Der DSA-NSC-Generator hat eine eigene Nummer in `systems/dsa41/nsc-generator-plugin/manifest.json`, die du von Hand erhöhst.
+
+Einen Zwischenstand testen: in der Compose-Datei `ghcr.io/apollo-55/vtf-sync:dev` eintragen. Auf eine alte Version zurück: `:1.0.5`.
+
+Das Image enthält weder Token noch Vault-Daten.
 
 In einem Fork entsteht das Image unter `ghcr.io/<dein-benutzer>/vtf-sync` und ist zunächst privat. Dann entweder das Paket öffentlich schalten (GitHub → Profil → Packages → `vtf-sync` → Package settings → Change visibility) oder den Server einmal anmelden:
 

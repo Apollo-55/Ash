@@ -81,4 +81,4 @@ Das Skript baut das Modul, kopiert es nach `.foundry/data/Data/modules/` (andere
 
 ## Versionen
 
-Dienst (`packages/sync-service/server.mjs`), Modul (`module.json`) und Plugin (`manifest.json`) tragen dieselbe Versionsnummer; der Build bricht ab, wenn sie voneinander abweichen. Der Workflow `.github/workflows/vtf-sync-image.yml` baut bei jedem Push auf `main` das Image `ghcr.io/<owner>/vtf-sync`.
+Dienst (`packages/sync-service/server.mjs`), Modul (`module.json`) und Plugin (`manifest.json`) tragen dieselbe Versionsnummer; der Build bricht ab, wenn sie voneinander abweichen. Von Hand änderst du sie nicht: GitHub → Actions → **Version veröffentlichen** → Run workflow (`patch`, `minor` oder `major`) setzt sie überall (`tools/release.mjs`), schließt im Changelog den Abschnitt „Unveröffentlicht“, taggt `v<Version>` und baut das Image `ghcr.io/<owner>/vtf-sync` als `latest` und `<Version>`. Ein Push auf `main` (`.github/workflows/vtf-sync-image.yml`) baut nur das Image `dev`. Neue Einträge im Changelog gehören deshalb immer unter „Unveröffentlicht“. Einzelheiten: [sync-server.md](sync-server.md#image-von-github).
