@@ -1,7 +1,7 @@
 {
   "id": "vault-to-foundry",
   "name": "Vault to Foundry",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "minAppVersion": "1.5.0",
   "description": "Bringt Notizen, NSCs (z. B. DSA 4.1) und Szenen nach Foundry VTT – per Sync-Dienst oder ZIP.",
   "author": "Martin Lilienthal",

@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 1.0.7 (2026-11-13)
+
 **Vault to Foundry**
 
 - `dsa-nsc`: Rüstungen können wie Waffen eigene Werte bekommen: `rüstung: [Lederharnisch, { name: Lastgeschirr, RS: 0, BE: 2 }]`. RS und BE überschreiben die Werte des Kompendiums (einfache und Zonenrüstung) und gehen in die Verrechnung mit dem Gesamt-`RS` ein; Rüstungen, die in keinem Kompendium stehen, werden mit diesen Werten angelegt.
