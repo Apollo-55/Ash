@@ -116,7 +116,7 @@ sonderfertigkeiten: []
 | `WS` | – | Zahl | Wundschwelle, sonst gerechnet |
 | `ausweichen` | `AW` | Zahl | sonst gerechnet |
 | `RS` | – | Zahl | Gesamt-RS |
-| `rüstung` | `ruestung`, `rüstungen` | Name oder Liste | aus dem Kompendium |
+| `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
 | `waffen` | – | Liste | |
 | `talente` | – | Liste / Zuordnung | inkl. Kampftalente, Sprachen, Schriften |
 | `zauber` | – | Liste / Zuordnung | |
@@ -236,13 +236,20 @@ Der Wertekasten in Obsidian zeigt bei Abweichungen den gerechneten Wert daneben,
 ```yaml
 rüstung: Lederharnisch                       # ein Stück
 rüstung: [Lederharnisch, Lederhelm]          # mehrere
+rüstung:                                     # mit eigenen Werten
+  - Lederharnisch
+  - { name: Lastgeschirr, RS: 0, BE: 2 }     # nur Behinderung
+  - { name: Lederhelm, BE: 0 }               # Kompendium-Rüstung, BE überschrieben
 RS: 4
 ```
 
 - Rüstungsteile werden aus dem Kompendium geholt und angelegt (angelegt = getragen).
-- **`RS`** ist der **Gesamt-RS**, den der NSC haben soll. Das Plugin zieht den RS der genannten Rüstungen ab; der Rest wird als „Zusatz-RS“ eingetragen (nie negativ). Beispiel: Lederharnisch (RS 3) + `RS: 4` → Zusatz-RS 1.
+- **Eigene Werte** wie bei Waffen: `{ name: …, RS: …, BE: … }` (ganze Zahlen ≥ 0, beide optional). Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht angegebene bleiben, wie sie sind. So lässt sich auch ein Rüstungsteil anlegen, das in keinem Kompendium steht – etwa eine reine Behinderung `{ name: Lastgeschirr, RS: 0, BE: 2 }`.
+- Die Werte gelten für beide Rüstungssysteme von dsa-41 (Welt-Einstellung „Rüstungssystem“): Bei Zonenrüstung bekommt jede Zone den RS und die Zonen-BE die BE. Mit dem Standard-Zonenfaktor 20 ergibt das wieder den angegebenen RS.
+- **`RS`** ist der **Gesamt-RS**, den der NSC haben soll. Das Plugin zieht den RS der genannten Rüstungen ab (eigener `RS` vor Kompendium); der Rest wird als „Zusatz-RS“ eingetragen (nie negativ). Beispiel: Lederharnisch (RS 3) + `RS: 4` → Zusatz-RS 1.
 - Nur `RS` ohne Rüstung = natürlicher Rüstungsschutz (z. B. Kreaturen mit Schuppen).
-- Unbekannte Rüstungen: Warnung; in Foundry wird in den Welt-Gegenständen gesucht, sonst ein leeres Rüstungsteil angelegt.
+- Eine BE ohne Rüstung gibt es im System nicht als eigenes Feld – dafür ein Rüstungsteil mit `RS: 0` und der gewünschten `BE` anlegen.
+- Unbekannte Rüstungen ohne `RS`/`BE`: Warnung; in Foundry wird in den Welt-Gegenständen gesucht, sonst ein Rüstungsteil ohne Werte (RS 0, BE 0) angelegt. Mit eigenen Werten gibt es keine Warnung.
 
 ### Waffen
 

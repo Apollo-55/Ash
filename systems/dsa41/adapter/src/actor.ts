@@ -3,7 +3,7 @@ import type { BundleItem } from '../../../../packages/core/src/types.ts'
 import type { ActorContext, SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
 import type { Dsa41Combat } from './combat.ts'
 import { find, findBySid, findWeapon, normalizeName } from './catalog.ts'
-import { diceToFoundry, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscData } from './schema.ts'
+import { diceToFoundry, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscArmor, type NscData } from './schema.ts'
 
 export const ATTR_KEYS: Record<Attr, string> = {
   MU: 'courage', KL: 'cleverness', IN: 'intuition', CH: 'charisma', FF: 'dexterity', GE: 'agility', KO: 'constitution', KK: 'strength',
@@ -18,6 +18,27 @@ const TALENT_CATEGORY: Record<string, string> = {
 const SF_TYPE: Record<string, string> = {
   allgemein: 'general', kampf: 'combat', waffenlos: 'unarmed-combat', nahkampf: 'melee-combat', fernkampf: 'ranged-combat',
   magisch: 'magical', magie: 'magical', ritual: 'ritual', karmal: 'karma', klerikal: 'karma', karma: 'karma',
+}
+
+const ARMOR_ZONES = ['head', 'chest', 'back', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'] as const
+
+/**
+ * RS/BE from the block for both armor systems of dsa-41 (world setting "armor-system"):
+ * basic reads armorClass/encumbrance, zoned reads zonedArmorClass/zonedEncumbrance.
+ * The same RS on every zone gives a zoned total of RS (zone weights add up to the default factor 20).
+ */
+function armorValues(r: NscArmor): Record<string, unknown> {
+  const system: Record<string, unknown> = {}
+  if (r.RS !== undefined) {
+    system.armorClass = r.RS
+    for (const z of ARMOR_ZONES) system[`zonedArmorClass.${z}`] = r.RS
+    system['zonedArmorClass.total'] = r.RS
+  }
+  if (r.BE !== undefined) {
+    system.encumbrance = r.BE
+    system.zonedEncumbrance = r.BE
+  }
+  return system
 }
 
 const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -83,7 +104,7 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
     data['base.combatAttributes.passive.woundThresholds.third'] = d.WS * 3
   }
   // RS: total from the block minus what listed armor already gives
-  const armorRS = d.ruestung.reduce((s, r) => s + (find(['armor'], r)?.rs ?? 0), 0)
+  const armorRS = d.ruestung.reduce((s, r) => s + (r.RS ?? find(['armor'], r.name)?.rs ?? 0), 0)
   data['modifiers.additionalRS'] = d.RS !== undefined ? Math.max(0, d.RS - armorRS) : 0
   if (d.SO !== undefined) data['background.social.socialStatus.value'] = d.SO
   data['background.profession'] = d.rolle ?? ''
@@ -147,14 +168,14 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
   for (const key of Object.keys(LIST_TYPES) as ListKey[]) for (const e of d[key]) items.push(listItem(key, e))
 
   for (const r of d.ruestung) {
-    const hit = find(['armor'], r)
+    const hit = find(['armor'], r.name)
     items.push({
-      id: itemId('armor', r),
-      name: hit?.n ?? r,
+      id: itemId('armor', r.name),
+      name: hit?.n ?? r.name,
       types: ['armor'],
       source: hit ? { pack: hit.p, sid: hit.s, type: 'armor' } : undefined,
-      system: { equipped: true },
-      fallback: { type: 'armor', system: { equipped: true, armorClass: 0 } },
+      system: { equipped: true, ...armorValues(r) },
+      fallback: { type: 'armor', system: { equipped: true, armorClass: 0, encumbrance: 0 } },
     })
   }
 

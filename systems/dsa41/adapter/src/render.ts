@@ -1,7 +1,7 @@
 import type { ParsedBlock, StatblockOptions } from '../../../../packages/core/src/systems/adapter.ts'
 import { findBySid, findWeapon } from './catalog.ts'
 import { computeDerived, overrides } from './derived.ts'
-import { ATTRIBUTES, entryLabel, type NamedEntry, type NscData, type NscWeapon } from './schema.ts'
+import { ATTRIBUTES, entryLabel, type NamedEntry, type NscArmor, type NscData, type NscWeapon } from './schema.ts'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -10,6 +10,11 @@ const esc = (s: unknown) =>
 const rangesText = (rw: NonNullable<NscWeapon['RW']>) => `(${rw.map((r) => r[0]).join('/')}) --> (${rw.map((r) => r[1]).join('/')})`
 
 const entryText = (e: NamedEntry) => `${esc(entryLabel(e))}${e.value !== null ? ` ${e.value}` : ''}`
+
+const armorText = (r: NscArmor) => {
+  const values = [r.RS !== undefined ? `RS ${r.RS}` : '', r.BE !== undefined ? `BE ${r.BE}` : ''].filter(Boolean)
+  return `${esc(r.name)}${values.length ? ` (${values.join(', ')})` : ''}`
+}
 
 function issuesHtml(block: ParsedBlock<NscData>): string {
   if (!block.issues.length) return ''
@@ -79,11 +84,9 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
         .join('')}</table>`
     : ''
 
-  const line = (label: string, entries: NamedEntry[] | string[]) =>
+  const line = (label: string, entries: NamedEntry[]) =>
     entries.length
-      ? `<p class="vtf-nsc-list"><b>${label}:</b> ${(entries as (NamedEntry | string)[])
-          .map((e) => (typeof e === 'string' ? esc(e) : entryText(e)))
-          .join(', ')}</p>`
+      ? `<p class="vtf-nsc-list"><b>${label}:</b> ${entries.map(entryText).join(', ')}</p>`
       : ''
 
   const lists = [
@@ -93,7 +96,9 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
     line('Talente', d.talente),
     line('Zauber', d.zauber),
     line('Liturgien', d.liturgien),
-    line('Rüstung', d.ruestung),
+    d.ruestung.length
+      ? `<p class="vtf-nsc-list"><b>Rüstung:</b> ${d.ruestung.map(armorText).join(', ')}</p>`
+      : '',
   ].join('')
 
   const note = d.notiz ? `<p class="vtf-nsc-note">${esc(d.notiz)}</p>` : ''
