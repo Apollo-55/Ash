@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 1.0.8 (2026-11-13)
+
 **Vault to Foundry**
 
 - `dsa-nsc`: `RS` ist jetzt der **Zusatz-RS** und wird unverändert in „Zusatz-RS“ des Bogens eingetragen – zusätzlich zum RS der angelegten Rüstungen. Bisher war `RS` der Gesamt-RS, von dem der RS der Rüstungen abgezogen wurde. Blöcke mit Rüstung **und** `RS`, bei denen `RS` den Gesamtwert meinte, nennen jetzt nur noch den Zusatz (bei reiner Rüstung: `RS` weglassen oder `RS: 0`).
