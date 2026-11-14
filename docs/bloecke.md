@@ -348,8 +348,7 @@ RW: [[5, 1], [15, 1], [25, 0], [40, 0], [60, -1]]   # gleichwertig
 - Name gefunden (Kompendium der Welt, zusätzliche Kompendien, dsa-41-Kompendien) → die Waffe mit allen Kompendiumswerten. Angegebene `TP`, `DK`, `WM`, `KK`, `BF`, `RW` **überschreiben** nur diese Werte.
 - Gibt es die Waffe mehrfach mit verschiedenen Kampftalenten (Säbel: Säbel oder Schwerter), gewinnt: `talent:` aus dem Block → das Talent, das so heißt wie die Waffe → die Basis-Kompendien.
 - Name **nicht** gefunden → eigene Waffe. Ohne `talent:` gibt es eine Warnung und das Talent **Raufen**. Eine eigene Waffe mit `FK` oder `RW` wird Fernkampfwaffe, sonst Nahkampfwaffe. Ohne `TP` bekommt sie `1W6`, ohne `DK` die Distanzklasse `N`.
-- Das zugehörige **Kampftalent** wird automatisch angelegt, falls es nicht unter `talente` steht (dann untrainiert).
-- Die **erste Nahkampfwaffe** des Blocks ist beim neuen Charakter in der Hand.
+- Die **erste Nahkampfwaffe** des Blocks ist beim neuen Charakter in der Haupthand.
 
 #### AT/PA/FK – zwei Wege
 
@@ -365,7 +364,6 @@ talente: { Säbel: 15 }
 - Die **erste** Waffe eines Kampftalents legt die AT-/PA-Anteile des Talents fest (TaW = Summe).
 - **Weitere** Waffen mit demselben Talent bekommen die Differenz als Waffenmodifikator. Steht dort zusätzlich ein `WM`, der nicht passt, gewinnen AT/PA (Warnung im Bericht).
 - `INI` an einer Waffe wird als INI-Modifikator der Waffe eingetragen (Differenz zur Basis-INI).
-- Behinderung (BE) aus Rüstungen zieht das System beim Wurf ab – nicht vorher abziehen.
 
 ### Schilde und Parierwaffen
 
@@ -406,16 +404,8 @@ Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht
 
 #### Schild oder Parierwaffe?
 
-Die Kategorie entscheidet, wie das System rechnet. Sie kommt in dieser Reihenfolge zustande: `typ` im Block → Kategorie aus dem Kompendium → Schild (unbekannte Namen ohne `typ`). Ein bekannter Name behält also seine Kompendiumskategorie; ein `typ` gewinnt immer (Hinweis „ist im Kompendium eine Parierwaffe, wird als Schild angelegt“). Beispiel: Der Buckler steht im Kompendium als Parierwaffe, mit `typ: Schild` wird er wie ein Schild gerechnet.
-
-#### Was in Foundry passiert
-
-- Jeder Eintrag wird ein Item vom Typ `shield`. Unbekannte Namen: Warnung, Suche in den Welt-Gegenständen, sonst ein neues Item der gewünschten Kategorie mit den angegebenen Werten (fehlende = 0).
-- Das **erste** Schild bzw. die erste Parierwaffe des Blocks kommt in die **Nebenhand** (`combatState.secondaryHand`), aber nur, wenn eine Nahkampfwaffe in der Haupthand ist – ohne Waffe liest das System die Nebenhand nicht. Weitere Schilde liegen im Inventar (Hinweis im Wertekasten). Beim Aktualisieren bleibt ein von Hand gewechseltes Schild in der Nebenhand, solange das Item noch existiert.
 - **Schild:** PA = PA-Basis + WM(PA) des Schilds, dazu +1 mit SF Linkhand, +3 mit Schildkampf I, +5 mit Schildkampf II. WM(AT) des Schilds senkt die Attacke der Hauptwaffe, der INI-Modifikator wirkt auf die INI.
 - **Parierwaffe:** PA = PA der Hauptwaffe + WM(PA) der Parierwaffe, dazu −4 mit Linkhand, −1 mit Parierwaffen I, +2 mit Parierwaffen II. **Ohne eine dieser drei SF verrechnet das System die Parierwaffe nicht** – der Wertekasten warnt dann.
-
-Der Wertekasten zeigt eine Zeile „Schilde“ bzw. „Parierwaffen“ (gemischt: beides, dann mit Kategorie je Eintrag) mit WM und INI aus dem Block oder dem Kompendium und BF aus dem Block, z. B. „Großschild (WM -2/+5, INI -2)“.
 
 ### Listen: Talente, Zauber, Liturgien, Vorteile, Nachteile, Sonderfertigkeiten
 
