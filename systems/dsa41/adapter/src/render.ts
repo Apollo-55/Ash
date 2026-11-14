@@ -107,9 +107,11 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
           const talent = w.talent ?? (known?.talent ? findBySid(known.talent)?.n : undefined)
           const tp = w.TP ?? known?.tp?.replace(/d/g, 'W') ?? ''
           const dk = w.DK ?? known?.dk ?? ''
+          const ini = w.INI ?? known?.ini
+          const iniText = ini !== undefined && (w.INI !== undefined || ini !== 0) ? signed(ini) : ''
           const at = w.FK !== undefined ? `FK ${w.FK}` : (w.AT ?? '')
           const talentHint = opts.showCalculated && talent && talent !== w.name ? ` <span class="vtf-nsc-calc">(${esc(talent)})</span>` : ''
-          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${w.INI ?? ''}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td>${showKK ? `<td>${w.KK ? w.KK.join('/') : ''}</td>` : ''}${showBF ? `<td>${w.BF ?? ''}</td>` : ''}<td>${esc(dk)}</td>${showRW ? `<td>${w.RW ? esc(rangesText(w.RW)) : ''}</td>` : ''}</tr>`
+          return `<tr><td>${esc(w.name)}${talentHint}</td><td>${iniText}</td><td>${at}</td><td>${w.PA ?? ''}</td><td>${esc(tp)}</td>${showKK ? `<td>${w.KK ? w.KK.join('/') : ''}</td>` : ''}${showBF ? `<td>${w.BF ?? ''}</td>` : ''}<td>${esc(dk)}</td>${showRW ? `<td>${w.RW ? esc(rangesText(w.RW)) : ''}</td>` : ''}</tr>`
         })
         .join('')}</table>`
     : ''

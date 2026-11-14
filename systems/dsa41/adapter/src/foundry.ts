@@ -24,7 +24,7 @@ function handsUpdate(actor: any, a: BundleActor, current: { primaryHand?: string
 }
 
 /**
- * Makes the sheet show the AT/PA/FK/INI values written in the block:
+ * Makes the sheet show the AT/PA/FK values written in the block:
  * the first weapon of a combat talent sets the talent's AT/PA share (talent value = AT share + PA share),
  * further weapons with the same talent get the remaining difference as weapon modifier.
  */
@@ -33,7 +33,6 @@ async function adjustCombat(actor: any, a: BundleActor, report: { warnings: Bund
   const baseAT = base.baseAttack?.value ?? 0
   const basePA = base.baseParry?.value ?? 0
   const baseFK = base.baseRangedAttack?.value ?? 0
-  const baseINI = base.baseInitiative?.value ?? 0
   const updates = new Map<string, Record<string, unknown>>()
   const upd = (id: string, data: Record<string, unknown>) => updates.set(id, { ...(updates.get(id) ?? { _id: id }), ...data })
   const talentShares = new Map<string, { at?: number; pa?: number; fk?: number }>()
@@ -44,7 +43,6 @@ async function adjustCombat(actor: any, a: BundleActor, report: { warnings: Bund
     const weapon = actor.items.get(bi.id)
     const talent = actor.items.find((i: any) => i.type === 'combatTalent' && i.system?.sid === c.talentSid)
     if (!weapon) continue
-    if (c.INI !== undefined && weapon.type === 'meleeWeapon') upd(weapon.id, { 'system.initiativeMod': c.INI - baseINI })
     if (!talent) {
       if (c.AT !== undefined || c.PA !== undefined || c.FK !== undefined) {
         report.warnings.push({ code: 'nsc-warning', sourcePath: a.sourcePath, message: `NSC „${a.name}“: Kampftalent für „${weapon.name}“ fehlt, AT/PA nicht angepasst.` })

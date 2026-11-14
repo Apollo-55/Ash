@@ -7,7 +7,6 @@ export interface Dsa41Combat {
   AT?: number
   PA?: number
   FK?: number
-  INI?: number
 }
 
 /** the combat values of an exported item, if it is a weapon */

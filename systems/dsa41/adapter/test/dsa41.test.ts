@@ -16,7 +16,7 @@ WS: 6
 GS: 8
 INI: 12+1W6
 waffen:
-  - { name: Säbel, INI: 12, AT: 16, PA: 18, TP: 1W6+3, DK: N }
+  - { name: Säbel, INI: -1, AT: 16, PA: 18, TP: 1W6+3, DK: N }
   - { name: Orchidee, AT: 17, PA: 15, TP: 1W6+1, DK: H }
 vorteile: [Soziale Anpassungsfähigkeit]
 nachteile: { Brünstigkeit: 6, Eitelkeit: 7, Neid: 8 }
@@ -35,7 +35,7 @@ describe('dsa-nsc: Parsen und Validieren', () => {
     const d = r.data!
     expect(d.attributes).toEqual({ MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 })
     expect(d.INI).toBe(12)
-    expect(d.waffen[0]).toEqual({ name: 'Säbel', INI: 12, AT: 16, PA: 18, TP: '1W6+3', DK: 'N' })
+    expect(d.waffen[0]).toEqual({ name: 'Säbel', INI: -1, AT: 16, PA: 18, TP: '1W6+3', DK: 'N' })
     expect(d.nachteile).toEqual([
       { name: 'Brünstigkeit', value: 6 }, { name: 'Eitelkeit', value: 7 }, { name: 'Neid', value: 8 },
     ])
@@ -172,7 +172,7 @@ describe('Umwandlung in Actor-Daten', () => {
     expect(by('Sinnenschärfe')).toMatchObject({ types: ['talent'], source: { pack: 'talent', sid: 'talent-sinnenschaerfe' }, system: { value: 10 } })
     expect(by('Neid')).toMatchObject({ types: ['disadvantage'], system: { value: 8 } })
     expect(by('Finte')).toMatchObject({ types: ['specialAbility'], source: { sid: 'ability-finte' } })
-    expect(by('Säbel')).toMatchObject({ types: ['meleeWeapon'], source: { pack: 'meleeweapon' }, system: { damage: '1d6+3', distanceClass: 'N' }, extra: { combat: { talentSid: 'talent-saebel', AT: 16, PA: 18, INI: 12 } } })
+    expect(by('Säbel')).toMatchObject({ types: ['meleeWeapon'], source: { pack: 'meleeweapon' }, system: { damage: '1d6+3', distanceClass: 'N', initiativeMod: -1 }, extra: { combat: { talentSid: 'talent-saebel', AT: 16, PA: 18 } } })
     expect(combatOf(by('Orchidee'))!.talentSid).toBe('talent-raufen')
     // combat talents needed by the weapons are added
     expect(actor.items.filter((i) => i.types[0] === 'combatTalent').map((i) => i.name).sort()).toEqual(['Raufen', 'Säbel'])
@@ -205,7 +205,7 @@ describe('Umwandlung in Actor-Daten', () => {
     const a = dsa41.nscToActor(parse('name: S\nwaffen: [Säbel, Kurzbogen]\ntalente: { Säbel: 12 }').data!, ctx)
     expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'combatTalent')!.system).toEqual({ value: 12, 'combat.attack': 6, 'combat.parry': 6 })
     expect(a.items.find((i) => i.name === 'Bogen')!.system).toEqual({ value: 0, 'combat.rangedAttack': 0 })
-    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'meleeWeapon')!.extra?.combat).toEqual({ talentSid: 'talent-saebel', AT: undefined, PA: undefined, FK: undefined, INI: undefined })
+    expect(a.items.find((i) => i.name === 'Säbel' && i.types[0] === 'meleeWeapon')!.extra?.combat).toEqual({ talentSid: 'talent-saebel', AT: undefined, PA: undefined, FK: undefined })
   })
 
   it('Kampftalent ohne Waffe: TaW wird aufgeteilt', () => {

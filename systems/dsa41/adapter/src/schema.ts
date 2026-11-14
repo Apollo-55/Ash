@@ -14,6 +14,7 @@ export interface NscWeapon {
   FK?: number
   TP?: string // dice as written ("1W6+3")
   DK?: string
+  /** INI modifier of the weapon (initiativeMod), like the compendium's and the shield's – not a target value */
   INI?: number
   WM?: [number, number]
   KK?: [number, number]

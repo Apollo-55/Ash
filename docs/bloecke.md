@@ -305,13 +305,13 @@ Die Mischform `- Säbel: { AT: 14 }` geht nicht (Fehler „unbekannter Schlüsse
 | `FK` | Fernkampfwert | Zahl | Fernkampf |
 | `TP` | Trefferpunkte | `1W6+3`, `1W+4` (= 1W6+4), `2W6`, `W6-1`, `2W20` | alle |
 | `DK` | Distanzklassen | `H`, `N`, `S`, `P`, auch kombiniert `NS`, `HN` | Nahkampf |
-| `INI` | INI, die mit dieser Waffe herauskommen soll | Zahl | Nahkampf |
+| `INI` | INI-Modifikator der Waffe | Zahl, auch negativ: `-1`, `+1` | Nahkampf |
 | `WM` | Waffenmodifikator AT/PA | `0/-1`, `[0, -1]`, `{ AT: 0, PA: -1 }`, oder `-1` (= beide) | Nahkampf |
 | `KK` | TP/KK: Schwelle/Schritt | `13/3`, `[13, 3]` | Nahkampf |
 | `BF` | Bruchfaktor | Zahl | Nahkampf |
 | `RW` | Reichweiten und TP-Zuschlag | `(5/15/25/40/60) --> (1/1/0/0/-1)` oder `[[5, 1], [15, 1], [25, 0], [40, 0], [60, -1]]` | Fernkampf |
 
-`RW` nennt für die fünf Entfernungsklassen (sehr nah, nah, mittel, weit, sehr weit) die Reichweite in Schritt und den TP-Zuschlag. Schlüssel, die nicht zur Waffenart passen, werden ignoriert.
+`INI` ist wie im Regelwerk und im Kompendium ein Modifikator (Säbel +1, Zweihänder −1), kein Zielwert; die INI des Charakters steht unter [Feste Werte](#feste-werte-mr-mr-mod-ini-gs-ws-ausweichen). `RW` nennt für die fünf Entfernungsklassen (sehr nah, nah, mittel, weit, sehr weit) die Reichweite in Schritt und den TP-Zuschlag. Schlüssel, die nicht zur Waffenart passen, werden ignoriert.
 
 **Welche Waffe wird angelegt?**
 
@@ -328,7 +328,7 @@ Die Mischform `- Säbel: { AT: 14 }` geht nicht (Fehler „unbekannter Schlüsse
   talente: { Säbel: 15 }
   ```
 
-- *Feste Werte:* `AT`/`PA`/`FK` an der Waffe stehen genau so auf dem Bogen. Die erste Waffe eines Kampftalents legt die Verteilung des Talents fest; weitere Waffen mit demselben Talent bekommen die Differenz als Waffenmodifikator (ein widersprechender `WM` wird überschrieben, mit Warnung). `INI` an der Waffe wird als INI-Modifikator der Waffe eingetragen.
+- *Feste Werte:* `AT`/`PA`/`FK` an der Waffe stehen genau so auf dem Bogen. Die erste Waffe eines Kampftalents legt die Verteilung des Talents fest; weitere Waffen mit demselben Talent bekommen die Differenz als Waffenmodifikator (ein widersprechender `WM` wird überschrieben, mit Warnung).
 
 ### `schilde`
 
@@ -351,7 +351,7 @@ schilde:
 | `BF` | Bruchfaktor | Zahl |
 
 - Ein unbekannter Name wird ein **Schild**. Eine eigene Parierwaffe braucht `typ: Parierwaffe`.
-- Anders als bei Waffen ist `INI` ein Modifikator, kein Zielwert, und es gibt keine feste `PA`: Die Schild-PA rechnet das System. **Schild:** PA-Basis + WM(PA), dazu +1 mit Linkhand, +3 mit Schildkampf I, +5 mit Schildkampf II; WM(AT) senkt die Attacke der Hauptwaffe. **Parierwaffe:** PA der Hauptwaffe + WM(PA), dazu −4 mit Linkhand, −1 mit Parierwaffen I, +2 mit Parierwaffen II. Ohne eine dieser drei Sonderfertigkeiten verrechnet das System die Parierwaffe nicht (Warnung).
+- Eine feste `PA` gibt es nicht: Die Schild-PA rechnet das System. **Schild:** PA-Basis + WM(PA), dazu +1 mit Linkhand, +3 mit Schildkampf I, +5 mit Schildkampf II; WM(AT) senkt die Attacke der Hauptwaffe. **Parierwaffe:** PA der Hauptwaffe + WM(PA), dazu −4 mit Linkhand, −1 mit Parierwaffen I, +2 mit Parierwaffen II. Ohne eine dieser drei Sonderfertigkeiten verrechnet das System die Parierwaffe nicht (Warnung).
 - Das **erste** Schild bzw. die erste Parierwaffe kommt in die Nebenhand.
 
 ### `talente`, `zauber`, `liturgien`, `vorteile`, `nachteile`, `sonderfertigkeiten`
