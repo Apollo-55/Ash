@@ -2,6 +2,10 @@
 
 ## Unveröffentlicht
 
+## 1.0.10 (2026-11-14)
+
+- Keine Einträge.
+
 ## 1.0.9 (2026-11-14)
 
 **Vault to Foundry**

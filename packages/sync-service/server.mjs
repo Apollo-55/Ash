@@ -37,7 +37,7 @@ import { createServer } from 'node:http'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const VERSION = '1.0.9'
+const VERSION = '1.0.10'
 const TOKEN = process.env.VTF_TOKEN ?? ''
 const DATA_DIR = process.env.VTF_DATA_DIR ?? '/data/vault-to-foundry'
 const PORT = Number(process.env.VTF_PORT ?? 8787)
