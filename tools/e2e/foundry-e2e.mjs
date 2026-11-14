@@ -287,7 +287,7 @@ const steps = {
             basis: `AT ${act.baseAttack.value} PA ${act.baseParry.value}`,
             RS: `+${s.modifiers.additionalRS}`, WS: Object.values(s.base.combatAttributes.passive.woundThresholds).join('/'),
             GS: s.base.movement.speed.value,
-            weapons, armed: `${s.base.combatState.isArmed} ${a.items.get(s.base.combatState.primaryHand)?.name}`,
+            weapons, armed: `${s.base.combatState.isArmed} ${a.items.get(s.base.combatState.primaryHand)?.name} / ${a.items.get(s.base.combatState.secondaryHand)?.name ?? '-'}`,
             items: a.items.size, origin,
             neu: a.items.filter((i) => !i.flags['vault-to-foundry']?.from).map((i) => i.name),
             img: a.img.split('/').pop(), token: a.prototypeToken.texture.src?.split('/').pop(), linked: a.prototypeToken.actorLink,

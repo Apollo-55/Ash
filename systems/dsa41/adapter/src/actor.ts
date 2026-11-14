@@ -3,7 +3,7 @@ import type { BundleItem } from '../../../../packages/core/src/types.ts'
 import type { ActorContext, SystemAdapter } from '../../../../packages/core/src/systems/adapter.ts'
 import type { Dsa41Combat } from './combat.ts'
 import { find, findBySid, findWeapon, normalizeName } from './catalog.ts'
-import { ARMOR_ZONES, diceToFoundry, zonedTotal, entryLabel, entryTypes, LIST_TYPES, type Attr, type ListKey, type NamedEntry, type NscArmor, type NscData } from './schema.ts'
+import { ARMOR_ZONES, diceToFoundry, zonedTotal, entryLabel, entryTypes, LIST_TYPES, shieldCategory, type Attr, type ListKey, type NamedEntry, type NscArmor, type NscData, type NscShield } from './schema.ts'
 
 export const ATTR_KEYS: Record<Attr, string> = {
   MU: 'courage', KL: 'cleverness', IN: 'intuition', CH: 'charisma', FF: 'dexterity', GE: 'agility', KO: 'constitution', KK: 'strength',
@@ -37,6 +37,19 @@ function armorValues(r: NscArmor): Record<string, unknown> {
     system.encumbrance = r.BE
     system.zonedEncumbrance = r.BE
   }
+  return system
+}
+
+/**
+ * Values of a shield/parrying weapon from the block (dsa-41 item type `shield` for both). Only what the block gives:
+ * a compendium item keeps the rest; `typ` sets the category (shield | parryingWeapon) the system's rules read.
+ */
+function shieldValues(s: NscShield): Record<string, unknown> {
+  const system: Record<string, unknown> = {}
+  if (s.typ) system.category = s.typ
+  if (s.WM) Object.assign(system, { 'weaponMod.attack': s.WM[0], 'weaponMod.parry': s.WM[1] })
+  if (s.INI !== undefined) system.initiativeMod = s.INI
+  if (s.BF !== undefined) system.breakingFactor = s.BF
   return system
 }
 
@@ -195,6 +208,24 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
       source: hit ? { pack: hit.p, sid: hit.s, type: 'armor' } : undefined,
       system: { equipped: true, ...armorValues(r) },
       fallback: { type: 'armor', system: { equipped: true, armorClass: 0, encumbrance: 0 } },
+    })
+  }
+
+  // shields and parrying weapons; the Foundry hooks put the first one into the off hand
+  for (const s of d.schilde) {
+    const hit = find(['shield'], s.name)
+    const category = shieldCategory(s)
+    items.push({
+      id: itemId('shield', s.name),
+      name: hit?.n ?? s.name,
+      types: ['shield'],
+      source: hit ? { pack: hit.p, sid: hit.s, type: 'shield' } : undefined,
+      system: shieldValues(s),
+      // unknown item: a complete shield of the wanted category, missing values are 0
+      fallback: {
+        type: 'shield',
+        system: { category, shieldtype: category === 'shield' ? 'S' : 'P', 'weaponMod.attack': 0, 'weaponMod.parry': 0, initiativeMod: 0, breakingFactor: 0 },
+      },
     })
   }
 

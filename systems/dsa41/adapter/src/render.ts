@@ -1,7 +1,7 @@
 import type { ParsedBlock, StatblockOptions } from '../../../../packages/core/src/systems/adapter.ts'
-import { findBySid, findWeapon } from './catalog.ts'
+import { find, findBySid, findWeapon } from './catalog.ts'
 import { computeDerived, overrides } from './derived.ts'
-import { ARMOR_ZONES, ATTRIBUTES, entryLabel, ZONE_LABEL, type NamedEntry, type NscArmor, type NscData, type NscWeapon } from './schema.ts'
+import { ARMOR_ZONES, ATTRIBUTES, entryLabel, SHIELD_CATEGORY_LABEL, shieldCategory, ZONE_LABEL, type NamedEntry, type NscArmor, type NscData, type NscShield, type NscWeapon } from './schema.ts'
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -15,6 +15,31 @@ const armorText = (r: NscArmor) => {
   const zones = r.zones ? ` [${ARMOR_ZONES.map((z) => `${ZONE_LABEL[z]} ${r.zones![z]}`).join(' ')}]` : ''
   const values = [r.RS !== undefined ? `RS ${r.RS}${zones}` : '', r.BE !== undefined ? `BE ${r.BE}` : ''].filter(Boolean)
   return `${esc(r.name)}${values.length ? ` (${values.join(', ')})` : ''}`
+}
+
+const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
+
+/** "Großschild (WM -2/+5, INI -2, BF 2)" – WM and INI from the block, otherwise from the catalog; BF only from the block. */
+const shieldText = (sh: NscShield, withCategory: boolean) => {
+  const known = find(['shield'], sh.name)
+  const wm = sh.WM ?? known?.wm
+  const ini = sh.INI ?? known?.ini
+  const values = [
+    withCategory ? SHIELD_CATEGORY_LABEL[shieldCategory(sh)] : '',
+    wm ? `WM ${signed(wm[0])}/${signed(wm[1])}` : '',
+    ini !== undefined && (sh.INI !== undefined || ini !== 0) ? `INI ${signed(ini)}` : '',
+    sh.BF !== undefined ? `BF ${sh.BF}` : '',
+  ].filter(Boolean)
+  return `${esc(sh.name)}${values.length ? ` (${values.join(', ')})` : ''}`
+}
+
+/** line label by what the block lists: Schilde, Parierwaffen or both (then each entry names its category) */
+function shieldsLine(shields: NscShield[]): string {
+  if (!shields.length) return ''
+  const cats = new Set(shields.map(shieldCategory))
+  const mixed = cats.size > 1
+  const label = mixed ? 'Schilde/Parierwaffen' : cats.has('parryingWeapon') ? 'Parierwaffen' : 'Schilde'
+  return `<p class="vtf-nsc-list"><b>${label}:</b> ${shields.map((sh) => shieldText(sh, mixed)).join(', ')}</p>`
 }
 
 function issuesHtml(block: ParsedBlock<NscData>): string {
@@ -104,6 +129,7 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
     d.ruestung.length
       ? `<p class="vtf-nsc-list"><b>Rüstung:</b> ${d.ruestung.map(armorText).join(', ')}</p>`
       : '',
+    shieldsLine(d.schilde),
   ].join('')
 
   const note = d.notiz ? `<p class="vtf-nsc-note">${esc(d.notiz)}</p>` : ''

@@ -5,6 +5,23 @@ import { combatOf } from './combat.ts'
 
 /** first melee weapon of the block – the actor holds it */
 const firstWeapon = (a: BundleActor) => a.items.find((i) => combatOf(i) && i.types[0] === 'meleeWeapon')
+/** first shield or parrying weapon of the block – the actor holds it in the off hand (the system reads it only next to a weapon) */
+const firstShield = (a: BundleActor) => a.items.find((i) => i.types[0] === 'shield')
+
+/**
+ * combatState of the actor as the block wants it: weapon in the main hand, shield in the off hand.
+ * `current` is the state the actor already has (updates); a hand keeps its item as long as that item still exists.
+ */
+function handsUpdate(actor: any, a: BundleActor, current: { primaryHand?: string | null; secondaryHand?: string | null } | undefined): Record<string, unknown> {
+  const w = firstWeapon(a)
+  if (!w) return {}
+  const held = (id: string | null | undefined) => !!id && !!actor?.items?.get(id)
+  const out: Record<string, unknown> = {}
+  if (!held(current?.primaryHand)) Object.assign(out, { isArmed: true, primaryHand: w.id })
+  const s = firstShield(a)
+  if (s && !held(current?.secondaryHand)) out.secondaryHand = s.id
+  return out
+}
 
 /**
  * Makes the sheet show the AT/PA/FK/INI values written in the block:
@@ -78,15 +95,18 @@ export const dsa41FoundryHooks: FoundrySystemHooks = {
   packRank: (name) => (/^(darkage|myranor|uthuria|eg_|vtuu_)/.test(name) ? (name.startsWith('uthuria') ? 1 : 2) : 0),
   matchesSource: (entry, source) => entry.system?.sid === source.sid && entry.type === source.type,
   onCreate(a) {
-    const w = firstWeapon(a)
-    return w ? { base: { combatState: { isArmed: true, primaryHand: w.id } } } : {}
+    // new actor: nothing is held yet, so both hands come from the block
+    const hands = handsUpdate(undefined, a, undefined)
+    return Object.keys(hands).length ? { base: { combatState: hands } } : {}
   },
   async afterItems(actor, a, report) {
-    // armed with the first weapon if the held one is gone (updates; new actors get it in onCreate)
+    // armed with the first weapon and shield if the held ones are gone (updates; new actors get them in onCreate)
     const combatState = actor.system?.base?.combatState
-    const w = firstWeapon(a)
-    if (w && combatState && (!combatState.primaryHand || !actor.items.get(combatState.primaryHand))) {
-      await actor.update({ 'system.base.combatState.isArmed': true, 'system.base.combatState.primaryHand': w.id })
+    if (combatState) {
+      const hands = handsUpdate(actor, a, combatState)
+      if (Object.keys(hands).length) {
+        await actor.update(Object.fromEntries(Object.entries(hands).map(([k, v]) => [`system.base.combatState.${k}`, v])))
+      }
     }
     await adjustCombat(actor, a, report)
   },

@@ -110,6 +110,7 @@ waffen:
   - Säbel                          # Normalfall: AT/PA rechnet das System aus dem TaW
   - { name: Orchidee, AT: 17, PA: 15 }   # optional feste Werte
   - { name: Mandragora-Dolch, talent: Dolche, TP: 1W+1, WM: 0/-1 }   # eigene Waffe
+schilde: [Großschild]              # auch Parierwaffen (Linkhand …); das erste kommt in die Nebenhand
 talente: { Säbel: 18, Raufen: 19, Sinnenschärfe: 10, Sternkunde: { TaW: 8, probe: KL/KL/IN, kategorie: Wissen } }
 zauber: { Blitz dich find: 16, Gardianum: 12, Schattenschleier: { ZfW: 12, probe: MU/IN/CH, kosten: 8 AsP, wirkung: … } }
 liturgien: [Eidsegen, Wort der Wahrheit]
@@ -122,6 +123,7 @@ notiz: Freitext für die Biografie
 
 - **Woher die Items kommen** (je Name): Gegenstände der Welt → zusätzliche Kompendien (Moduleinstellung) → dsa-41-Kompendien (Basis, dann die übrigen) → eigene Definition im Block → sonst ein leeres Item plus Warnung. Eindeutige Kurzformen werden erkannt („Gardianum“ → „Gardianum Zauberschild“).
 - **Waffenwerte:** `TP`, `DK`, `WM: 0/-1`, `KK: 13/3` (TP/KK: Schwelle/Schritt) `BF: 2` (Bruchfaktor) und `RW: (5/15/25/40/60) --> (1/1/0/0/-1)` (Reichweiten in Schritt und TP+ je Entfernungsklasse, sehr nah bis sehr weit) überschreiben den Wert aus dem Kompendium; `KK` und `BF` gelten nur für Nahkampfwaffen, `RW` nur für Fernkampfwaffen. Eine eigene Waffe mit `FK` oder `RW` wird als Fernkampfwaffe angelegt.
+- **Schilde und Parierwaffen:** `schilde: [Großschild, Linkhand, { name: Buckler, typ: Schild, WM: 0/1 }]` – in dsa-41 derselbe Item-Typ, gemischt in einer Liste; `typ` (Schild/Parierwaffe) überschreibt die Kategorie des Kompendiums, unbekannte Namen sind ohne `typ` Schilde. Das erste kommt neben der ersten Nahkampfwaffe in die Nebenhand; die Schild-PA rechnet das System (Parierwaffen nur mit SF Linkhand/Parierwaffen I/II, sonst Warnung). `WM`, `INI` (Modifikator) und `BF` überschreiben die Kompendiumswerte.
 - **Rasse, Kultur, MR:** `rasse` und `kultur` werden in den Rassen- und Kulturen-Kompendien gesucht (Geschlechtsformen wie „Mittelländer“ für „Mittelländer*in“ und Varianten wie „Ambosszwerge“ gehen auch) und als Item angelegt – das System rechnet ihren MR-Modifikator (Rasse auch INI) in die MR ein, solange `MR` nicht fest angegeben ist. `MR-Mod` ist der „Zusatz-MR“ des Bogens für alles Übrige. Der Wertekasten rechnet genauso („gerechnet …“).
 - **Sprachen und Schriften** stehen unter `talente`: `{ Garethi: 12, Kusliker Zeichen: 6 }`. Gibt es einen Namen als Sprache und als Schrift (Altes Kemi, Angram, Rogolan, Tulamidya, Urtulamidya, Wudu, Zhayad), kommt `(Sprache)` oder `(Schrift)` dahinter: `{ Zhayad(Sprache): 8, Zhayad(Schrift): 5 }`. Ohne Zusatz gilt die Sprache, mit einer Warnung.
 - **AT/PA:** Normalfall nur die Waffe und den TaW unter `talente` eintragen; das System verteilt den TaW (AT bekommt die größere Hälfte). Ohne TaW gilt das Kampftalent als untrainiert. Feste `AT`/`PA`/`FK` an der Waffe stehen genau so auf dem Bogen; weitere Waffen mit demselben Talent bekommen den Rest als Waffenmodifikator. BE aus Rüstungen zieht das System beim Wurf ab.
