@@ -728,3 +728,68 @@ describe('Rasse, Kultur und MR-Mod', () => {
     expect(dsa41Adapter.renderStatblock(parse('name: X'), {})).not.toContain('vtf-nsc-origin')
   })
 })
+
+describe('Schilde und Parierwaffen', () => {
+  const all = (s: string) => parse(s).issues.map((i) => `${i.level}: ${i.message}`)
+
+  it('liest Namen, Listen- und Zuordnungs-Schreibweise, Schlüssel ohne Groß-/Kleinschreibung', () => {
+    expect(parse('name: X\nschilde: [Großschild]').data!.schilde).toEqual([{ name: 'Großschild' }])
+    expect(parse('name: X\nschild: Lederschild').data!.schilde).toEqual([{ name: 'Lederschild' }])
+    expect(parse('name: X\nschild: { name: Lederschild, BF: 1 }').data!.schilde).toEqual([{ name: 'Lederschild', BF: 1 }])
+    const r = parse('name: X\nschilde:\n  - { name: Großschild, wm: -2/5, ini: -2, bf: 2 }\n  - { name: Buckler, typ: Schild }')
+    expect(r.data!.schilde).toEqual([{ name: 'Großschild', WM: [-2, 5], INI: -2, BF: 2 }, { name: 'Buckler', typ: 'shield' }])
+    expect(parse('name: X\nschilde:\n  Thorwalerschild: { WM: [-1, 3] }\n  Reiterschild:').data!.schilde).toEqual([{ name: 'Thorwalerschild', WM: [-1, 3] }, { name: 'Reiterschild' }])
+  })
+
+  it('typ: Schild/Parierwaffe in mehreren Schreibweisen, sonst Fehler', () => {
+    for (const [text, typ] of [['Schild', 'shield'], ['S', 'shield'], ['Parierwaffe', 'parryingWeapon'], ['parryingWeapon', 'parryingWeapon'], ['P', 'parryingWeapon']]) {
+      expect(parse(`name: X\nschilde: [{ name: Buckler, typ: ${text} }]`).data!.schilde[0].typ, text).toBe(typ)
+    }
+    expect(levels('name: X\nschilde: [{ name: Buckler, typ: Dings }]')).toEqual(['Schild: typ „Dings“ ungültig (Schild oder Parierwaffe).'])
+  })
+
+  it('Kategorie: Block vor Kompendium vor Listen-Schlüssel', () => {
+    const cat = (s: string) => parse(s).data!.schilde.map(dsa41.shieldCategory)
+    expect(cat('name: X\nschilde: [Großschild, Linkhand, Buckler]\nsonderfertigkeiten: [Linkhand]')).toEqual(['shield', 'parryingWeapon', 'parryingWeapon'])
+    expect(cat('name: X\nschilde: [{ name: Buckler, typ: Schild }]')).toEqual(['shield'])
+    // unknown items get the default of their list, stored on the entry
+    expect(parse('name: X\nschilde: [Knochenschild]').data!.schilde).toEqual([{ name: 'Knochenschild', typ: 'shield' }])
+    expect(parse('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]').data!.schilde).toEqual([{ name: 'Knochenhaken', typ: 'parryingWeapon' }])
+    // known items under parierwaffen keep the compendium's category
+    expect(cat('name: X\nparierwaffen: [Großschild]')).toEqual(['shield'])
+  })
+
+  it('schilde und parierwaffen füllen dieselbe Liste und dürfen zusammen vorkommen', () => {
+    const r = parse('name: X\nschilde: [Großschild]\nparierwaffen: [Linkhand]\nsonderfertigkeiten: [Linkhand]')
+    expect(r.data!.schilde.map((s) => s.name)).toEqual(['Großschild', 'Linkhand'])
+    expect(r.issues.map((i) => i.level)).toEqual(['info'])
+  })
+
+  it('Meldungen: unbekannt, Kompendium-Kategorie abweichend, Kurzform, falsche Werte', () => {
+    expect(all('name: X\nschilde: [Knochenschild]')).toEqual([
+      'warning: Schild „Knochenschild“ steht in keinem dsa-41-Kompendium. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als Schild ohne Werte angelegt – gib WM, INI und BF an.',
+    ])
+    expect(all('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]')[0]).toContain('Parierwaffe „Knochenhaken“ steht in keinem dsa-41-Kompendium')
+    expect(all('name: X\nschilde: [{ name: Buckler, typ: Schild }]')).toEqual(['info: Schild „Buckler“ ist im Kompendium eine Parierwaffe, wird als Schild angelegt.'])
+    expect(all('name: X\nschilde: [Thorwaler]')[0]).toContain('warning: Schild „Thorwaler“ steht in keinem dsa-41-Kompendium (meintest du „Thorwalerschild“?)')
+    expect(all('name: X\nschilde: [Linkhand mit]\nsonderfertigkeiten: [Linkhand]')).toEqual(['info: Schild „Linkhand mit“ als „Linkhand mit Klingenfänger“ erkannt.'])
+    expect(levels('name: X\nschilde: [{ name: Großschild, WM: viel, INI: x, BF: 1.5, foo: 1 }]')).toEqual([
+      'Schild: WM „viel“ ungültig (z. B. -2/5).',
+      'Schild: INI „x“ ist keine ganze Zahl.',
+      'Schild: BF 1.5 ist keine ganze Zahl.',
+      'Schild: unbekannter Schlüssel „foo“ (erlaubt: name, typ, INI, WM, BF).',
+    ])
+    expect(levels('name: X\nschilde: [{ WM: 0/1 }]')).toEqual(['Schild ohne „name“.'])
+    expect(levels('name: X\nschilde: 3')).toEqual(['„schilde“ muss eine Liste sein, z. B. - { name: Großschild, WM: -2/5, INI: -2 }'])
+    expect(levels('name: X\nschilde: [Großschild]\nschild: [Lederschild]')).toEqual(['„schild“ kommt doppelt vor (auch als Abkürzung).'])
+  })
+
+  it('Parierwaffe ohne Linkhand/Parierwaffen I/II warnt, mehrere Schilde sind ein Hinweis', () => {
+    expect(levels('name: X\nschilde: [Linkhand]', 'warning')).toEqual([
+      'Parierwaffe „Linkhand“ ohne SF Linkhand, Parierwaffen I oder Parierwaffen II – das System verrechnet ihren WM dann nicht.',
+    ])
+    expect(levels('name: X\nschilde: [Linkhand]\nsonderfertigkeiten: [Parierwaffen II]', 'warning')).toEqual([])
+    expect(levels('name: X\nschilde: [Großschild]', 'warning')).toEqual([])
+    expect(levels('name: X\nschilde: [Großschild, Lederschild]', 'info')).toEqual(['Mehrere Schilde/Parierwaffen – in Foundry hält der Charakter nur das erste (Großschild) in der Nebenhand.'])
+  })
+})

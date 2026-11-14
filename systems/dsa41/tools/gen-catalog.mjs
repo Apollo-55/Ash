@@ -1,5 +1,5 @@
 // Generates systems/dsa41/adapter/src/catalog.json from the dsa-41 pack sources (ref/dsa-41/src/packs).
-// Only names, types, sids, a few weapon fields and the MR/INI modifiers of species and cultures – used to validate dsa-nsc blocks offline and as lookup hints.
+// Only names, types, sids, a few weapon and shield fields and the MR/INI modifiers of species and cultures – used to validate dsa-nsc blocks offline and as lookup hints.
 // Usage: node systems/dsa41/tools/gen-catalog.mjs [path/to/dsa-4.1-system]
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -37,6 +37,12 @@ for (const p of packs) {
       }
     }
     if (d.type === 'combatTalent') e.cat = s.combat?.category ?? 'melee'
+    // shields and parrying weapons share the type; cat tells them apart (shield | parryingWeapon)
+    if (d.type === 'shield') {
+      e.cat = s.category ?? 'shield'
+      e.ini = Number(s.initiativeMod ?? 0)
+      e.wm = [Number(s.weaponMod?.attack ?? 0), Number(s.weaponMod?.parry ?? 0)]
+    }
     if (d.type === 'armor') e.rs = Number(s.armorClass ?? 0)
     // species and culture modify MR (species also INI) – the system adds them when MR/INI are calculated
     if (d.type === 'species' || d.type === 'culture') e.mr = Number(s.mrmod ?? 0)
