@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 1.0.9 (2026-11-14)
+
 **Vault to Foundry**
 
 - `dsa-nsc`: Neue Liste `schilde` (auch `schild`) für Schilde und Parierwaffen gemischt – in dsa-41 ein Item-Typ. Einträge wie bei `rüstung`: Name oder `{ name, typ, WM, INI, BF }`; `typ` (Schild/Parierwaffe) überschreibt die Kategorie des Kompendiums, unbekannte Namen sind ohne `typ` Schilde. Das erste Schild kommt neben der ersten Nahkampfwaffe in die Nebenhand, sodass das System Schild-PA, AT-Abzug und INI-Modifikator selbst rechnet. Prüfungen: unbekannte Namen (mit Vorschlag), abweichende Kompendiumskategorie, Parierwaffe ohne SF Linkhand/Parierwaffen I/II (das System verrechnet sie dann nicht), mehrere Schilde (nur das erste in der Hand). Wertekasten: Zeile „Schilde“/„Parierwaffen“ mit WM und INI aus Block oder Kompendium. Namenskatalog: Schilde tragen Kategorie, WM und INI.
