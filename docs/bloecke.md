@@ -370,15 +370,26 @@ talente: { Säbel: 15 }
 
 ### Schilde und Parierwaffen
 
-In dsa-41 sind Schilde und Parierwaffen **ein** Item-Typ (`shield`), unterschieden nur durch die Kategorie. Im Block gibt es dafür die Liste `schilde` (auch `schild`); `parierwaffen` (auch `parierwaffe`) ist dieselbe Liste unter anderem Namen, beide dürfen zusammen vorkommen. Schreibweisen wie bei `rüstung`:
+In dsa-41 sind Schilde und Parierwaffen **ein** Item-Typ (`shield`), unterschieden nur durch die Kategorie. Im Block stehen beide zusammen in der Liste `schilde` (auch `schild`); die Kategorie kennt das Kompendium:
 
 ```yaml
-schilde: [Großschild]                                  # aus dem Kompendium
+schilde: [Großschild, Linkhand]                        # Schild und Parierwaffe, beides aus dem Kompendium
+```
+
+Weitere Schreibweisen wie bei `rüstung` (jede Zeile eine Alternative, `schilde` darf nur einmal vorkommen):
+
+```yaml
 schild: Lederschild                                    # ein Stück
 schilde:
   - { name: Großschild, WM: -2/5, INI: -2, BF: 2 }     # eigene Werte
   - { name: Buckler, typ: Schild }                     # Kategorie überschreiben
-parierwaffen: [Linkhand]                               # Parierwaffen getrennt notieren
+  - Linkhand
+```
+
+`parierwaffen` (auch `parierwaffe`) ist dieselbe Liste unter anderem Namen und darf zusätzlich zu `schilde` stehen. Nötig ist es nur für **unbekannte** Parierwaffen: Ein Name, der in keinem Kompendium steht, wird unter `schilde` ein Schild, unter `parierwaffen` eine Parierwaffe (alternativ `typ: Parierwaffe`).
+
+```yaml
+parierwaffen: [{ name: Knochenhaken, WM: -1/2 }]      # eigene Parierwaffe
 ```
 
 #### Schlüssel eines Schilds
