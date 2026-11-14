@@ -14,6 +14,9 @@ Mira führt die Bücher der „Sturmschwalbe“ und kennt jeden Hafenmeister zwi
 ```dsa-nsc
 name: Mira Dornhag
 rolle: Proviantmeisterin
+rasse: Mittelländerin
+kultur: Mittelländische Städte
+MR-Mod: 1
 eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }
 SO: 6
 LeP: 36

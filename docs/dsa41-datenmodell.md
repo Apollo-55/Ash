@@ -48,13 +48,17 @@ Ein Feld für SO gibt es nicht. Es gibt nur `background.social.socialStatus.valu
 | FK-Basis   | `…active.baseRangedAttack.value`                                                                                                  | `autoCalcBaseRangedAttack`, (IN+FF+KK)/5         |
 | INI-Basis  | `…active.baseInitiative.value`                                                                                                    | `autoCalcInitiative`, (MU+MU+IN+GE)/5            |
 | Ausweichen | `…active.dodge.value`                                                                                                             | `autoCalcDodge`, PA-Basis − BE + Boni            |
-| MR         | `…passive.magicResistance.value`, Zuschlag: `base.combatAttributes.additionalMR`                                                  | `autoCalcMagicResistance`, (MU+KL+KO)/5          |
+| MR         | `…passive.magicResistance.value`, Zuschlag: `base.combatAttributes.additionalMR` (Block: `MR-Mod`)                               | `autoCalcMagicResistance`, (MU+KL+KO)/5 + `mrmod` der `species`-/`culture`-/`profession`-Items + Hohe MR − Niedrige MR + `additionalMR` |
 | WS         | `…passive.woundThresholds.{first,second,third,mod}`                                                                               | `autoCalcWoundThresholds`, KO/2, KO, KO·1,5      |
 | GS         | `base.movement.speed.value`                                                                                                       | `autoCalcSpeed`                                  |
 | RS         | **kein gespeichertes Feld.** Summe der angelegten `armor`-Items + `modifiers.additionalRS` + Vorteil „Natürlicher Rüstungsschutz“ | immer berechnet                                  |
 | BE         | **kein setzbares Feld.** Summe `encumbrance` (Zonen: `zonedEncumbrance`) der angelegten `armor`-Items + `load.encumbrance` (Last, wird vom System bei jedem Laden neu berechnet) | immer berechnet; Import: Rüstung `{ name, RS, BE }` |
 
-Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. `RS` aus dem Block geht unverändert nach `modifiers.additionalRS` und gilt zusätzlich zu den angelegten `armor`-Items.
+Folge für den Import: Ein im Block angegebener Wert für MR, INI, GS, WS oder Ausweichen wird gesetzt **und der zugehörige autoCalc-Schalter ausgeschaltet**. Fehlt er, bleibt die Automatik an. `RS` aus dem Block geht unverändert nach `modifiers.additionalRS` und gilt zusätzlich zu den angelegten `armor`-Items. `MR-Mod` geht nach `base.combatAttributes.additionalMR`; alle MR-Zuschläge (Rasse, Kultur, Profession, Vor-/Nachteile, `additionalMR`) hängt das System erst **nach** der Berechnung an (`ruleset.after(ComputeMagicResistance)`) – bei ausgeschalteter Automatik bleibt der feste Wert unverändert, die Zuschläge verfallen. INI ebenso: `inimod` von `species`- und `profession`-Items nur bei `autoCalcInitiative`.
+
+### Rasse und Kultur: Items `species` und `culture`
+
+Rasse und Kultur sind eingebettete Items (Kompendien `species`, `culture` und die Varianten `uthuria*`, `myranor*`, `darkage*`). Felder: `sid` (`species-mittellaender`, `culture-festumer-ghetto`), `mrmod` (beide), `inimod` (nur `species`; `profession`-Items haben beide), `isUniquelyOwnable: true`. Der `preCreateItem`-Hook des Systems lehnt ein zweites Item mit derselben sid am selben Actor ab (nur Hinweis, kein Fehler) – deshalb leitet der Adapter die Item-ID vom Kompendiumsnamen ab, damit „Mittelländer“ und „Mittelländerin“ dasselbe Item ergeben. Die Namen tragen Geschlechtsformen („Mittelländer*in“, „Nivese/Nivesin“, „Zwerg*in - Ambosszwerge“); der Katalog kennt die Formen und Varianten als Alias (`identityVariants` in `catalog.ts`). Die Textfelder `background.species`/`.culture` setzt das System nicht automatisch; der Import schreibt den Blocktext hinein.
 
 INI-Würfel (`+1W6`) sind nicht gespeichert. Sie kommen aus den Regeln (`ComputeInitiativeFormula`, z. B. Klingentänzer). Aus „INI 12+1W6“ wird nur die 12 übernommen.
 
@@ -98,5 +102,5 @@ Paket-IDs in Foundry: `dsa-41.<name>`. Lookup: Name exakt (ohne Groß-/Kleinschr
 ## Biografie und Beschreibung
 
 - **Biografie: `system.background.description`** (StringField mit HTML, Editor „Beschreibung“ im Reiter Beschreibung). Hier kommen Text und Rücklink auf das Journal hin.
-- Kurzfelder (einzeilig): `background.species`, `.culture`, `.profession`, `.background` (max. 240 Zeichen), `appearance.*`, `background.social.titles`.
+- Kurzfelder (einzeilig): `background.species` (Block: `rasse`), `.culture` (`kultur`), `.profession` (`rolle`), `.background` (max. 240 Zeichen), `appearance.*`, `background.social.titles`.
 - Bild: `img` (Porträt), `prototypeToken.texture.src` (Token). Primäres Token-Attribut: `base.resources.vitality`.

@@ -7,7 +7,7 @@ Alles, was in einem `dsa-nsc`- oder `szene`-Block stehen darf: jeder Schlüssel,
 1. [Grundregeln für alle Blöcke](#grundregeln-für-alle-blöcke)
 2. [`dsa-nsc` – Nichtspielercharaktere](#dsa-nsc--nichtspielercharaktere)
    - [Alle Schlüssel auf einen Blick](#alle-schlüssel-auf-einen-blick)
-   - [Name, Rolle, Notiz](#name-rolle-notiz)
+   - [Name, Rolle, Rasse, Kultur, Notiz](#name-rolle-rasse-kultur-notiz)
    - [Bilder: `bild`, `token`](#bilder-bild-token)
    - [`verknüpft`](#verknüpft)
    - [Eigenschaften](#eigenschaften)
@@ -81,6 +81,8 @@ Gilt für das Spielsystem DSA 4.1 (Foundry-System `dsa-41`); es muss in den Plug
 ```dsa-nsc
 name:
 rolle:
+rasse:
+kultur:
 eigenschaften: { MU: 12, KL: 12, IN: 12, CH: 12, FF: 12, GE: 12, KO: 12, KK: 12 }
 LeP: 30
 AuP: 30
@@ -100,6 +102,8 @@ sonderfertigkeiten: []
 |---|---|---|---|
 | `name` | – | Text | **Pflicht** |
 | `rolle` | – | Text | → Profession |
+| `rasse` | `spezies` | Text | → Rasse (Item aus dem Kompendium, MR-/INI-Modifikator) und Textfeld |
+| `kultur` | – | Text | → Kultur (Item aus dem Kompendium, MR-Modifikator) und Textfeld |
 | `bild` | – | Bild | sonst erstes Bild im Abschnitt |
 | `token` | – | Bild | sonst erstes `token_…`-Bild, sonst `bild` |
 | `verknüpft` | `verknuepft` | ja/nein | ja bei genau einem NSC in der Notiz, sonst nein |
@@ -111,6 +115,7 @@ sonderfertigkeiten: []
 | `AsP` | `AE` | Zahl | Astralenergie, schaltet Magie-Reiter ein |
 | `KaP` | `KE` | Zahl | Karmaenergie, schaltet Karma-Reiter ein |
 | `MR` | – | Zahl | sonst gerechnet |
+| `MR-Mod` | `mrmod`, `mr_mod` | Zahl (auch negativ) | Zusatz-MR, Standard 0; wirkt nur bei gerechneter MR |
 | `INI` | – | Zahl oder `12+1W6` | Basis-INI, sonst gerechnet |
 | `GS` | – | Zahl | sonst gerechnet |
 | `WS` | – | Zahl | Wundschwelle, sonst gerechnet |
@@ -126,16 +131,22 @@ sonderfertigkeiten: []
 | `sonderfertigkeiten` | `SF` | Liste / Zuordnung | |
 | `notiz` | `notizen` | Text | → Biografie |
 
-### Name, Rolle, Notiz
+### Name, Rolle, Rasse, Kultur, Notiz
 
 ```yaml
 name: Shahane ay Zedrakin
 rolle: Proviantmeisterin
+rasse: Tulamidin
+kultur: Tulamidische Stadtstaaten
 notiz: Hat eine Schwäche für Glücksspiel und schuldet dem Kapitän Geld.
 ```
 
 - **`name`** ist der Name des Charakters in Foundry und zugleich seine Kennung: Ändert man den Namen, entsteht beim nächsten Übernehmen ein **neuer** Charakter, der alte erscheint als verwaist.
-- **`rolle`** landet im Feld „Profession“.
+- **`rolle`** landet im Feld „Profession“ (nur Text, kein Item).
+- **`rasse`** (auch `spezies`) und **`kultur`** landen als Text in den Feldern „Rasse“ und „Kultur“ **und** werden in den Rassen- bzw. Kulturen-Kompendien von dsa-41 gesucht (Basis, Uthuria, Myranor, Dunkle Zeiten). Der Treffer wird als Item angelegt – darüber rechnet das System den MR-Modifikator der Rasse und der Kultur (bei Rassen auch den INI-Modifikator, z. B. Goblin +2) in die MR bzw. INI ein, siehe [Berechnete Werte](#berechnete-werte-mr-ini-gs-ws-ausweichen).
+  - Die Kompendien schreiben Rassen mit Geschlechtsformen („Mittelländer*in“, „Nivese/Nivesin“, „Zwerg*in - Ambosszwerge“). Im Block reicht eine Form oder die Variante: `Mittelländer`, `Mittelländerin`, `Nivesin`, `Ambosszwerge`, `Zwergin - Ambosszwerge`. Kulturen heißen wie im Kompendium (`Almada`, `Almada - Gebirge`, `Mittelländische Städte`); eine Variante allein zählt nur, wenn sie eindeutig ist (`Drasdech` steht für drei Kulturen und wird nicht erkannt).
+  - Unbekannte Namen geben eine Warnung mit Vorschlag. In Foundry wird dann in den Welt-Gegenständen gesucht, sonst entsteht ein Item ohne Modifikator; der Text steht trotzdem auf dem Bogen.
+  - Je Charakter gibt es nur eine Rasse und eine Kultur; wer sie ändert, bekommt beim nächsten Übernehmen das neue Item, das alte wird entfernt.
 - **`notiz`** landet in der Biografie, hinter einem automatisch erzeugten Link „Quelle: <Notiz>“ auf das Journal. Für mehrere Zeilen YAML-Blocktext verwenden:
 
   ```yaml
@@ -216,6 +227,14 @@ WS: 7            # Wundschwellen 7 / 14 / 21
 ausweichen: 9    # oder AW
 ```
 
+**`MR-Mod`** (auch `mrmod`, `mr_mod`) ist der „Zusatz-MR“ des Bogens: eine ganze Zahl, auch negativ, die das System zur gerechneten MR addiert – für alles, was nicht aus Rasse, Kultur oder Vor-/Nachteilen kommt. Ohne Angabe steht dort 0. Zusammen mit einem festen `MR` gibt es eine Warnung: Bei fester MR verrechnet das System weder `MR-Mod` noch die Modifikatoren von Rasse und Kultur – dann gehört alles in die Zahl hinter `MR`.
+
+```yaml
+rasse: Goblin           # MR −5, INI +2 aus dem Kompendium
+kultur: Festumer Ghetto # MR +1
+MR-Mod: 1               # Zusatz-MR
+```
+
 Der Wertekasten in Obsidian zeigt bei Abweichungen den gerechneten Wert daneben, z. B. „MR 6 (gerechnet 8)“. Gerechnet wird wie im System:
 
 | Wert | Formel |
@@ -223,13 +242,13 @@ Der Wertekasten in Obsidian zeigt bei Abweichungen den gerechneten Wert daneben,
 | AT-Basis | (MU + GE + KK) / 5 |
 | PA-Basis | (IN + GE + KK) / 5 |
 | FK-Basis | (IN + FF + KK) / 5 |
-| INI | (MU + MU + IN + GE) / 5 |
-| MR | (MU + KL + KO) / 5 |
+| INI | (MU + MU + IN + GE) / 5; + INI-Modifikator der Rasse |
+| MR | (MU + KL + KO) / 5; + MR-Modifikator von Rasse und Kultur, + Hohe Magieresistenz, − Niedrige Magieresistenz, + `MR-Mod` |
 | WS | KO / 2 |
 | GS | 8; +1 bei GE ≥ 16, −1 bei GE ≤ 10; + Flink, − Behäbig/Kleinwüchsig/Lahm, −2 Zwergenwuchs |
 | Ausweichen | PA-Basis; +3 je Ausweichen I/II/III; +1 Flink, −1 Behäbig; Akrobatik über 9: +1 je 3 Punkte |
 
-(kaufmännisch gerundet; Behinderung ist nicht berücksichtigt)
+(kaufmännisch gerundet; Behinderung und der MR-Modifikator einer Profession – `rolle` ist nur Text – sind nicht berücksichtigt)
 
 ### Rüstung und RS
 
@@ -611,6 +630,8 @@ leaflet: süd-map
 ```dsa-nsc
 name: Alrik Söldner
 rolle: Söldner
+rasse: Mittelländer
+kultur: Mittelländische Landbevölkerung
 eigenschaften: { MU: 13, KL: 10, IN: 12, CH: 10, FF: 11, GE: 13, KO: 14, KK: 14 }
 LeP: 34
 AuP: 32
@@ -693,6 +714,8 @@ nebel: ja
 | `- Säbel: { AT: 14 }` unter `waffen` | Mischform | `- { name: Säbel, AT: 14 }` |
 | `LeP: 30` und `LE: 30` | doppelt | nur einer von beiden |
 | `MR: 6,5` / `MR: 6.5` | keine ganze Zahl | `MR: 6` |
+| `MR: 8` und `MR-Mod: 2` | bei fester MR verrechnet das System keinen Modifikator (Warnung) | `MR: 10` oder `MR` weglassen |
+| `rasse: Zwerg` | mehrere Zwergenrassen, kein eindeutiger Treffer (Warnung) | `rasse: Ambosszwerge` oder `Zwerg - Ambosszwerge` |
 | `liturgien: [Bannfluch 3]` | Zahl gehört zum Namen | `liturgien: { Bannfluch: { grad: 3 } }` |
 | `waffen: Säbel, Dolch` | `waffen` muss eine Liste sein | `waffen: [Säbel, Dolch]` |
 | `eigenschaften: MU 14, KL 12` | keine Zuordnung | `eigenschaften: { MU: 14, KL: 12 }` |

@@ -40,9 +40,12 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
     return opts.showCalculated && o ? ` <span class="vtf-nsc-calc" title="vom System berechnet">(gerechnet ${o.calculated})</span>` : ''
   }
 
+  const origin = [d.rasse, d.kultur].filter(Boolean).map(esc).join(', ')
   const head = `<div class="vtf-nsc-head"><strong class="vtf-nsc-name">${esc(d.name)}</strong>${
     d.rolle ? ` <span class="vtf-nsc-role">${esc(d.rolle)}</span>` : ''
-  }${opts.actorUuid ? ` <span class="vtf-nsc-link">@UUID[${opts.actorUuid}]{Zum Charakter}</span>` : ''}</div>`
+  }${origin ? ` <span class="vtf-nsc-origin">(${origin})</span>` : ''}${
+    opts.actorUuid ? ` <span class="vtf-nsc-link">@UUID[${opts.actorUuid}]{Zum Charakter}</span>` : ''
+  }</div>`
 
   const attrs = ATTRIBUTES.some((a) => d.attributes[a] !== undefined)
     ? `<table class="vtf-nsc-attr"><tr>${ATTRIBUTES.map((a) => `<th>${a}</th>`).join('')}</tr><tr>${ATTRIBUTES.map(
@@ -59,6 +62,7 @@ export function renderStatblock(block: ParsedBlock<NscData>, opts: StatblockOpti
   push('AsP', d.AsP)
   push('KaP', d.KaP)
   push('MR', d.MR, 'MR')
+  if (d.mrMod !== undefined) vals.push(`<span><b>MR-Mod</b> ${d.mrMod > 0 ? '+' : ''}${d.mrMod}</span>`)
   push('RS', d.RS)
   push('WS', d.WS, 'WS')
   push('GS', d.GS, 'GS')

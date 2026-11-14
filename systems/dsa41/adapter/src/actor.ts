@@ -90,6 +90,8 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
   // values the system calculates: a given value switches the calculation off
   data['settings.autoCalcMagicResistance'] = d.MR === undefined
   if (d.MR !== undefined) data['base.combatAttributes.passive.magicResistance.value'] = d.MR
+  // manual MR modifier (Zusatz-MR); the system adds it, like the modifiers of species and culture items, while MR is calculated
+  data['base.combatAttributes.additionalMR'] = d.mrMod ?? 0
   data['settings.autoCalcInitiative'] = d.INI === undefined
   if (d.INI !== undefined) data['base.combatAttributes.active.baseInitiative.value'] = d.INI
   data['settings.autoCalcSpeed'] = d.GS === undefined
@@ -106,6 +108,8 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
   data['modifiers.additionalRS'] = d.RS ?? 0
   if (d.SO !== undefined) data['background.social.socialStatus.value'] = d.SO
   data['background.profession'] = d.rolle ?? ''
+  data['background.species'] = d.rasse ?? ''
+  data['background.culture'] = d.kultur ?? ''
   data['background.description'] =
     `<p><b>Quelle:</b> ${ctx.journalId ? `@UUID[JournalEntry.${ctx.journalId}]{${esc(ctx.journalName).replace(/[{}]/g, '')}}` : esc(ctx.journalName)}</p>` +
     (d.notiz ? `<p>${esc(d.notiz)}</p>` : '')
@@ -164,6 +168,23 @@ export function nscToActor(d: NscData, ctx: ActorContext): ReturnType<SystemAdap
   }
 
   for (const key of Object.keys(LIST_TYPES) as ListKey[]) for (const e of d[key]) items.push(listItem(key, e))
+
+  // species and culture: items from the compendia (they carry the MR/INI modifiers the system adds); the id follows the
+  // compendium name, so another spelling of the same entry keeps the item (the system allows each sid only once per actor)
+  const identity = (group: string, type: 'species' | 'culture', name: string | undefined, fallbackSystem: Record<string, unknown>) => {
+    if (!name) return
+    const hit = find([type], name)
+    items.push({
+      id: itemId(group, hit?.n ?? name),
+      name: hit?.n ?? name,
+      types: [type],
+      source: hit ? { pack: hit.p, sid: hit.s, type } : undefined,
+      system: {},
+      fallback: { type, system: fallbackSystem },
+    })
+  }
+  identity('rasse', 'species', d.rasse, { mrmod: 0, inimod: 0 })
+  identity('kultur', 'culture', d.kultur, { mrmod: 0 })
 
   for (const r of d.ruestung) {
     const hit = find(['armor'], r.name)

@@ -642,3 +642,89 @@ describe('Rüstung mit eigenen Werten', () => {
     expect(zoned).toContain('Helm (RS 0 [Kopf 4 Brust 0 Rücken 0 Bauch 0 LA 0 RA 0 LB 0 RB 0], BE 1)')
   })
 })
+
+describe('Rasse, Kultur und MR-Mod', () => {
+  const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+  const ATTRS = 'eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }' // MR 8, INI 11
+  const itemOf = (a: ReturnType<typeof dsa41.nscToActor>, type: string) => a.items.find((i) => i.types[0] === type)
+
+  it('liest rasse (auch spezies), kultur und MR-Mod in allen Schreibweisen', () => {
+    const d = parse('name: X\nrasse: Mittelländer\nkultur: Mittelländische Städte\nMR-Mod: -1').data!
+    expect(d).toMatchObject({ rasse: 'Mittelländer', kultur: 'Mittelländische Städte', mrMod: -1 })
+    expect(parse('name: X\nspezies: Goblin\nmrmod: "+2"').data).toMatchObject({ rasse: 'Goblin', mrMod: 2 })
+    expect(parse('name: X\nmr_mod: 1').data!.mrMod).toBe(1)
+    const empty = parse('name: X\nrasse:\nkultur: ""').data!
+    expect(empty.rasse).toBeUndefined()
+    expect(empty.kultur).toBeUndefined()
+    expect(levels('name: X\nMR-Mod: 1\nmrmod: 2')).toEqual(['„mrmod“ kommt doppelt vor (auch als Abkürzung).'])
+    expect(levels('name: X\nMR-Mod: 1,5')).toEqual(['MR-Mod: „1,5“ ist keine ganze Zahl.'])
+    expect(levels('name: X\nrasse: { a: 1 }')).toEqual(['„rasse“ muss Text sein.'])
+    expect(dsa41Adapter.template()).toMatch(/\nrasse:\nkultur:\n/)
+  })
+
+  it('Kompendiumsnamen: Geschlechtsformen und Varianten werden erkannt, unbekannte Namen warnen', () => {
+    expect(dsa41.identityVariants('Mittelländer*in')).toEqual(['Mittelländer', 'Mittelländerin'])
+    expect(dsa41.identityVariants('Nivese/Nivesin')).toEqual(['Nivese', 'Nivesin'])
+    expect(dsa41.identityVariants('Zwerg*in - Ambosszwerge')).toEqual(['Zwerg - Ambosszwerge', 'Zwergin - Ambosszwerge', 'Ambosszwerge'])
+    expect(dsa41.identityVariants('Thorwal')).toEqual([])
+    for (const n of ['Mittelländer', 'Mittelländerin', 'Mittelländer*in']) expect(dsa41.findCatalog(['species'], n)?.s).toBe('species-mittellaender')
+    expect(dsa41.findCatalog(['species'], 'Ambosszwerge')?.n).toBe('Zwerg*in - Ambosszwerge')
+    expect(dsa41.findCatalog(['species'], 'Nivesin')?.n).toBe('Nivese/Nivesin')
+    expect(dsa41.findCatalog(['culture'], 'Gebirge')?.n).toBe('Gebirge') // eigener Eintrag schlägt die Variante von „Almada - Gebirge“
+    expect(dsa41.findCatalog(['culture'], 'Drasdech')).toBeUndefined() // Orkland - Drasdech, Svellttal-Besatzer - Drasdech, …
+    expect(dsa41.findCatalog(['culture'], 'Almada')?.s).toBe('culture-almada')
+    const r = parse('name: X\nrasse: Mittelländer\nkultur: Mittelreich')
+    expect(r.issues.filter((i) => i.level === 'info').map((i) => i.message)).toContain('Rasse „Mittelländer“ als „Mittelländer*in“ erkannt.')
+    const warnings = r.issues.filter((i) => i.level === 'warning').map((i) => i.message)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/^Kultur „Mittelreich“ steht in keinem dsa-41-Kompendium.*ohne MR-Modifikator angelegt\.$/)
+  })
+
+  it('Rechenwerte: Rasse und Kultur ändern MR (Rasse auch INI), dazu Hohe/Niedrige Magieresistenz und MR-Mod', () => {
+    expect(dsa41.computeDerived(parse(`name: X\n${ATTRS}`).data!)).toMatchObject({ MR: 8, INI: 11 })
+    const goblin = parse(`name: X\n${ATTRS}\nrasse: Goblin\nkultur: Festumer Ghetto\nMR-Mod: 1\nvorteile: { Hohe Magieresistenz: 2 }\nnachteile: { Niedrige Magieresistenz: 1 }`)
+    expect(goblin.issues).toEqual([])
+    // 8 − 5 (Goblin) + 1 (Festumer Ghetto) + 1 (MR-Mod) + 2 − 1; INI 11 + 2 (Goblin)
+    expect(dsa41.computeDerived(goblin.data!)).toMatchObject({ MR: 6, INI: 13 })
+    const fixed = parse(`name: X\n${ATTRS}\nrasse: Mittelländer\nMR: 8`)
+    expect(fixed.issues.filter((i) => i.level === 'warning')).toEqual([])
+    expect(dsa41.overrides(fixed.data!)).toEqual([{ key: 'MR', label: 'MR', given: 8, calculated: 4 }])
+    expect(levels(`name: X\n${ATTRS}\nMR: 8\nMR-Mod: 2`, 'warning')).toEqual([
+      'MR ist fest angegeben – das System verrechnet MR-Mod (wie die Modifikatoren von Rasse und Kultur) nur, wenn es die MR selbst berechnet.',
+    ])
+  })
+
+  it('Actor: Textfelder, Zusatz-MR und Items aus den Kompendien', () => {
+    const a = dsa41.nscToActor(parse('name: X\nrasse: Mittelländer\nkultur: Festumer Ghetto\nMR-Mod: -2').data!, ctx)
+    expect(a.data).toMatchObject({
+      'background.species': 'Mittelländer', 'background.culture': 'Festumer Ghetto',
+      'base.combatAttributes.additionalMR': -2, 'settings.autoCalcMagicResistance': true,
+    })
+    expect(itemOf(a, 'species')).toMatchObject({
+      name: 'Mittelländer*in', source: { pack: 'species', sid: 'species-mittellaender', type: 'species' }, system: {},
+      fallback: { type: 'species', system: { mrmod: 0, inimod: 0 } },
+    })
+    expect(itemOf(a, 'culture')).toMatchObject({ name: 'Festumer Ghetto', source: { pack: 'culture', sid: 'culture-festumer-ghetto', type: 'culture' }, fallback: { type: 'culture', system: { mrmod: 0 } } })
+    a.items.forEach((i) => expect(i.id).toMatch(FOUNDRY_ID_PATTERN))
+    // another spelling of the same compendium entry keeps the item id (the system allows each sid only once per actor)
+    const b = dsa41.nscToActor(parse('name: X\nrasse: Mittelländerin').data!, ctx)
+    expect(itemOf(b, 'species')!.id).toBe(itemOf(a, 'species')!.id)
+    const none = dsa41.nscToActor(parse('name: X').data!, ctx)
+    expect(none.data).toMatchObject({ 'background.species': '', 'background.culture': '', 'base.combatAttributes.additionalMR': 0 })
+    expect(itemOf(none, 'species')).toBeUndefined()
+    expect(itemOf(none, 'culture')).toBeUndefined()
+    const own = dsa41.nscToActor(parse('name: X\nrasse: Drache').data!, ctx)
+    expect(itemOf(own, 'species')).toMatchObject({ name: 'Drache', types: ['species'], fallback: { type: 'species', system: { mrmod: 0, inimod: 0 } } })
+    expect(itemOf(own, 'species')!.source).toBeUndefined()
+  })
+
+  it('Wertekasten zeigt Rasse und Kultur im Kopf und MR-Mod mit Vorzeichen', () => {
+    const html = dsa41Adapter.renderStatblock(parse('name: X\nrolle: Händlerin\nrasse: Mittelländer\nkultur: Festumer Ghetto\nMR-Mod: 1'), {})
+    expect(html).toContain('<span class="vtf-nsc-role">Händlerin</span> <span class="vtf-nsc-origin">(Mittelländer, Festumer Ghetto)</span>')
+    expect(html).toContain('<span><b>MR-Mod</b> +1</span>')
+    const other = dsa41Adapter.renderStatblock(parse('name: X\nkultur: Thorwal\nMR-Mod: -2'), {})
+    expect(other).toContain('<strong class="vtf-nsc-name">X</strong> <span class="vtf-nsc-origin">(Thorwal)</span>')
+    expect(other).toContain('<span><b>MR-Mod</b> -2</span>')
+    expect(dsa41Adapter.renderStatblock(parse('name: X'), {})).not.toContain('vtf-nsc-origin')
+  })
+})
