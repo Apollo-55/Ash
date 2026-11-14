@@ -2,6 +2,13 @@
 
 ## Unveröffentlicht
 
+**Vault to Foundry**
+
+- `dsa-nsc`: Neue Schlüssel `rasse` (auch `spezies`) und `kultur`. Der Name wird in den Rassen- bzw. Kulturen-Kompendien von dsa-41 gesucht – Geschlechtsformen („Mittelländer“, „Mittelländerin“ für „Mittelländer*in“) und eindeutige Varianten („Ambosszwerge“) genügen – und als Item angelegt, sodass das System dessen MR-Modifikator (Rasse auch INI) in die berechnete MR einrechnet. Zusätzlich stehen beide als Text in „Rasse“ und „Kultur“ des Bogens. Unbekannte Namen: Warnung mit Vorschlag, Suche in den Welt-Gegenständen, sonst Item ohne Modifikator.
+- `dsa-nsc`: Neuer Schlüssel `MR-Mod` (auch `mrmod`, `mr_mod`) für den „Zusatz-MR“ des Bogens, auch negativ. Wie die Modifikatoren von Rasse und Kultur wirkt er nur, solange das System die MR berechnet; zusammen mit festem `MR` gibt es eine Warnung.
+- Wertekasten: Rasse und Kultur stehen im Kopf, `MR-Mod` in der Wertezeile; „gerechnet …“ für MR und INI berücksichtigt jetzt Rasse, Kultur, Hohe/Niedrige Magieresistenz und `MR-Mod` wie das System.
+- Vorlage „NSC-Vorlage einfügen“ enthält `rasse:` und `kultur:`. Namenskatalog um Rassen und Kulturen (mit MR-/INI-Modifikatoren) erweitert, Stand dsa-41 13.1.4.
+
 ## 1.0.8 (2026-11-13)
 
 **Vault to Foundry**

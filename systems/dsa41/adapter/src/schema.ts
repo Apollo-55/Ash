@@ -65,6 +65,10 @@ export type ListKey = 'talente' | 'zauber' | 'liturgien' | 'vorteile' | 'nachtei
 export interface NscData {
   name: string
   rolle?: string
+  /** species as written in the block (item from the species compendia, text field on the sheet) */
+  rasse?: string
+  /** culture as written in the block (item from the culture compendia, text field on the sheet) */
+  kultur?: string
   bild?: string
   token?: string
   verknuepft?: boolean
@@ -75,6 +79,8 @@ export interface NscData {
   AsP?: number
   KaP?: number
   MR?: number
+  /** manual MR modifier (Zusatz-MR of the sheet); the system adds it only while MR is calculated */
+  mrMod?: number
   RS?: number
   WS?: number
   GS?: number
@@ -117,10 +123,12 @@ const CUSTOM_KEYS: Record<ListKey, Record<string, string>> = {
 
 /** Top-level keys (lower-cased) → canonical. */
 const KEYS: Record<string, string> = {
-  name: 'name', rolle: 'rolle', bild: 'bild', token: 'token', 'verknüpft': 'verknuepft', verknuepft: 'verknuepft',
+  name: 'name', rolle: 'rolle', rasse: 'rasse', spezies: 'rasse', kultur: 'kultur', bild: 'bild', token: 'token',
+  'verknüpft': 'verknuepft', verknuepft: 'verknuepft',
   eigenschaften: 'eigenschaften', so: 'SO',
   lep: 'LeP', le: 'LeP', aup: 'AuP', au: 'AuP', asp: 'AsP', ae: 'AsP', kap: 'KaP', ke: 'KaP',
   mr: 'MR', rs: 'RS', ws: 'WS', gs: 'GS', ini: 'INI', ausweichen: 'ausweichen', aw: 'ausweichen',
+  'mr-mod': 'mrMod', mrmod: 'mrMod', mr_mod: 'mrMod', 'mr mod': 'mrMod', 'mr-modifikator': 'mrMod', mrmodifikator: 'mrMod',
   'rüstung': 'ruestung', ruestung: 'ruestung', 'rüstungen': 'ruestung',
   waffen: 'waffen', talente: 'talente', zauber: 'zauber', liturgien: 'liturgien', vorteile: 'vorteile', nachteile: 'nachteile',
   sonderfertigkeiten: 'sonderfertigkeiten', sf: 'sonderfertigkeiten', notiz: 'notiz', notizen: 'notiz',
@@ -173,7 +181,13 @@ function parseZones(v: Record<string, unknown>, name: string, error: (m: string)
   return ok ? zones : undefined
 }
 
-const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'RS', 'WS', 'GS', 'ausweichen'] as const
+const NUMERIC_TOP = ['SO', 'LeP', 'AuP', 'AsP', 'KaP', 'MR', 'mrMod', 'RS', 'WS', 'GS', 'ausweichen'] as const
+
+/** rasse/kultur → catalog item type and label */
+const IDENTITY: Record<'rasse' | 'kultur', { type: 'species' | 'culture'; label: string }> = {
+  rasse: { type: 'species', label: 'Rasse' },
+  kultur: { type: 'culture', label: 'Kultur' },
+}
 
 function toInt(v: unknown): number | undefined {
   if (typeof v === 'number' && Number.isInteger(v)) return v
@@ -241,6 +255,22 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
         if (typeof value === 'object') error(`„${rawKey}“ muss Text sein.`)
         else (data as unknown as Record<string, unknown>)[key] = String(value)
         break
+      case 'rasse':
+      case 'kultur': {
+        if (value === null || value === undefined || value === '') break
+        if (typeof value === 'object') {
+          error(`„${rawKey}“ muss Text sein.`)
+          break
+        }
+        const name = String(value).trim()
+        if (!name) break
+        data[key] = name
+        const { type, label } = IDENTITY[key]
+        const known = find([type], name)
+        if (known && normalizeName(known.n) !== normalizeName(name)) info(`${label} „${name}“ als „${known.n}“ erkannt.`)
+        if (!known) warn(`${label} „${name}“ steht in keinem dsa-41-Kompendium${didYouMean([type], name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst ohne MR-Modifikator angelegt.`)
+        break
+      }
       case 'verknuepft':
         if (typeof value === 'boolean') data.verknuepft = value
         else if (['ja', 'nein'].includes(String(value).toLowerCase())) data.verknuepft = String(value).toLowerCase() === 'ja'
@@ -308,6 +338,9 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
   }
   for (const [a, v] of Object.entries(data.attributes)) {
     if (v < 0 || v > 30) warn(`${a} ${v} ist ungewöhnlich (Tippfehler?).`)
+  }
+  if (data.MR !== undefined && data.mrMod !== undefined) {
+    warn('MR ist fest angegeben – das System verrechnet MR-Mod (wie die Modifikatoren von Rasse und Kultur) nur, wenn es die MR selbst berechnet.')
   }
   for (const m of checkSfPrerequisites(data)) warn(`Voraussetzung fehlt: ${m}.`)
   return { name: data.name, data, issues }

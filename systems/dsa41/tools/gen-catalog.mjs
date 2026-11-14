@@ -1,5 +1,5 @@
 // Generates systems/dsa41/adapter/src/catalog.json from the dsa-41 pack sources (ref/dsa-41/src/packs).
-// Only names, types, sids and a few weapon fields – used to validate dsa-nsc blocks offline and as lookup hints.
+// Only names, types, sids, a few weapon fields and the MR/INI modifiers of species and cultures – used to validate dsa-nsc blocks offline and as lookup hints.
 // Usage: node systems/dsa41/tools/gen-catalog.mjs [path/to/dsa-4.1-system]
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -8,7 +8,7 @@ import { parse } from 'yaml'
 const repo = resolve(process.argv[2] ?? 'ref/dsa-41')
 const system = JSON.parse(readFileSync(join(repo, 'src/system.json'), 'utf8'))
 const TYPES = new Set(['talent', 'combatTalent', 'language', 'scripture', 'spell', 'liturgy', 'advantage', 'disadvantage',
-  'specialAbility', 'meleeWeapon', 'rangedWeapon', 'shield', 'armor'])
+  'specialAbility', 'meleeWeapon', 'rangedWeapon', 'shield', 'armor', 'species', 'culture'])
 
 const walk = (dir, out = []) => {
   for (const e of readdirSync(dir)) {
@@ -38,6 +38,9 @@ for (const p of packs) {
     }
     if (d.type === 'combatTalent') e.cat = s.combat?.category ?? 'melee'
     if (d.type === 'armor') e.rs = Number(s.armorClass ?? 0)
+    // species and culture modify MR (species also INI) – the system adds them when MR/INI are calculated
+    if (d.type === 'species' || d.type === 'culture') e.mr = Number(s.mrmod ?? 0)
+    if (d.type === 'species') e.ini = Number(s.inimod ?? 0)
     items.push(e)
   }
 }
