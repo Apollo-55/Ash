@@ -803,4 +803,27 @@ describe('Schilde und Parierwaffen', () => {
     expect(levels('name: X\nschilde: [Großschild]', 'warning')).toEqual([])
     expect(levels('name: X\nschilde: [Großschild, Lederschild]', 'info')).toEqual(['Mehrere Schilde/Parierwaffen – in Foundry hält der Charakter nur das erste (Großschild) in der Nebenhand.'])
   })
+
+  it('werden Items vom Typ shield: Kompendium-Hinweis, nur angegebene Werte, Kategorie aus typ', () => {
+    const ctx = { actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/X.md', journalName: 'X', resolveImage: () => null, nearbyImages: {}, linkedDefault: false }
+    const shields = (s: string) => dsa41.nscToActor(parse(s).data!, ctx).items.filter((i) => i.types[0] === 'shield')
+    const [plain] = shields('name: X\nschilde: [Großschild]')
+    expect(plain.name).toBe('Großschild')
+    expect(plain.source).toEqual({ pack: 'shield', sid: 'shield-ave-Gro_schild', type: 'shield' })
+    expect(plain.system).toEqual({})
+    expect(plain.fallback).toEqual({ type: 'shield', system: { category: 'shield', shieldtype: 'S', 'weaponMod.attack': 0, 'weaponMod.parry': 0, initiativeMod: 0, breakingFactor: 0 } })
+    expect(plain.id).toMatch(FOUNDRY_ID_PATTERN)
+
+    const [own] = shields('name: X\nschilde: [{ name: Buckler, typ: Schild, WM: 0/2, INI: 1, BF: 3 }]')
+    expect(own.system).toEqual({ category: 'shield', 'weaponMod.attack': 0, 'weaponMod.parry': 2, initiativeMod: 1, breakingFactor: 3 })
+
+    // unknown parrying weapon: no compendium hint, the fallback is a complete parrying weapon
+    const [unknown] = shields('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]')
+    expect(unknown.source).toBeUndefined()
+    expect(unknown.system).toEqual({ category: 'parryingWeapon' })
+    expect(unknown.fallback.system).toMatchObject({ category: 'parryingWeapon', shieldtype: 'P' })
+
+    // the hooks take the first shield into the off hand; shield items carry no combat target values
+    expect(shields('name: X\nschilde: [Lederschild, Linkhand]\nsonderfertigkeiten: [Linkhand]').map((i) => [i.name, combatOf(i)])).toEqual([['Lederschild', undefined], ['Linkhand', undefined]])
+  })
 })
