@@ -759,28 +759,30 @@ describe('Schilde und Parierwaffen', () => {
     expect(levels('name: X\nschilde: [{ name: Buckler, typ: Dings }]')).toEqual(['Schild: typ „Dings“ ungültig (Schild oder Parierwaffe).'])
   })
 
-  it('Kategorie: Block vor Kompendium vor Listen-Schlüssel', () => {
+  it('Kategorie: Block vor Kompendium, unbekannte Namen sind Schilde', () => {
     const cat = (s: string) => parse(s).data!.schilde.map(dsa41.shieldCategory)
     expect(cat('name: X\nschilde: [Großschild, Linkhand, Buckler]\nsonderfertigkeiten: [Linkhand]')).toEqual(['shield', 'parryingWeapon', 'parryingWeapon'])
     expect(cat('name: X\nschilde: [{ name: Buckler, typ: Schild }]')).toEqual(['shield'])
-    // unknown items get the default of their list, stored on the entry
+    // unknown items: shield, stored on the entry; a parrying weapon needs typ
     expect(parse('name: X\nschilde: [Knochenschild]').data!.schilde).toEqual([{ name: 'Knochenschild', typ: 'shield' }])
-    expect(parse('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]').data!.schilde).toEqual([{ name: 'Knochenhaken', typ: 'parryingWeapon' }])
-    // known items under parierwaffen keep the compendium's category
-    expect(cat('name: X\nparierwaffen: [Großschild]')).toEqual(['shield'])
+    expect(parse('name: X\nschilde: [{ name: Knochenhaken, typ: Parierwaffe }]\nsonderfertigkeiten: [Linkhand]').data!.schilde).toEqual([{ name: 'Knochenhaken', typ: 'parryingWeapon' }])
+    // there is no separate list for parrying weapons
+    expect(levels('name: X\nparierwaffen: [Linkhand]')[0]).toContain('Unbekannter Schlüssel „parierwaffen“')
   })
 
-  it('schilde und parierwaffen füllen dieselbe Liste und dürfen zusammen vorkommen', () => {
-    const r = parse('name: X\nschilde: [Großschild]\nparierwaffen: [Linkhand]\nsonderfertigkeiten: [Linkhand]')
+  it('schilde nimmt Schilde und Parierwaffen gemischt', () => {
+    const r = parse('name: X\nschilde: [Großschild, Linkhand]\nsonderfertigkeiten: [Linkhand]')
     expect(r.data!.schilde.map((s) => s.name)).toEqual(['Großschild', 'Linkhand'])
     expect(r.issues.map((i) => i.level)).toEqual(['info'])
   })
 
   it('Meldungen: unbekannt, Kompendium-Kategorie abweichend, Kurzform, falsche Werte', () => {
     expect(all('name: X\nschilde: [Knochenschild]')).toEqual([
-      'warning: Schild „Knochenschild“ steht in keinem dsa-41-Kompendium. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als Schild ohne Werte angelegt – gib WM, INI und BF an.',
+      'warning: Schild „Knochenschild“ steht in keinem dsa-41-Kompendium. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als Schild ohne Werte angelegt – gib WM, INI und BF an, für eine Parierwaffe typ: Parierwaffe.',
     ])
-    expect(all('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]')[0]).toContain('Parierwaffe „Knochenhaken“ steht in keinem dsa-41-Kompendium')
+    expect(all('name: X\nschilde: [{ name: Knochenhaken, typ: Parierwaffe }]\nsonderfertigkeiten: [Linkhand]')).toEqual([
+      'warning: Parierwaffe „Knochenhaken“ steht in keinem dsa-41-Kompendium. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als Parierwaffe ohne Werte angelegt – gib WM, INI und BF an.',
+    ])
     expect(all('name: X\nschilde: [{ name: Buckler, typ: Schild }]')).toEqual(['info: Schild „Buckler“ ist im Kompendium eine Parierwaffe, wird als Schild angelegt.'])
     expect(all('name: X\nschilde: [Thorwaler]')[0]).toContain('warning: Schild „Thorwaler“ steht in keinem dsa-41-Kompendium (meintest du „Thorwalerschild“?)')
     expect(all('name: X\nschilde: [Linkhand mit]\nsonderfertigkeiten: [Linkhand]')).toEqual(['info: Schild „Linkhand mit“ als „Linkhand mit Klingenfänger“ erkannt.'])
@@ -818,7 +820,7 @@ describe('Schilde und Parierwaffen', () => {
     expect(own.system).toEqual({ category: 'shield', 'weaponMod.attack': 0, 'weaponMod.parry': 2, initiativeMod: 1, breakingFactor: 3 })
 
     // unknown parrying weapon: no compendium hint, the fallback is a complete parrying weapon
-    const [unknown] = shields('name: X\nparierwaffen: [Knochenhaken]\nsonderfertigkeiten: [Linkhand]')
+    const [unknown] = shields('name: X\nschilde: [{ name: Knochenhaken, typ: Parierwaffe }]\nsonderfertigkeiten: [Linkhand]')
     expect(unknown.source).toBeUndefined()
     expect(unknown.system).toEqual({ category: 'parryingWeapon' })
     expect(unknown.fallback.system).toMatchObject({ category: 'parryingWeapon', shieldtype: 'P' })

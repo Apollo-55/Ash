@@ -30,8 +30,8 @@ export interface NscShield {
   name: string
   /**
    * Schild or Parierwaffe. Given: overrides the compendium's category (a Buckler is both in the rules, the compendium
-   * lists it as parrying weapon). Not given: the compendium's category; for unknown items the parser fills in the
-   * default of the list the entry came from (`schilde` → shield, `parierwaffen` → parryingWeapon).
+   * lists it as parrying weapon). Not given: the compendium's category; unknown items become shields (the parser
+   * writes `shield` here), an unknown parrying weapon needs `typ: Parierwaffe`.
    */
   typ?: ShieldCategory
   /** INI modifier of the item (initiativeMod); the system adds it while this item is in the off hand */
@@ -162,7 +162,7 @@ const KEYS: Record<string, string> = {
   mr: 'MR', rs: 'RS', ws: 'WS', gs: 'GS', ini: 'INI', ausweichen: 'ausweichen', aw: 'ausweichen',
   'mr-mod': 'mrMod', mrmod: 'mrMod', mr_mod: 'mrMod', 'mr mod': 'mrMod', 'mr-modifikator': 'mrMod', mrmodifikator: 'mrMod',
   'rüstung': 'ruestung', ruestung: 'ruestung', 'rüstungen': 'ruestung',
-  waffen: 'waffen', schilde: 'schilde', schild: 'schilde', parierwaffen: 'parierwaffen', parierwaffe: 'parierwaffen', talente: 'talente', zauber: 'zauber', liturgien: 'liturgien', vorteile: 'vorteile', nachteile: 'nachteile',
+  waffen: 'waffen', schilde: 'schilde', schild: 'schilde', talente: 'talente', zauber: 'zauber', liturgien: 'liturgien', vorteile: 'vorteile', nachteile: 'nachteile',
   sonderfertigkeiten: 'sonderfertigkeiten', sf: 'sonderfertigkeiten', notiz: 'notiz', notizen: 'notiz',
   ...Object.fromEntries(ATTRIBUTES.map((a) => [a.toLowerCase(), a])),
 }
@@ -348,8 +348,7 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
         parseWeapons(value, data, error, warn)
         break
       case 'schilde':
-      case 'parierwaffen':
-        parseShields(key, value, data, error, warn, info)
+        parseShields(value, data, error, warn, info)
         break
       case 'talente':
       case 'zauber':
@@ -467,9 +466,9 @@ function parseWeapons(value: unknown, data: NscData, error: (m: string) => void,
   }
 }
 
-function parseShields(listKey: 'schilde' | 'parierwaffen', value: unknown, data: NscData, error: (m: string) => void, warn: (m: string) => void, info: (m: string) => void) {
-  const fallback: ShieldCategory = listKey === 'parierwaffen' ? 'parryingWeapon' : 'shield'
-  const label = SHIELD_CATEGORY_LABEL[fallback]
+/** `schilde`: shields and parrying weapons in one list (one item type in dsa-41); the compendium or `typ` tells them apart. */
+function parseShields(value: unknown, data: NscData, error: (m: string) => void, warn: (m: string) => void, info: (m: string) => void) {
+  const label = 'Schild'
   // "Name", "- Name", "- { name: …, WM: … }", a single "{ name: …, WM: … }" or "{ Name: { WM: … } }" like weapons
   const isEntry = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).some((k) => k.trim().toLowerCase() === 'name')
   const list = Array.isArray(value)
@@ -480,7 +479,7 @@ function parseShields(listKey: 'schilde' | 'parierwaffen', value: unknown, data:
         ? Object.entries(value).map(([name, v]) => ({ name, ...(v as object) }))
         : null
   if (!list) {
-    error(`„${listKey}“ muss eine Liste sein, z. B. - { name: ${listKey === 'parierwaffen' ? 'Linkhand, WM: 0/2, INI: 1' : 'Großschild, WM: -2/5, INI: -2'} }`)
+    error('„schilde“ muss eine Liste sein, z. B. - { name: Großschild, WM: -2/5, INI: -2 }')
     return
   }
   for (const entry of list) {
@@ -520,8 +519,12 @@ function parseShields(listKey: 'schilde' | 'parierwaffen', value: unknown, data:
     const known = find(['shield'], s.name)
     if (known && normalizeName(known.n) !== normalizeName(s.name)) info(`${label} „${s.name}“ als „${known.n}“ erkannt.`)
     if (!known) {
-      s.typ ??= fallback
-      warn(`${label} „${s.name}“ steht in keinem dsa-41-Kompendium${didYouMean(['shield'], s.name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als ${SHIELD_CATEGORY_LABEL[s.typ]} ohne Werte angelegt – gib WM, INI und BF an.`)
+      // unknown: a shield unless the block says otherwise
+      const typGiven = s.typ !== undefined
+      s.typ ??= 'shield'
+      warn(
+        `${SHIELD_CATEGORY_LABEL[s.typ]} „${s.name}“ steht in keinem dsa-41-Kompendium${didYouMean(['shield'], s.name)}. Wird in Foundry in den Welt-Gegenständen gesucht, sonst als ${SHIELD_CATEGORY_LABEL[s.typ]} ohne Werte angelegt – gib WM, INI und BF an${typGiven ? '' : ', für eine Parierwaffe typ: Parierwaffe'}.`,
+      )
     } else if (s.typ && known.cat && s.typ !== known.cat) {
       info(`${label} „${s.name}“ ist im Kompendium eine ${SHIELD_CATEGORY_LABEL[known.cat as ShieldCategory]}, wird als ${SHIELD_CATEGORY_LABEL[s.typ]} angelegt.`)
     }

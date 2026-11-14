@@ -124,8 +124,7 @@ sonderfertigkeiten: []
 | `RS` | – | Zahl | Zusatz-RS zur Rüstung |
 | `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` (RS auch als Zonen) oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
 | `waffen` | – | Liste | |
-| `schilde` | `schild` | Name, `{ name, typ, WM, INI, BF }` oder Liste davon | Schilde und Parierwaffen; das erste kommt in die Nebenhand |
-| `parierwaffen` | `parierwaffe` | wie `schilde` | dieselbe Liste, unbekannte Namen werden Parierwaffen |
+| `schilde` | `schild` | Name, `{ name, typ, WM, INI, BF }` oder Liste davon | Schilde und Parierwaffen gemischt; das erste kommt in die Nebenhand |
 | `talente` | – | Liste / Zuordnung | inkl. Kampftalente, Sprachen, Schriften |
 | `zauber` | – | Liste / Zuordnung | |
 | `liturgien` | – | Liste / Zuordnung | |
@@ -386,10 +385,11 @@ schilde:
   - Linkhand
 ```
 
-`parierwaffen` (auch `parierwaffe`) ist dieselbe Liste unter anderem Namen und darf zusätzlich zu `schilde` stehen. Nötig ist es nur für **unbekannte** Parierwaffen: Ein Name, der in keinem Kompendium steht, wird unter `schilde` ein Schild, unter `parierwaffen` eine Parierwaffe (alternativ `typ: Parierwaffe`).
+Ein Name, der in keinem Kompendium steht, wird ein **Schild**. Eine eigene Parierwaffe braucht deshalb `typ: Parierwaffe`:
 
 ```yaml
-parierwaffen: [{ name: Knochenhaken, WM: -1/2 }]      # eigene Parierwaffe
+schilde:
+  - { name: Knochenhaken, typ: Parierwaffe, WM: -1/2 }   # eigene Parierwaffe
 ```
 
 #### Schlüssel eines Schilds
@@ -406,7 +406,7 @@ Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht
 
 #### Schild oder Parierwaffe?
 
-Die Kategorie entscheidet, wie das System rechnet. Sie kommt in dieser Reihenfolge zustande: `typ` im Block → Kategorie aus dem Kompendium → Listen-Schlüssel (`schilde` → Schild, `parierwaffen` → Parierwaffe, nur für unbekannte Namen). Ein bekannter Name behält also seine Kompendiumskategorie, auch unter `parierwaffen`; ein `typ` gewinnt immer (Hinweis „ist im Kompendium eine Parierwaffe, wird als Schild angelegt“). Beispiel: Der Buckler steht im Kompendium als Parierwaffe, mit `typ: Schild` wird er wie ein Schild gerechnet.
+Die Kategorie entscheidet, wie das System rechnet. Sie kommt in dieser Reihenfolge zustande: `typ` im Block → Kategorie aus dem Kompendium → Schild (unbekannte Namen ohne `typ`). Ein bekannter Name behält also seine Kompendiumskategorie; ein `typ` gewinnt immer (Hinweis „ist im Kompendium eine Parierwaffe, wird als Schild angelegt“). Beispiel: Der Buckler steht im Kompendium als Parierwaffe, mit `typ: Schild` wird er wie ein Schild gerechnet.
 
 #### Was in Foundry passiert
 
