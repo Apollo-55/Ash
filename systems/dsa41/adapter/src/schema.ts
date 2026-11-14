@@ -21,6 +21,18 @@ export interface NscWeapon {
   RW?: [[number,number],[number,number],[number,number],[number,number],[number,number]]
 }
 
+
+enum shieldType {shield,parrying}
+
+export interface NscShield {
+  name: string
+  type?: shieldType
+  INI?: number
+  WM?: [number, number]
+  BF?: number
+}
+
+
 export const ARMOR_ZONES = ['head', 'chest', 'back', 'torso', 'leftArm', 'rightArm', 'leftLeg', 'rightLeg'] as const
 export type ArmorZone = (typeof ARMOR_ZONES)[number]
 /** weights of dsa-41's zoned total: sum(zone × weight) / zoned-armor-factor (default 20 = sum of weights) */
@@ -88,6 +100,7 @@ export interface NscData {
   ausweichen?: number
   ruestung: NscArmor[]
   waffen: NscWeapon[]
+  schilde: NscShield[]
   talente: NamedEntry[]
   zauber: NamedEntry[]
   liturgien: NamedEntry[]
@@ -137,6 +150,10 @@ const KEYS: Record<string, string> = {
 
 const WEAPON_KEYS: Record<string, string> = {
   name: 'name', talent: 'talent', at: 'AT', pa: 'PA', fk: 'FK', tp: 'TP', dk: 'DK', ini: 'INI', wm: 'WM', kk: 'KK', bf: 'BF', rw: 'RW'
+}
+
+const SHIELD_KEYS: Record<string, string> = {
+  name: 'name', type: 'typ', pa: 'PA', ini: 'INI', wm: 'WM', bf: 'BF'
 }
 
 const ARMOR_KEYS: Record<string, 'name' | 'RS' | 'BE'> = { name: 'name', rs: 'RS', be: 'BE' }
@@ -227,7 +244,7 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
   }
 
   const data: NscData = {
-    name: '', attributes: {}, ruestung: [], waffen: [],
+    name: '', attributes: {}, ruestung: [], waffen: [], schilde: [],
     talente: [], zauber: [], liturgien: [], vorteile: [], nachteile: [], sonderfertigkeiten: [],
   }
   const seen = new Set<string>()
@@ -306,6 +323,9 @@ export function parseNscBlock(source: string): ParsedBlock<NscData> {
         break
       case 'waffen':
         parseWeapons(value, data, error, warn)
+        break
+      case 'shilde':
+        parseShields(value, data, error, warn)
         break
       case 'talente':
       case 'zauber':
