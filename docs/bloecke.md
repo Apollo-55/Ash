@@ -15,6 +15,7 @@ Alles, was in einem `dsa-nsc`- oder `szene`-Block stehen darf: jeder Schlüssel,
    - [Berechnete Werte: MR, INI, GS, WS, Ausweichen](#berechnete-werte-mr-ini-gs-ws-ausweichen)
    - [Rüstung und RS](#rüstung-und-rs)
    - [Waffen](#waffen)
+   - [Schilde und Parierwaffen](#schilde-und-parierwaffen)
    - [Listen: Talente, Zauber, Liturgien, Vorteile, Nachteile, Sonderfertigkeiten](#listen-talente-zauber-liturgien-vorteile-nachteile-sonderfertigkeiten)
    - [Eigene Definitionen](#eigene-definitionen)
    - [Wie Namen gefunden werden](#wie-namen-gefunden-werden)
@@ -123,6 +124,8 @@ sonderfertigkeiten: []
 | `RS` | – | Zahl | Zusatz-RS zur Rüstung |
 | `rüstung` | `ruestung`, `rüstungen` | Name, `{ name, RS, BE }` (RS auch als Zonen) oder Liste davon | aus dem Kompendium, RS/BE überschreibbar |
 | `waffen` | – | Liste | |
+| `schilde` | `schild` | Name, `{ name, typ, WM, INI, BF }` oder Liste davon | Schilde und Parierwaffen; das erste kommt in die Nebenhand |
+| `parierwaffen` | `parierwaffe` | wie `schilde` | dieselbe Liste, unbekannte Namen werden Parierwaffen |
 | `talente` | – | Liste / Zuordnung | inkl. Kampftalente, Sprachen, Schriften |
 | `zauber` | – | Liste / Zuordnung | |
 | `liturgien` | – | Liste / Zuordnung | |
@@ -364,6 +367,44 @@ talente: { Säbel: 15 }
 - **Weitere** Waffen mit demselben Talent bekommen die Differenz als Waffenmodifikator. Steht dort zusätzlich ein `WM`, der nicht passt, gewinnen AT/PA (Warnung im Bericht).
 - `INI` an einer Waffe wird als INI-Modifikator der Waffe eingetragen (Differenz zur Basis-INI).
 - Behinderung (BE) aus Rüstungen zieht das System beim Wurf ab – nicht vorher abziehen.
+
+### Schilde und Parierwaffen
+
+In dsa-41 sind Schilde und Parierwaffen **ein** Item-Typ (`shield`), unterschieden nur durch die Kategorie. Im Block gibt es dafür die Liste `schilde` (auch `schild`); `parierwaffen` (auch `parierwaffe`) ist dieselbe Liste unter anderem Namen, beide dürfen zusammen vorkommen. Schreibweisen wie bei `rüstung`:
+
+```yaml
+schilde: [Großschild]                                  # aus dem Kompendium
+schild: Lederschild                                    # ein Stück
+schilde:
+  - { name: Großschild, WM: -2/5, INI: -2, BF: 2 }     # eigene Werte
+  - { name: Buckler, typ: Schild }                     # Kategorie überschreiben
+parierwaffen: [Linkhand]                               # Parierwaffen getrennt notieren
+```
+
+#### Schlüssel eines Schilds
+
+| Schlüssel | Bedeutung | Schreibweisen |
+|---|---|---|
+| `name` | Name | Text, **Pflicht** |
+| `typ` (auch `art`) | Schild oder Parierwaffe | `Schild`, `S`, `Parierwaffe`, `P` |
+| `WM` | Waffenmodifikator AT/PA | `-2/5`, `[-2, 5]`, `{ AT: -2, PA: 5 }`, eine Zahl (= beide) |
+| `INI` | INI-Modifikator des Schilds | Zahl, auch negativ |
+| `BF` | Bruchfaktor | Zahl |
+
+Angegebene Werte überschreiben die des Kompendiums bzw. Welt-Gegenstands; nicht angegebene bleiben, wie sie sind. Anders als bei Waffen ist `INI` hier ein **Modifikator**, kein Zielwert, und es gibt keinen festen `PA` – die Schild-PA rechnet das System (siehe unten).
+
+#### Schild oder Parierwaffe?
+
+Die Kategorie entscheidet, wie das System rechnet. Sie kommt in dieser Reihenfolge zustande: `typ` im Block → Kategorie aus dem Kompendium → Listen-Schlüssel (`schilde` → Schild, `parierwaffen` → Parierwaffe, nur für unbekannte Namen). Ein bekannter Name behält also seine Kompendiumskategorie, auch unter `parierwaffen`; ein `typ` gewinnt immer (Hinweis „ist im Kompendium eine Parierwaffe, wird als Schild angelegt“). Beispiel: Der Buckler steht im Kompendium als Parierwaffe, mit `typ: Schild` wird er wie ein Schild gerechnet.
+
+#### Was in Foundry passiert
+
+- Jeder Eintrag wird ein Item vom Typ `shield`. Unbekannte Namen: Warnung, Suche in den Welt-Gegenständen, sonst ein neues Item der gewünschten Kategorie mit den angegebenen Werten (fehlende = 0).
+- Das **erste** Schild bzw. die erste Parierwaffe des Blocks kommt in die **Nebenhand** (`combatState.secondaryHand`), aber nur, wenn eine Nahkampfwaffe in der Haupthand ist – ohne Waffe liest das System die Nebenhand nicht. Weitere Schilde liegen im Inventar (Hinweis im Wertekasten). Beim Aktualisieren bleibt ein von Hand gewechseltes Schild in der Nebenhand, solange das Item noch existiert.
+- **Schild:** PA = PA-Basis + WM(PA) des Schilds, dazu +1 mit SF Linkhand, +3 mit Schildkampf I, +5 mit Schildkampf II. WM(AT) des Schilds senkt die Attacke der Hauptwaffe, der INI-Modifikator wirkt auf die INI.
+- **Parierwaffe:** PA = PA der Hauptwaffe + WM(PA) der Parierwaffe, dazu −4 mit Linkhand, −1 mit Parierwaffen I, +2 mit Parierwaffen II. **Ohne eine dieser drei SF verrechnet das System die Parierwaffe nicht** – der Wertekasten warnt dann.
+
+Der Wertekasten zeigt eine Zeile „Schilde“ bzw. „Parierwaffen“ (gemischt: beides, dann mit Kategorie je Eintrag) mit WM und INI aus dem Block oder dem Kompendium und BF aus dem Block, z. B. „Großschild (WM -2/+5, INI -2)“.
 
 ### Listen: Talente, Zauber, Liturgien, Vorteile, Nachteile, Sonderfertigkeiten
 

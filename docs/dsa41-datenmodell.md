@@ -81,6 +81,7 @@ Jedes Item hat eine stabile Kennung **`system.sid`** (z. B. `talent-sinnenschaer
 | Nahkampfwaffe | `meleeWeapon` | `system.talent` (= **sid** des Kampftalents), `damage` („1d6+4“), `weaponMod.{attack,parry}`, `initiativeMod`, `distanceClass`, `strengthMod`, `breakingFactor` |
 | Fernkampfwaffe | `rangedWeapon` | `talent`, `damage`, `ranges`, `bonusDamages` |
 | Rüstung | `armor` | `armorClass` bzw. `zonedArmorClass`, `equipped` |
+| Schild / Parierwaffe | `shield` | `category` (`shield` / `parryingWeapon`), `shieldtype` (Text S/P/SP), `weaponMod.{attack,parry}`, `initiativeMod`, `breakingFactor`; getragen über `base.combatState.secondaryHand` (nur neben einer Waffe in `primaryHand` gelesen). Regeln: Schild-PA = PA-Basis + WM(PA) (+1/+3/+5 mit Linkhand/Schildkampf I/II), Parierwaffe = PA(Waffe) + WM(PA) (−4/−1/+2 mit Linkhand/Parierwaffen I/II, ohne SF nicht verrechnet) |
 
 ### Wie AT/PA einer Waffe entstehen
 
