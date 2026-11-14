@@ -121,6 +121,17 @@ describe('Rechenwerte', () => {
     expect(without).toContain('<th>TP</th><th>DK</th>')
   })
 
+  it('Wertekasten zeigt Schilde mit WM/INI aus Block oder Katalog, BF nur aus dem Block', () => {
+    const render = (s: string) => dsa41Adapter.renderStatblock(parse(s), {})
+    expect(render('name: X\nschilde: [Großschild]')).toContain('<p class="vtf-nsc-list"><b>Schilde:</b> Großschild (WM -2/+5, INI -2)</p>')
+    expect(render('name: X\nschilde: [{ name: Großschild, WM: -1/4, INI: 0, BF: 3 }]')).toContain('<b>Schilde:</b> Großschild (WM -1/+4, INI 0, BF 3)</p>')
+    expect(render('name: X\nschilde: [Buckler]')).toContain('<b>Parierwaffen:</b> Buckler (WM 0/+1)</p>')
+    expect(render('name: X\nschilde: [Großschild, Linkhand]')).toContain('<b>Schilde/Parierwaffen:</b> Großschild (Schild, WM -2/+5, INI -2), Linkhand (Parierwaffe, WM 0/+2, INI +1)</p>')
+    expect(render('name: X\nschilde: [{ name: Buckler, typ: Schild }]')).toContain('<b>Schilde:</b> Buckler (WM 0/+1)</p>')
+    expect(render('name: X\nschilde: [Knochenschild]')).toContain('<b>Schilde:</b> Knochenschild</p>')
+    expect(render('name: X\nrüstung: [Lederharnisch]')).not.toContain('Schilde')
+  })
+
   it('Fehler im Wertekasten', () => {
     const html = dsa41Adapter.renderStatblock(parse('name: X\nKK: 1a'), { showIssues: true })
     expect(html).toContain('<li class="vtf-nsc-error">✖ KK: „1a“ ist keine ganze Zahl.</li>')
