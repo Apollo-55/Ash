@@ -38,7 +38,7 @@ GitHub baut das Image `ghcr.io/apollo-55/vtf-sync` (amd64 und arm64) mit Dienst,
 3. schreibt das als Commit „Version x.y.z“ mit Tag `vx.y.z` nach `main`,
 4. lädt das Image als `latest` und `x.y.z` hoch und legt ein GitHub-Release mit den ZIPs an.
 
-Schlägt ein Schritt fehl, wird nichts veröffentlicht. Der Workflow schreibt direkt nach `main`; ist `main` so geschützt, dass nur Pull Requests erlaubt sind, braucht `github-actions[bot]` dort eine Ausnahme. Der DSA-NSC-Generator hat eine eigene Nummer in `systems/dsa41/nsc-generator-plugin/manifest.json`, die du von Hand erhöhst.
+Schlägt ein Schritt fehl, wird nichts veröffentlicht. Der Workflow schreibt direkt nach `main`; ist `main` so geschützt, dass nur Pull Requests erlaubt sind, braucht `github-actions[bot]` dort eine Ausnahme.
 
 Einen Zwischenstand testen: in der Compose-Datei `ghcr.io/apollo-55/vtf-sync:dev` eintragen. Auf eine alte Version zurück: `:1.0.5`.
 
@@ -52,7 +52,7 @@ docker login ghcr.io -u <github-benutzer>     # Passwort: ein Personal Access To
 
 ### Image selbst bauen
 
-`npm run build` erzeugt `dist/vtf-sync.zip`. Auf dem Server neben die Compose-Datei entpacken, in der Compose-Datei `build: ./vtf-sync` statt `image:` eintragen und mit `docker compose up -d --build vtf-sync` starten. Soll der DSA-NSC-Generator mit ausgeliefert werden, vorher `npm run build:generator` ausführen.
+`npm run build` erzeugt `dist/vtf-sync.zip`. Auf dem Server neben die Compose-Datei entpacken, in der Compose-Datei `build: ./vtf-sync` statt `image:` eintragen und mit `docker compose up -d --build vtf-sync` starten.
 
 ## Modul vom Dienst installieren
 
@@ -94,12 +94,12 @@ Anders als das Modul gibt der Dienst die Plugins **nur mit Token** heraus (`GET 
 **Erstinstallation** bleibt ein Handgriff, geht aber im Browser direkt vom Dienst:
 
 1. Im Container `VTF_DOWNLOAD_PASSWORD` setzen (ein einfaches Passwort, **nicht** das Token) und den Dienst neu starten.
-2. `https://<deine-domain>/vtf-sync/plugin` öffnen, Passwort eingeben und auf das gewünschte Plugin klicken (Vault to Foundry, DSA-NSC-Generator).
+2. `https://<deine-domain>/vtf-sync/plugin` öffnen, Passwort eingeben und auf das gewünschte Plugin klicken.
 3. Die ZIP in `<vault>/.obsidian/plugins/` entpacken (Ordner `vault-to-foundry/`), Plugin in Obsidian einschalten, Server-Adresse und Token eintragen.
 
 Das Passwort öffnet nur diese eine Seite und gibt nur die Plugin-ZIPs heraus – keine Vault-Daten, kein Sync. Falsche Eingaben werden gebremst (höchstens 10 pro Minute). Ohne `VTF_DOWNLOAD_PASSWORD` ist die Seite aus. Für Skripte gibt es dieselbe ZIP weiterhin mit Token: `curl -H "Authorization: Bearer <VTF_TOKEN>" -o vault-to-foundry.zip https://<deine-domain>/vtf-sync/v1/plugin/vault-to-foundry.zip`.
 
-**Weitere Plugins (DSA-NSC-Generator):** Das Image bringt auch den NSC-Generator mit. Auf der Download-Seite gibt es dafür einen eigenen Knopf. Ist „Vault to Foundry“ schon installiert, geht es ohne Browser: Einstellungen → Vault to Foundry → unter „Plugin-Updates“ steht der Generator mit dem Knopf **Installieren**; danach unter „Community-Plugins“ einschalten. Updates für installierte Plugins holt „Vault to Foundry“ gleich mit („Jetzt aktualisieren“ bzw. „Plugins aktualisieren“). API-Schlüssel und Regelwerke bleiben auf deinem Rechner, der Dienst liefert nur den Code.
+**Weitere Plugins:** Liegen beim Bauen weitere fertige Obsidian-Plugins unter `dist/*-plugin/`, bringt das Image sie mit. Auf der Download-Seite gibt es dafür je einen eigenen Knopf. Ist „Vault to Foundry“ schon installiert, geht es ohne Browser: Einstellungen → Vault to Foundry → unter „Plugin-Updates“ steht das Plugin mit dem Knopf **Installieren**; danach unter „Community-Plugins“ einschalten. Updates für installierte Plugins holt „Vault to Foundry“ gleich mit („Jetzt aktualisieren“ bzw. „Plugins aktualisieren“).
 
 ## 2. In Obsidian
 

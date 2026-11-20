@@ -191,10 +191,10 @@ describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
   it('weitere Plugins: Liste, Dateien, Download-Seite mit Auswahl; SyncClient holt sie geprüft', async () => {
     const extra = mkdtempSync(join(tmpdir(), 'vtf-plugins-'))
     dirs.push(extra)
-    mkdirSync(join(extra, 'nsc-gen'))
-    const genManifest = JSON.stringify({ id: 'dsa-nsc-generator', name: 'DSA-NSC-Generator <Test>', version: '0.1.0' })
-    writeFileSync(join(extra, 'nsc-gen/manifest.json'), genManifest)
-    writeFileSync(join(extra, 'nsc-gen/main.js'), 'module.exports = "Generator"\n')
+    mkdirSync(join(extra, 'beispiel'))
+    const genManifest = JSON.stringify({ id: 'beispiel-plugin', name: 'Beispiel-Plugin <Test>', version: '0.1.0' })
+    writeFileSync(join(extra, 'beispiel/manifest.json'), genManifest)
+    writeFileSync(join(extra, 'beispiel/main.js'), 'module.exports = "Beispiel"\n')
     mkdirSync(join(extra, 'kaputt')) // no manifest: ignored
     writeFileSync(join(extra, 'LIESMICH.txt'), 'x')
     const url = await start({ VTF_PLUGIN_DIR: pluginDir, VTF_EXTRA_PLUGINS_DIR: extra, VTF_DOWNLOAD_PASSWORD: 'drachenei' })
@@ -204,23 +204,23 @@ describe('vtf-sync liefert das Obsidian-Plugin aus', () => {
     const list = await client.plugins()
     expect(list.map((p) => [p.id, p.name, p.version])).toEqual([
       ['vault-to-foundry', 'Vault to Foundry', '9.8.7'],
-      ['dsa-nsc-generator', 'DSA-NSC-Generator <Test>', '0.1.0'],
+      ['beispiel-plugin', 'Beispiel-Plugin <Test>', '0.1.0'],
     ])
     expect(Object.keys(list[1].files).sort()).toEqual(['main.js', 'manifest.json'])
-    expect(await client.pluginFile(list[1], 'main.js', false)).toBe('module.exports = "Generator"\n')
+    expect(await client.pluginFile(list[1], 'main.js', false)).toBe('module.exports = "Beispiel"\n')
     expect(await client.pluginFile(list[0], 'main.js')).toBe(mainJs)
     expect((await fetch(`${url}/v1/plugins/gibt-es-nicht/files/main.js`, auth)).status).toBe(404)
-    expect((await fetch(`${url}/v1/plugins/dsa-nsc-generator/files/data.json`, auth)).status).toBe(404)
+    expect((await fetch(`${url}/v1/plugins/beispiel-plugin/files/data.json`, auth)).status).toBe(404)
 
     const page = await (await fetch(`${url}/plugin`)).text()
     expect(page).toMatch(/value="vault-to-foundry"/)
-    expect(page).toMatch(/value="dsa-nsc-generator"><span>DSA-NSC-Generator &lt;Test&gt;</)
+    expect(page).toMatch(/value="beispiel-plugin"><span>Beispiel-Plugin &lt;Test&gt;</)
     const post = (plugin: string) =>
       fetch(`${url}/plugin`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ password: 'drachenei', plugin }) })
-    const gen = await post('dsa-nsc-generator')
-    expect(gen.headers.get('content-disposition')).toBe('attachment; filename="dsa-nsc-generator-0.1.0.zip"')
+    const gen = await post('beispiel-plugin')
+    expect(gen.headers.get('content-disposition')).toBe('attachment; filename="beispiel-plugin-0.1.0.zip"')
     const zip = await JSZip.loadAsync(new Uint8Array(await gen.arrayBuffer()))
-    expect(Object.keys(zip.files).sort()).toEqual(['dsa-nsc-generator/main.js', 'dsa-nsc-generator/manifest.json'])
+    expect(Object.keys(zip.files).sort()).toEqual(['beispiel-plugin/main.js', 'beispiel-plugin/manifest.json'])
     expect((await post('anderes')).status).toBe(404)
   })
 

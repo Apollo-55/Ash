@@ -1,5 +1,4 @@
 // Builds Vault to Foundry: the Obsidian plugin, the Foundry module and the sync service ZIP.
-// The DSA-NSC-Generator is a separate plugin with its own build (npm run build:generator).
 //   node tools/build.mjs             → dist/
 //   node tools/build.mjs --deploy    → also copy plugin into test-vault and module into $VTF_FOUNDRY_MODULES (if set),
 //                                      and pack dist/vault-to-foundry-module.zip for upload to the server
@@ -77,7 +76,7 @@ function packSyncService() {
   rmSync(join(out, 'plugin'), { recursive: true, force: true })
   mkdirSync(join(out, 'plugin'))
   for (const f of ['main.js', 'manifest.json', 'styles.css']) cpSync(join(pluginOut, f), join(out, 'plugin', f))
-  // further Obsidian plugins that are already built (dist/*-plugin, e.g. npm run build:generator):
+  // further Obsidian plugins that are already built (dist/*-plugin, built separately before this build):
   // the service offers them on its download page and Vault to Foundry keeps them up to date
   rmSync(join(out, 'plugins'), { recursive: true, force: true })
   mkdirSync(join(out, 'plugins'))

@@ -8,8 +8,7 @@ Unterstützung für das Foundry-System `dsa-41` in Vault to Foundry. Installatio
 2. [NSCs: der `dsa-nsc`-Block](#nscs-der-dsa-nsc-block)
 3. [Was beim erneuten Übernehmen passiert](#was-beim-erneuten-übernehmen-passiert)
 4. [Grenzen](#grenzen)
-5. [NSC-Generator](#nsc-generator)
-6. [Aufbau im Code](#aufbau-im-code)
+5. [Aufbau im Code](#aufbau-im-code)
 
 ## Einrichten
 
@@ -19,7 +18,7 @@ Unterstützung für das Foundry-System `dsa-41` in Vault to Foundry. Installatio
 
 ## NSCs: der `dsa-nsc`-Block
 
-Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](../../docs/bloecke.md#nsc-dsa-nsc).
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/dsa-nsc.md](docs/dsa-nsc.md).
 
 Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
 
@@ -74,20 +73,14 @@ notiz: Freitext für die Biografie
 - Kreaturen sind normale Charaktere (`dsa-41` kennt keinen eigenen Typ).
 - Nur Foundry v13 (`dsa-41` läuft nur dort).
 
-## NSC-Generator
-
-Optionales zweites Obsidian-Plugin: Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude, OpenAI oder DeepSeek (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor und liefert einen geprüften `dsa-nsc`-Block. Einrichtung und Bedienung: [docs/nsc-generator.md](../../docs/nsc-generator.md).
-
 ## Aufbau im Code
 
 | Ordner | Inhalt |
 |---|---|
 | `adapter/` | `dsa-nsc`-Block (`schema.ts`), Namenskatalog der dsa-41-Kompendien inkl. Rassen und Kulturen mit MR-/INI-Modifikatoren (`catalog.ts`, `catalog.json`), Regeln wie SF-Ketten und Energien (`rules.ts`, `derived.ts`), Wertekasten (`render.ts`), Actor-Daten für den Export (`actor.ts`), Kampf-Zielwerte in `BundleItem.extra` (`combat.ts`), Foundry-Teil des Imports (`foundry.ts`: Actor-Typ `character`, Kompendien-Reihenfolge, Item-Erkennung über `sid`, AT/PA aus dem Block) |
-| [`nsc-generator/`](nsc-generator/README.md) | NSC- und Kreatur-Generator: Seitensuche in den Regelwerken (`pages.ts`), gemeinsame Werkzeuge und Prüfung (`agent.ts`, `generate.ts`, `creature.ts`), Anbieter Claude (`cloud.ts`), OpenAI (`openai.ts`) und DeepSeek (`deepseek.ts`) |
-| [`nsc-generator-plugin/`](nsc-generator-plugin/README.md) | Obsidian-Plugin „DSA-NSC-Generator“, eigener Build (`build.mjs`, `npm run build:generator`) – unabhängig von Vault to Foundry, nutzt nur den Adapter |
-| `tools/` | `regelwerke.ts` (Seiten-Index aus `Regelwerke/*.pdf`, `npm run regelwerke`), `gen-catalog.mjs` (Namenskatalog neu erzeugen), `pruefen.ts` (alle `dsa-nsc`-Blöcke einer Vault prüfen), `eval.ts` (Modellvergleich, kostet Geld) |
+| `tools/` | `gen-catalog.mjs` (Namenskatalog neu erzeugen), `pruefen.ts` (alle `dsa-nsc`-Blöcke einer Vault prüfen) |
 
-Weitere Dokumente: [docs/bloecke.md](../../docs/bloecke.md#nsc-dsa-nsc) (alle Schlüssel des `dsa-nsc`-Blocks), [docs/nsc-generator.md](../../docs/nsc-generator.md), [docs/dsa41-datenmodell.md](../../docs/dsa41-datenmodell.md) (Datenmodell von `dsa-41`).
+Weitere Dokumente: [docs/dsa-nsc.md](docs/dsa-nsc.md) (Nachschlagewerk: alle Schlüssel des `dsa-nsc`-Blocks, Beispiele, häufige Fehler), [docs/datenmodell.md](docs/datenmodell.md) (Datenmodell von `dsa-41`).
 
 ## Lizenz und Marken
 
