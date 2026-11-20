@@ -2,6 +2,9 @@
 
 ## Unveröffentlicht
 
+- Lizenz: MIT (`LICENSE`), Hinweise zu fremden Inhalten und Marken in `NOTICE`. Beide Dateien liegen jetzt in allen ZIPs und im vtf-sync-Image.
+- Dokumentation: Die Haupt-README beschreibt nur noch Installation und allgemeine Bedienung; alles zu DSA 4.1 (`dsa-nsc`-Block, NSC-Generator) steht in `systems/dsa41/README.md`.
+
 ## 1.0.10 (2026-11-14)
 
 - Keine Einträge.

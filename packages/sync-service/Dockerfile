@@ -1,6 +1,6 @@
 FROM node:22-alpine
 WORKDIR /app
-COPY server.mjs ./
+COPY server.mjs LICENSE NOTICE ./
 # the built Foundry module (from npm run build), served under /module/ for install via manifest URL
 COPY module ./module
 # the built Obsidian plugin, fetched by the plugin itself to update (/v1/plugin, with token)

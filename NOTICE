@@ -1,0 +1,17 @@
+Vault to Foundry
+Copyright (c) 2026 Apollo-55
+Licensed under the MIT License (see LICENSE).
+
+This project contains material from third parties:
+
+systems/dsa41/adapter/src/catalog.json
+  Generated from the pack sources of the Foundry VTT system "dsa-41",
+  which are licensed under the Apache License 2.0 and the ORC License.
+  The original license terms apply to this file.
+
+DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA and RIESLAND
+are trademarks of Ulisses Spiele GmbH, Waldems. This project is not affiliated
+with, endorsed by or sponsored by Ulisses Spiele GmbH.
+
+Foundry Virtual Tabletop and Obsidian are trademarks of their respective
+owners. This project is not affiliated with either of them.

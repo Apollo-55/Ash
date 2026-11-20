@@ -20,6 +20,7 @@ const PLUGIN_ID = 'dsa-nsc-generator'
 async function finish() {
   mkdirSync(out, { recursive: true })
   for (const f of ['manifest.json', 'styles.css']) cpSync(join(here, f), join(out, f))
+  for (const f of ['LICENSE', 'NOTICE']) cpSync(join(root, f), join(out, f))
   if (deploy) {
     if (existsSync(join(testVault, '.obsidian'))) {
       const dir = join(testVault, '.obsidian/plugins', PLUGIN_ID)

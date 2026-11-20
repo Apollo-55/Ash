@@ -45,4 +45,4 @@ npm test                  # Tests der Logik liegen in ../nsc-generator/test/
 
 ## Mehr
 
-- Das Block-Format `dsa-nsc`: [README von Vault to Foundry](../../../README.md#nscs-der-dsa-nsc-block)
+- Das Block-Format `dsa-nsc`: [DSA-4.1-README](../README.md#nscs-der-dsa-nsc-block)

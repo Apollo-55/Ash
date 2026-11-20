@@ -1,6 +1,6 @@
 # Blöcke: `dsa-nsc` und `szene`
 
-Ein `dsa-nsc`-Block in einer Notiz wird in Foundry ein Charakter, ein `szene`-Block eine Szene. Diese Seite erklärt jedes Feld und zeigt, wie man es schreibt. Was beim Übernehmen im Hintergrund passiert, steht in [docs/entwicklung.md](entwicklung.md); den Kurzüberblick mit je einem Beispiel gibt die [README](../README.md#notation).
+Ein `dsa-nsc`-Block in einer Notiz wird in Foundry ein Charakter, ein `szene`-Block eine Szene. Diese Seite erklärt jedes Feld und zeigt, wie man es schreibt. Was beim Übernehmen im Hintergrund passiert, steht in [docs/entwicklung.md](entwicklung.md); den Kurzüberblick mit je einem Beispiel geben die [DSA-4.1-README](../systems/dsa41/README.md#nscs-der-dsa-nsc-block) und die [README](../README.md#szenen-der-szene-block).
 
 ## Inhalt
 

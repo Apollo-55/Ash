@@ -25,6 +25,8 @@ function copyStatic() {
   for (const f of ['manifest.json', 'styles.css']) cpSync(join(root, 'packages/obsidian-plugin', f), join(pluginOut, f))
   mkdirSync(moduleOut, { recursive: true })
   for (const f of ['module.json', 'styles', 'lang']) cpSync(join(root, 'packages/foundry-module', f), join(moduleOut, f), { recursive: true })
+  // MIT requires the license text in every copy we hand out
+  for (const dir of [pluginOut, moduleOut]) for (const f of ['LICENSE', 'NOTICE']) cpSync(join(root, f), join(dir, f))
 }
 
 async function doDeploy() {
@@ -67,6 +69,7 @@ function packSyncService() {
   const out = join(root, 'dist/vtf-sync')
   mkdirSync(out, { recursive: true })
   for (const f of ['server.mjs', 'Dockerfile', 'docker-compose.example.yml', 'nginx.example.conf']) cpSync(join(root, 'packages/sync-service', f), join(out, f))
+  for (const f of ['LICENSE', 'NOTICE']) cpSync(join(root, f), join(out, f))
   // the service serves exactly this module build to Foundry (manifest URL …/module/module.json)
   rmSync(join(out, 'module'), { recursive: true, force: true })
   cpSync(moduleOut, join(out, 'module'), { recursive: true })

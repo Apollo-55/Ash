@@ -1,18 +1,19 @@
 # Vault to Foundry
 
-Bringt eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, `dsa-nsc`-Blöcke werden spielbare Charaktere (DSA 4.1, System `dsa-41`), `szene`-Blöcke werden Szenen. Änderungen gehen beim Speichern automatisch an einen kleinen Dienst auf deinem Server; in Foundry übernimmst du sie per Knopf.
+Bringt eine Obsidian-Vault nach Foundry VTT: Notizen werden Journale, NSC-Blöcke werden spielbare Charaktere des Spielsystems der Welt, `szene`-Blöcke werden Szenen. Änderungen gehen beim Speichern automatisch an einen kleinen Dienst auf deinem Server; in Foundry übernimmst du sie per Knopf.
 
 ## Inhalt
 
 1. [Installation](#installation)
 2. [Alltag](#alltag)
-3. [Notation](#notation) – Frontmatter, was umgewandelt wird, NSCs, Szenen (ausführlich: [docs/bloecke.md](docs/bloecke.md))
+3. [Notation](#notation) – Frontmatter, was umgewandelt wird, NSCs, Szenen
 4. [Einstellungen](#einstellungen)
 5. [Was beim erneuten Übernehmen passiert](#was-beim-erneuten-übernehmen-passiert)
 6. [Grenzen](#grenzen)
 7. [Probleme lösen](#probleme-lösen)
 8. [Entwicklung](#entwicklung)
-9. [Weitere Dokumentation](#weitere-dokumentation)
+9. [Spielsysteme](#spielsysteme)
+10. [Weitere Dokumentation](#weitere-dokumentation)
 
 ## Installation
 
@@ -52,8 +53,6 @@ Der Austausch läuft dann über eine ZIP-Datei (siehe [Alltag](#alltag)).
 1. Obsidian: Befehl „Nach Foundry exportieren (ZIP)“ (oder Paket-Symbol links) → `~/Downloads/<vault>-foundry.zip`.
 2. Foundry: ZIP-Symbol neben „Vault synchronisieren“ → Datei wählen → Importieren.
 
-**NSC-Generator (optional):** Beschreibung schreiben → „NSC aus Markierung erzeugen“ → Claude, OpenAI oder DeepSeek (eigener API-Schlüssel) schlägt Werte nach deinen Regelwerken vor. Einrichtung und Bedienung: [docs/nsc-generator.md](docs/nsc-generator.md).
-
 **Befehle in Obsidian** (Befehlspalette): „Mit Foundry-Server synchronisieren“, „Nach Foundry exportieren (ZIP)“, „NSC-Vorlage einfügen“, „Szenen-Vorlage einfügen“, „Ungenutzte Dateien auf dem Foundry-Server entfernen“, „Plugins vom Foundry-Server aktualisieren“.
 
 ## Notation
@@ -83,55 +82,15 @@ foundry:
 | ` ```leaflet ` | das Kartenbild (Szene nur über einen `szene`-Block) |
 | ` ```dataview ` | ausgelassen (Hinweis im Bericht) |
 
-### NSCs: der `dsa-nsc`-Block
+### NSCs
 
-Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#dsa-nsc--nichtspielercharaktere).
+Jedes Spielsystem hat einen eigenen NSC-Block (für DSA 4.1: ` ```dsa-nsc `), beliebig viele pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten mit Fehlern und Hinweisen, im Journal als Wertekasten mit „Zum Charakter“. `[[Notiz#NSC-Name]]` verlinkt direkt den Charakter.
 
-Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
-
-~~~markdown
-```dsa-nsc
-name: Shahane ay Zedrakin          # Pflicht, alles andere optional
-rolle: Proviantmeisterin           # → Profession
-rasse: Mittelländerin              # → Rasse aus dem Kompendium (bringt ihren MR-Modifikator mit); auch spezies
-kultur: Mittelländische Städte     # → Kultur aus dem Kompendium (MR-Modifikator)
-bild: portrait.jpg                 # sonst erstes Bild der Notiz
-token: token_Shahane.png           # sonst erstes Bild „token_…“
-verknüpft: ja                      # Token mit Actor verknüpft; Standard: ja bei einem Block pro Notiz
-eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }
-SO: 6
-LeP: 36                            # auch LE; AuP/AU, AsP/AE, KaP/KE
-MR: 6                              # MR, INI, GS, WS, ausweichen: angegeben = fest, sonst rechnet das System
-MR-Mod: 1                          # Zusatz-MR von Hand; wirkt nur, wenn das System die MR rechnet (ohne MR:)
-INI: 12+1W6                        # gespeichert wird 12, Würfel kommen aus den Regeln
-rüstung: [Lederharnisch]           # aus dem Kompendium
-RS: 1                              # Zusatz-RS zur Rüstung (z. B. natürlicher Rüstungsschutz)
-waffen:
-  - Säbel                          # Normalfall: AT/PA rechnet das System aus dem TaW
-  - { name: Orchidee, AT: 17, PA: 15 }   # optional feste Werte
-  - { name: Mandragora-Dolch, talent: Dolche, TP: 1W+1, WM: 0/-1 }   # eigene Waffe
-schilde: [Großschild]              # auch Parierwaffen (Linkhand …); das erste kommt in die Nebenhand
-talente: { Säbel: 18, Raufen: 19, Sinnenschärfe: 10, Sternkunde: { TaW: 8, probe: KL/KL/IN, kategorie: Wissen } }
-zauber: { Blitz dich find: 16, Gardianum: 12, Schattenschleier: { ZfW: 12, probe: MU/IN/CH, kosten: 8 AsP, wirkung: … } }
-liturgien: [Eidsegen, Wort der Wahrheit]
-vorteile: [Soziale Anpassungsfähigkeit]
-nachteile: { Neid: 8 }             # oder [Neid 8]
-sonderfertigkeiten: [Finte, Ausweichen I, { Schattenkampf: { typ: Kampf, beschreibung: … } }]
-notiz: Freitext für die Biografie
-```
-~~~
-
-- **Woher die Items kommen** (je Name): Gegenstände der Welt → zusätzliche Kompendien (Moduleinstellung) → dsa-41-Kompendien (Basis, dann die übrigen) → eigene Definition im Block → sonst ein leeres Item plus Warnung. Eindeutige Kurzformen werden erkannt („Gardianum“ → „Gardianum Zauberschild“).
-- **Waffenwerte:** `TP`, `DK`, `WM: 0/-1`, `KK: 13/3` (TP/KK: Schwelle/Schritt) `BF: 2` (Bruchfaktor) und `RW: (5/15/25/40/60) --> (1/1/0/0/-1)` (Reichweiten in Schritt und TP+ je Entfernungsklasse, sehr nah bis sehr weit) überschreiben den Wert aus dem Kompendium; `KK` und `BF` gelten nur für Nahkampfwaffen, `RW` nur für Fernkampfwaffen. Eine eigene Waffe mit `FK` oder `RW` wird als Fernkampfwaffe angelegt.
-- **Schilde und Parierwaffen:** `schilde: [Großschild, Linkhand, { name: Buckler, typ: Schild, WM: 0/1 }]` – in dsa-41 derselbe Item-Typ, gemischt in einer Liste; `typ` (Schild/Parierwaffe) überschreibt die Kategorie des Kompendiums, unbekannte Namen sind ohne `typ` Schilde. Das erste kommt neben der ersten Nahkampfwaffe in die Nebenhand; die Schild-PA rechnet das System (Parierwaffen nur mit SF Linkhand/Parierwaffen I/II, sonst Warnung). `WM`, `INI` (Modifikator) und `BF` überschreiben die Kompendiumswerte.
-- **Rasse, Kultur, MR:** `rasse` und `kultur` werden in den Rassen- und Kulturen-Kompendien gesucht (Geschlechtsformen wie „Mittelländer“ für „Mittelländer*in“ und Varianten wie „Ambosszwerge“ gehen auch) und als Item angelegt – das System rechnet ihren MR-Modifikator (Rasse auch INI) in die MR ein, solange `MR` nicht fest angegeben ist. `MR-Mod` ist der „Zusatz-MR“ des Bogens für alles Übrige. Der Wertekasten rechnet genauso („gerechnet …“).
-- **Sprachen und Schriften** stehen unter `talente`: `{ Garethi: 12, Kusliker Zeichen: 6 }`. Gibt es einen Namen als Sprache und als Schrift (Altes Kemi, Angram, Rogolan, Tulamidya, Urtulamidya, Wudu, Zhayad), kommt `(Sprache)` oder `(Schrift)` dahinter: `{ Zhayad(Sprache): 8, Zhayad(Schrift): 5 }`. Ohne Zusatz gilt die Sprache, mit einer Warnung.
-- **AT/PA:** Normalfall nur die Waffe und den TaW unter `talente` eintragen; das System verteilt den TaW (AT bekommt die größere Hälfte). Ohne TaW gilt das Kampftalent als untrainiert. Feste `AT`/`PA`/`FK` an der Waffe stehen genau so auf dem Bogen; weitere Waffen mit demselben Talent bekommen den Rest als Waffenmodifikator. BE aus Rüstungen zieht das System beim Wurf ab.
-- Im Journal erscheint der Wertekasten mit „Zum Charakter“. `[[Notiz#Die Viper]]` verlinkt direkt den Charakter.
+Welches System aktiv ist, legst du in Obsidian fest (Einstellungen → Inhalt → Spielsystem für NSC-Blöcke). Schlüssel, Regeln und Beispiele stehen beim jeweiligen System, siehe [Spielsysteme](#spielsysteme).
 
 ### Szenen: der `szene`-Block
 
-Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#szene--szenen).
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#szene-szene).
 
 Beliebig viele pro Notiz. Befehl **„Szenen-Vorlage einfügen“** setzt eine Vorlage ein (Cursor steht hinter `karte:`). Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
 
@@ -158,11 +117,11 @@ navigation: ja                           # in der Szenenleiste; Standard ja
 | Abschnitt | Einstellung |
 |---|---|
 | Sync mit Foundry | Server-Adresse, Token, automatisch beim Speichern (an/aus), Wartezeit; Knöpfe „Verbindung testen“, „Jetzt synchronisieren“, „Ungenutzte Dateien entfernen …“ |
-| Inhalt | Spielsystem für NSC-Blöcke (DSA 4.1 oder keins), Muster „Nie exportieren“ (z. B. `_privat/`, `Vorlagen/`, `*TODO*`), nicht verlinkte Dateien mitnehmen, Wurzelordner in Foundry |
+| Inhalt | Spielsystem für NSC-Blöcke (z. B. DSA 4.1 oder keins), Muster „Nie exportieren“ (z. B. `_privat/`, `Vorlagen/`, `*TODO*`), nicht verlinkte Dateien mitnehmen, Wurzelordner in Foundry |
 | ZIP-Backup | Exportordner, „Jetzt exportieren“ |
 | Fortgeschritten | Vault-Name in Foundry (fest, unabhängig vom Ordnernamen), ID-Zuordnung zurücksetzen |
 
-**Foundry** (Moduleinstellungen): „Zusätzliche Kompendien für NSC-Items“, z. B. `world.hausregeln`.
+**Foundry** (Moduleinstellungen): „Zusätzliche Kompendien für NSC-Items“, z. B. `world.hausregeln` – dort sucht der Import NSC-Items vor den Kompendien des Systems.
 
 ## Was beim erneuten Übernehmen passiert
 
@@ -171,7 +130,7 @@ Obsidian liefert die Stammdaten, Foundry behält den Spielzustand.
 | | wird überschrieben | bleibt unberührt |
 |---|---|---|
 | Journale | Name, Ordner, Inhalt, vom Import angelegte Seiten; Berechtigung nur mit `sichtbar:` | von Hand angelegte Seiten, aufgedeckte Secrets bleiben aufgedeckt |
-| NSCs | Eigenschaften, Maximalwerte, feste Werte, Profession, Biografie, vom Import angelegte Items, Bild | aktuelle LeP/AuP/AsP/KaP, Wunden, Effekte, von Hand hinzugefügte Items |
+| NSCs | Werte aus dem Block, Biografie, vom Import angelegte Items, Bild (Einzelheiten beim [System](#spielsysteme)) | aktuelle Lebens- und Energiepunkte, Wunden, Effekte, von Hand hinzugefügte Items |
 | Szenen | Name, Ordner, Bild (Maße neu), Raster, Journal, Licht, Nebel, Navigation, Pins aus Leaflet | Tokens nach dem ersten Anlegen, Wände, Lichter, Sounds, Zeichnungen, von Hand gesetzte Pins |
 | alles | – | Dokumente aus anderen Quellen; gelöschte Notizen werden nur auf Knopfdruck gelöscht |
 
@@ -182,9 +141,9 @@ Unveränderte Notizen werden übersprungen. Umbenennen und Verschieben in Obsidi
 - Foundry erlaubt 4 Ordnerebenen; tiefere Ebenen werden zu „A / B“ zusammengefasst.
 - Mermaid, Mathe, Dataview und Block-Einbettungen (`![[Notiz#^block]]`) werden nicht umgewandelt.
 - Dateien, die Foundry nicht annimmt (z. B. `.bak`, `.exe`), werden übersprungen und gemeldet.
-- NSCs: Kreaturen sind normale Charaktere (dsa-41 kennt keinen eigenen Typ). Ein Block mit geändertem `name:` wird ein neuer Charakter, der alte erscheint als verwaist.
+- NSCs: Ein Block mit geändertem `name:` wird ein neuer Charakter, der alte erscheint als verwaist. Das Foundry-Modul überspringt NSCs, deren System nicht zur Welt passt.
 - Szenen: keine Wände/Türen/Lichter aus der Vault. Leaflet-Karten mit eigenen `bounds` bekommen keine Pins.
-- Foundry v13 (dsa-41 läuft nur dort).
+- Foundry v13.
 
 ## Probleme lösen
 
@@ -209,15 +168,28 @@ npm run build     # → dist/
 
 Aufbau des Projekts, alle Befehle, Tests und wie man ein weiteres Spielsystem ergänzt: [docs/entwicklung.md](docs/entwicklung.md).
 
+## Spielsysteme
+
+Alles, was von einem Spielsystem abhängt (NSC-Block, Regeln, Kompendien, Zusatzwerkzeuge), ist dort beschrieben:
+
+| System | Foundry-System | Anleitung |
+|---|---|---|
+| Das Schwarze Auge 4.1 | `dsa-41` | [systems/dsa41/README.md](systems/dsa41/README.md) – `dsa-nsc`-Block, NSC-Generator |
+
+Ein weiteres System ergänzen: [systems/README.md](systems/README.md).
+
 ## Weitere Dokumentation
 
 | Dokument | Inhalt |
 |---|---|
-| [docs/bloecke.md](docs/bloecke.md) | Nachschlagewerk `dsa-nsc`- und `szene`-Block: alle Schlüssel, Schreibweisen, Standardwerte, häufige Fehler |
+| [docs/bloecke.md](docs/bloecke.md#szene-szene) | Nachschlagewerk `szene`-Block: alle Schlüssel, Schreibweisen, Standardwerte, häufige Fehler |
 | [docs/sync-server.md](docs/sync-server.md) | Sync-Dienst einrichten, aktualisieren, Sicherheit |
-| [docs/nsc-generator.md](docs/nsc-generator.md) | DSA-NSC-Generator (optionales zweites Plugin) |
 | [docs/entwicklung.md](docs/entwicklung.md) | Projektaufbau, Befehle, Tests |
 | [docs/testen.md](docs/testen.md) | Testcheckliste für Foundry |
-| [docs/dsa41-datenmodell.md](docs/dsa41-datenmodell.md) | Datenmodell des Foundry-Systems `dsa-41` |
+| [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, NSC-Generator, Datenmodell |
 | [systems/README.md](systems/README.md) | Neues Spielsystem hinzufügen |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
+
+## Lizenz
+
+[MIT](LICENSE) © Apollo-55. Fremde Inhalte (Kompendien-Katalog aus `dsa-41`) und Markenhinweise: [NOTICE](NOTICE).

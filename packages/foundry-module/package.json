@@ -2,6 +2,7 @@
   "name": "@vtf/foundry-module",
   "version": "1.0.10",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "jszip": "^3.10.2"
