@@ -174,7 +174,7 @@ Alles, was von einem Spielsystem abhängt (NSC-Block, Regeln, Kompendien, Zusatz
 
 | System | Foundry-System | Anleitung |
 |---|---|---|
-| Das Schwarze Auge 4.1 | `dsa-41` | [systems/dsa41/README.md](systems/dsa41/README.md) – `dsa-nsc`-Block, NSC-Generator |
+| Das Schwarze Auge 4.1 | `dsa-41` | [systems/dsa41/README.md](systems/dsa41/README.md) – `dsa-nsc`-Block |
 
 Ein weiteres System ergänzen: [systems/README.md](systems/README.md).
 
@@ -186,7 +186,7 @@ Ein weiteres System ergänzen: [systems/README.md](systems/README.md).
 | [docs/sync-server.md](docs/sync-server.md) | Sync-Dienst einrichten, aktualisieren, Sicherheit |
 | [docs/entwicklung.md](docs/entwicklung.md) | Projektaufbau, Befehle, Tests |
 | [docs/testen.md](docs/testen.md) | Testcheckliste für Foundry |
-| [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, NSC-Generator, Datenmodell |
+| [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, Datenmodell |
 | [systems/README.md](systems/README.md) | Neues Spielsystem hinzufügen |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
 

@@ -31,8 +31,6 @@ npm run typecheck         # findet alle tsconfig.json unter packages/ und system
 npm run build             # → dist/ (Plugin, Modul, Sync-Dienst, jeweils auch als ZIP)
 npm run deploy            # wie build, kopiert das Plugin zusätzlich nach test-vault/
 npm run dev               # wie deploy, bei jeder Änderung
-npm run build:generator   # DSA-NSC-Generator, eigenes Plugin (nicht in build enthalten); dev:generator wie dev
-npm run regelwerke        # DSA-Regelwerke: Seiten-Index aus Regelwerke/*.pdf → .llm/
 ```
 
 Weitere Werkzeuge:
@@ -43,7 +41,6 @@ Weitere Werkzeuge:
 | `tools/sync-cli.ts <vault> --url … --token …` | Push an den Sync-Dienst ohne Obsidian |
 | `systems/dsa41/tools/pruefen.ts <vault>` | prüft alle `dsa-nsc`-Blöcke einer Vault |
 | `systems/dsa41/tools/gen-catalog.mjs` | Namenskatalog aus den Quellen des Systems dsa-41 neu erzeugen |
-| `systems/dsa41/tools/eval.ts` | Modellvergleich des NSC-Generators (kostet Geld) |
 
 ## Lokale Testumgebung
 
@@ -53,7 +50,6 @@ Diese Ordner sind nicht im Git und werden nur für die jeweilige Aufgabe gebrauc
 |---|---|
 | `test-vault/` | eine eigene Obsidian-Vault zum Ausprobieren; `npm run deploy` kopiert das Plugin hinein |
 | `.foundry/app/` | eine entpackte Foundry-Node-Version (eigene Lizenz nötig), Daten in `.foundry/data/` |
-| `Regelwerke/` | eigene Regelwerk-PDFs für den NSC-Generator (urheberrechtlich geschützt, nie einchecken) |
 
 ```bash
 npm run foundry       # lokale Foundry auf http://localhost:30013

@@ -6,9 +6,7 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "systems/*/adapter",
-    "systems/*/nsc-generator",
-    "systems/*/nsc-generator-plugin"
+    "systems/*/adapter"
   ],
   "scripts": {
     "prebuild": "node tools/ensure-deps.mjs",
@@ -17,10 +15,6 @@
     "dev": "node tools/build.mjs --watch --deploy",
     "predeploy": "node tools/ensure-deps.mjs",
     "deploy": "node tools/build.mjs --deploy",
-    "prebuild:generator": "node tools/ensure-deps.mjs",
-    "build:generator": "node systems/dsa41/nsc-generator-plugin/build.mjs",
-    "predev:generator": "node tools/ensure-deps.mjs",
-    "dev:generator": "node systems/dsa41/nsc-generator-plugin/build.mjs --watch --deploy",
     "pretest": "node tools/ensure-deps.mjs",
     "test": "vitest run",
     "pretypecheck": "node tools/ensure-deps.mjs",
@@ -28,8 +22,7 @@
     "export:test": "node --experimental-strip-types tools/export-cli.ts",
     "foundry": "tools/foundry-local.sh",
     "e2e": "tools/e2e/run-all.sh",
-    "sync-local": "tools/sync-local.sh",
-    "regelwerke": "node systems/dsa41/tools/regelwerke.ts"
+    "sync-local": "tools/sync-local.sh"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -43,8 +43,6 @@ jobs:
         run: node tools/release.mjs "$BUMP" --notes "$RUNNER_TEMP/notes.md"
       - run: npm ci
       - run: npm test
-      # first the further plugins, so the service build picks them up
-      - run: npm run build:generator
       - run: npm run build
       - name: Commit und Tag nach main
         env:
@@ -65,5 +63,5 @@ jobs:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
           gh release create "v$VERSION" --title "Version $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
-            dist/vtf-sync.zip dist/vault-to-foundry-obsidian.zip dist/vault-to-foundry-module.zip dist/dsa-nsc-generator-obsidian.zip
+            dist/vtf-sync.zip dist/vault-to-foundry-obsidian.zip dist/vault-to-foundry-module.zip
           echo "Veröffentlicht: Version $VERSION (vorher ${{ steps.bump.outputs.previous }})" >> "$GITHUB_STEP_SUMMARY"

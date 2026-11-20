@@ -3,7 +3,6 @@
 //   node tools/release.mjs patch|minor|major|<x.y.z> [--notes <file>]
 // Changes: server.mjs, module.json, manifest.json (Vault to Foundry), package.json files and
 // package-lock.json of everything that carries the main version, CHANGELOG.md.
-// The DSA-NSC-Generator keeps its own version.
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'

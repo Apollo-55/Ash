@@ -1,5 +1,5 @@
 # Lädt das fertig gebaute dist/vtf-sync als Image nach ghcr.io/<owner>/vtf-sync hoch.
-# Vorher müssen "npm run build:generator" und "npm run build" gelaufen sein.
+# Vorher muss "npm run build" gelaufen sein.
 name: vtf-sync-Image hochladen
 description: Baut dist/vtf-sync als Docker-Image (amd64, arm64) und lädt es mit den angegebenen Tags nach ghcr.io
 inputs:
