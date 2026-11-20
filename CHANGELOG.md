@@ -4,6 +4,7 @@
 
 - Lizenz: MIT (`LICENSE`), Hinweise zu fremden Inhalten und Marken in `NOTICE`. Beide Dateien liegen jetzt in allen ZIPs und im vtf-sync-Image.
 - Dokumentation: Die Haupt-README beschreibt nur noch Installation und allgemeine Bedienung; alles zu DSA 4.1 (`dsa-nsc`-Block) steht in `systems/dsa41/README.md`.
+- Dokumentation: `docs/bloecke.md` aufgeteilt – der `dsa-nsc`-Teil steht jetzt in `systems/dsa41/docs/dsa-nsc.md`, der systemunabhängige `szene`-Block in `docs/szene.md`. `docs/dsa41-datenmodell.md` liegt jetzt unter `systems/dsa41/docs/datenmodell.md`.
 - DSA-NSC-Generator entfernt (Plugin, Logik, `npm run build:generator`, `npm run regelwerke`, Modellvergleich). Das vtf-sync-Image liefert ihn nicht mehr aus; ein bereits installiertes Generator-Plugin in Obsidian bitte von Hand entfernen.
 
 ## 1.0.10 (2026-11-14)

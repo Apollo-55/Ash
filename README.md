@@ -90,7 +90,7 @@ Welches System aktiv ist, legst du in Obsidian fest (Einstellungen → Inhalt �
 
 ### Szenen: der `szene`-Block
 
-Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](docs/bloecke.md#szene-szene).
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/szene.md](docs/szene.md).
 
 Beliebig viele pro Notiz. Befehl **„Szenen-Vorlage einfügen“** setzt eine Vorlage ein (Cursor steht hinter `karte:`). Die Notiz wird das verknüpfte Journal der Szene. In Obsidian erscheint der Block als Karte mit Vorschaubild und Fehlern.
 
@@ -182,11 +182,11 @@ Ein weiteres System ergänzen: [systems/README.md](systems/README.md).
 
 | Dokument | Inhalt |
 |---|---|
-| [docs/bloecke.md](docs/bloecke.md#szene-szene) | Nachschlagewerk `szene`-Block: alle Schlüssel, Schreibweisen, Standardwerte, häufige Fehler |
+| [docs/szene.md](docs/szene.md) | Nachschlagewerk `szene`-Block: alle Schlüssel, Schreibweisen, Standardwerte, häufige Fehler |
 | [docs/sync-server.md](docs/sync-server.md) | Sync-Dienst einrichten, aktualisieren, Sicherheit |
 | [docs/entwicklung.md](docs/entwicklung.md) | Projektaufbau, Befehle, Tests |
 | [docs/testen.md](docs/testen.md) | Testcheckliste für Foundry |
-| [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, Datenmodell |
+| [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, Nachschlagewerk, Datenmodell |
 | [systems/README.md](systems/README.md) | Neues Spielsystem hinzufügen |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
 

@@ -18,7 +18,7 @@ Unterstützung für das Foundry-System `dsa-41` in Vault to Foundry. Installatio
 
 ## NSCs: der `dsa-nsc`-Block
 
-Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/bloecke.md](../../docs/bloecke.md#nsc-dsa-nsc).
+Alle Schlüssel und Schreibweisen zum Nachschlagen: [docs/dsa-nsc.md](docs/dsa-nsc.md).
 
 Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt eine Vorlage ein. In Obsidian erscheint der Block als Wertekasten: Fehler rot, unbekannte Namen orange (mit Vorschlag), und bei Werten, die du selbst festlegst, steht daneben, was das System rechnen würde („MR 6 (gerechnet 8)“).
 
@@ -80,7 +80,7 @@ notiz: Freitext für die Biografie
 | `adapter/` | `dsa-nsc`-Block (`schema.ts`), Namenskatalog der dsa-41-Kompendien inkl. Rassen und Kulturen mit MR-/INI-Modifikatoren (`catalog.ts`, `catalog.json`), Regeln wie SF-Ketten und Energien (`rules.ts`, `derived.ts`), Wertekasten (`render.ts`), Actor-Daten für den Export (`actor.ts`), Kampf-Zielwerte in `BundleItem.extra` (`combat.ts`), Foundry-Teil des Imports (`foundry.ts`: Actor-Typ `character`, Kompendien-Reihenfolge, Item-Erkennung über `sid`, AT/PA aus dem Block) |
 | `tools/` | `gen-catalog.mjs` (Namenskatalog neu erzeugen), `pruefen.ts` (alle `dsa-nsc`-Blöcke einer Vault prüfen) |
 
-Weitere Dokumente: [docs/bloecke.md](../../docs/bloecke.md#nsc-dsa-nsc) (alle Schlüssel des `dsa-nsc`-Blocks), [docs/dsa41-datenmodell.md](../../docs/dsa41-datenmodell.md) (Datenmodell von `dsa-41`).
+Weitere Dokumente: [docs/dsa-nsc.md](docs/dsa-nsc.md) (Nachschlagewerk: alle Schlüssel des `dsa-nsc`-Blocks, Beispiele, häufige Fehler), [docs/datenmodell.md](docs/datenmodell.md) (Datenmodell von `dsa-41`).
 
 ## Lizenz und Marken
 
