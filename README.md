@@ -189,3 +189,7 @@ Ein weiteres System ergänzen: [systems/README.md](systems/README.md).
 | [systems/dsa41/README.md](systems/dsa41/README.md) | DSA 4.1: `dsa-nsc`-Block, NSC-Generator, Datenmodell |
 | [systems/README.md](systems/README.md) | Neues Spielsystem hinzufügen |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
+
+## Lizenz
+
+[MIT](LICENSE) © Apollo-55. Fremde Inhalte (Kompendien-Katalog aus `dsa-41`) und Markenhinweise: [NOTICE](NOTICE).

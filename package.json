@@ -1,6 +1,7 @@
 {
   "name": "vault-to-foundry",
   "private": true,
+  "license": "MIT",
   "version": "1.0.10",
   "type": "module",
   "workspaces": [

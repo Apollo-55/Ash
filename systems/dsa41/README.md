@@ -88,3 +88,7 @@ Optionales zweites Obsidian-Plugin: Beschreibung schreiben → „NSC aus Markie
 | `tools/` | `regelwerke.ts` (Seiten-Index aus `Regelwerke/*.pdf`, `npm run regelwerke`), `gen-catalog.mjs` (Namenskatalog neu erzeugen), `pruefen.ts` (alle `dsa-nsc`-Blöcke einer Vault prüfen), `eval.ts` (Modellvergleich, kostet Geld) |
 
 Weitere Dokumente: [docs/bloecke.md](../../docs/bloecke.md#nsc-dsa-nsc) (alle Schlüssel des `dsa-nsc`-Blocks), [docs/nsc-generator.md](../../docs/nsc-generator.md), [docs/dsa41-datenmodell.md](../../docs/dsa41-datenmodell.md) (Datenmodell von `dsa-41`).
+
+## Lizenz und Marken
+
+Der Code steht unter der [MIT-Lizenz](../../LICENSE) des Projekts. `adapter/src/catalog.json` wurde aus den Kompendien von `dsa-41` erzeugt (Apache-2.0 / ORC), dort gelten deren Bedingungen. DAS SCHWARZE AUGE ist eine Marke der Ulisses Spiele GmbH; dieses Projekt ist kein offizielles Produkt von Ulisses. Einzelheiten: [NOTICE](../../NOTICE).
