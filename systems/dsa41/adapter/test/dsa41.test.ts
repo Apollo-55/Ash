@@ -4,7 +4,7 @@ import * as dsa41 from '../src/index.ts'
 import { combatOf, dsa41Adapter } from '../src/index.ts'
 import { build } from '../../../../packages/core/test/helpers.ts'
 
-const SHAHANE = `name: Shahane ay Zedrakin
+const ALRIKE = `name: Alrike Brannwald
 rolle: Proviantmeisterin
 eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }
 SO: 6
@@ -22,16 +22,16 @@ vorteile: [Soziale Anpassungsfähigkeit]
 nachteile: { Brünstigkeit: 6, Eitelkeit: 7, Neid: 8 }
 sonderfertigkeiten: [Aufmerksamkeit, Ausweichen I, Ausweichen II, Improvisierte Waffen, Finte]
 talente: { Selbstbeherrschung: 7, Sinnenschärfe: 10, Menschenkenntnis: 18, Überreden: 17 }
-notiz: Paktgeschenke – Brünstigkeit erzeugen, Lamijah`
+notiz: Schuldet dem Kapitän Geld`
 
 const parse = (s: string) => dsa41.parseNscBlock(s)
 const levels = (s: string, level = 'error') => parse(s).issues.filter((i) => i.level === level).map((i) => i.message)
 
 describe('dsa-nsc: Parsen und Validieren', () => {
-  it('liest Shahane vollständig', () => {
-    const r = parse(SHAHANE)
-    expect(levels(SHAHANE)).toEqual([])
-    expect(levels(SHAHANE, 'warning')).toEqual([])
+  it('liest Alrike vollständig', () => {
+    const r = parse(ALRIKE)
+    expect(levels(ALRIKE)).toEqual([])
+    expect(levels(ALRIKE, 'warning')).toEqual([])
     const d = r.data!
     expect(d.attributes).toEqual({ MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 })
     expect(d.INI).toBe(12)
@@ -92,7 +92,7 @@ waffen:
 
 describe('Rechenwerte', () => {
   it('wie das System gerechnet, überschriebene Werte erkannt', () => {
-    const d = parse(SHAHANE).data!
+    const d = parse(ALRIKE).data!
     expect(dsa41.computeDerived(d)).toEqual({ atBasis: 8, paBasis: 8, fkBasis: 8, INI: 11, MR: 8, WS: 7, GS: 8, ausweichen: 14 })
     expect(dsa41.overrides(d)).toEqual([
       { key: 'MR', label: 'MR', given: 6, calculated: 8 },
@@ -102,7 +102,7 @@ describe('Rechenwerte', () => {
   })
 
   it('Wertekasten zeigt „gerechnet“ nur in Obsidian', () => {
-    const block = parse(SHAHANE)
+    const block = parse(ALRIKE)
     const obs = dsa41Adapter.renderStatblock(block, { showIssues: true, showCalculated: true })
     expect(obs).toContain('<b>MR</b> 6 <span class="vtf-nsc-calc" title="vom System berechnet">(gerechnet 8)</span>')
     expect(obs).toContain('<td>Orchidee <span class="vtf-nsc-calc">(Raufen)</span></td>')
@@ -140,10 +140,10 @@ describe('Rechenwerte', () => {
 
 describe('Umwandlung in Actor-Daten', () => {
   const ctx = {
-    actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/S.md', journalId: 'JJJJJJJJJJJJJJJJ', journalName: 'Shahane',
+    actorId: 'AAAAAAAAAAAAAAAA', sourcePath: 'NPC/S.md', journalId: 'JJJJJJJJJJJJJJJJ', journalName: 'Alrike',
     resolveImage: (r: string) => `assets/${r}`, nearbyImages: { portrait: 'p.jpg', token: 'token_s.png' }, linkedDefault: true,
   }
-  const actor = dsa41.nscToActor(parse(SHAHANE).data!, ctx)
+  const actor = dsa41.nscToActor(parse(ALRIKE).data!, ctx)
 
   it('Basiswerte mit Feldpfaden', () => {
     expect(actor.data).toMatchObject({
@@ -162,7 +162,7 @@ describe('Umwandlung in Actor-Daten', () => {
       'background.social.socialStatus.value': 6,
       'background.profession': 'Proviantmeisterin',
     })
-    expect(actor.data['background.description']).toContain('@UUID[JournalEntry.JJJJJJJJJJJJJJJJ]{Shahane}')
+    expect(actor.data['background.description']).toContain('@UUID[JournalEntry.JJJJJJJJJJJJJJJJ]{Alrike}')
     expect(actor.dataOnCreate).toEqual({ 'base.resources.vitality.value': 36, 'base.resources.endurance.value': 37 })
     expect(actor.data).not.toHaveProperty('settings.hasAstralEnergy')
   })
@@ -217,21 +217,21 @@ describe('Umwandlung in Actor-Daten', () => {
 
 describe('Bundle mit NSCs', () => {
   const notes = {
-    'NPC/Besatzung/Shahane ay Zedrakin.md': `## Proviantmeisterin\n![[c581.jpg]]\n![[token_Shahane.png]]\n\nText\n\n\`\`\`dsa-nsc\n${SHAHANE}\n\`\`\``,
+    'NPC/Besatzung/Alrike Brannwald.md': `## Proviantmeisterin\n![[c581.jpg]]\n![[token_Alrike.png]]\n\nText\n\n\`\`\`dsa-nsc\n${ALRIKE}\n\`\`\``,
     'Abenteuer/Sabotage.md': [
       '```dsa-nsc\nname: Die Viper\nLeP: 38\n```', '![[token_viper.png]]',
       '```dsa-nsc\nname: Schattenweber\nLeP: 26\nAsP: 64\n```', '![[token_mage.png]]',
       '```dsa-nsc\nname: Kaputt\nKK: 1a\n```',
     ].join('\n\n'),
-    'Start.md': 'Siehe [[Sabotage#Die Viper]] und [[Shahane ay Zedrakin]].',
+    'Start.md': 'Siehe [[Sabotage#Die Viper]] und [[Alrike Brannwald]].',
   }
-  const files = ['c581.jpg', 'token_Shahane.png', 'token_viper.png', 'token_mage.png']
+  const files = ['c581.jpg', 'token_Alrike.png', 'token_viper.png', 'token_mage.png']
   const run = () => build(notes, files, { system: dsa41Adapter })
 
   it('jeder Block wird ein Actor im passenden Ordner', () => {
     const { bundle } = run()
     const actors = actorsOf(bundle)
-    expect(actors.map((a) => a.name)).toEqual(['Die Viper', 'Schattenweber', 'Kaputt', 'Shahane ay Zedrakin'])
+    expect(actors.map((a) => a.name)).toEqual(['Die Viper', 'Schattenweber', 'Kaputt', 'Alrike Brannwald'])
     const folder = bundle.folders.find((f) => f.id === actors[3].folder)!
     expect(folder).toMatchObject({ type: 'Actor', name: 'Besatzung' })
     expect(bundle.system).toBe('dsa-41')
@@ -240,7 +240,7 @@ describe('Bundle mit NSCs', () => {
   it('Bilder pro Block, Verknüpfung nur bei Einzel-NSC', () => {
     const actors = actorsOf(run().bundle)
     const by = (n: string) => actors.find((a) => a.name === n)!
-    expect(by('Shahane ay Zedrakin')).toMatchObject({ img: expect.stringContaining('c581.jpg'), tokenImg: expect.stringContaining('token_Shahane.png'), linked: true })
+    expect(by('Alrike Brannwald')).toMatchObject({ img: expect.stringContaining('c581.jpg'), tokenImg: expect.stringContaining('token_Alrike.png'), linked: true })
     expect(by('Die Viper').tokenImg).toContain('token_viper.png')
     expect(by('Schattenweber').tokenImg).toContain('token_mage.png')
     expect(by('Die Viper').linked).toBe(false)
@@ -306,8 +306,8 @@ describe('SF-Voraussetzungen', () => {
     expect(dsa41.checkSfPrerequisites(parse('name: X\neigenschaften: { MU: 10, KL: 10, IN: 10, CH: 10, FF: 13, GE: 10, KO: 10, KK: 10 }\nsonderfertigkeiten: [Kampfreflexe, Geschützmeister]\ntalente: { Belagerungswaffen: 12, Mechanik: 3 }').data!))
       .toEqual(['Kampfreflexe braucht INI-Basis 10', 'Geschützmeister braucht TaW Mechanik 7'])
   })
-  it('die 24 umgewandelten NSCs (Shahane) erfüllen alles', () => {
-    expect(dsa41.checkSfPrerequisites(parse(SHAHANE).data!)).toEqual([])
+  it('Beispiel-NSC erfüllt alle SF-Voraussetzungen', () => {
+    expect(dsa41.checkSfPrerequisites(parse(ALRIKE).data!)).toEqual([])
   })
 })
 

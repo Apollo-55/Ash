@@ -24,12 +24,12 @@ Beliebig viele Blöcke pro Notiz. Befehl **„NSC-Vorlage einfügen“** setzt e
 
 ~~~markdown
 ```dsa-nsc
-name: Shahane ay Zedrakin          # Pflicht, alles andere optional
+name: Alrike Brannwald          # Pflicht, alles andere optional
 rolle: Proviantmeisterin           # → Profession
 rasse: Mittelländerin              # → Rasse aus dem Kompendium (bringt ihren MR-Modifikator mit); auch spezies
 kultur: Mittelländische Städte     # → Kultur aus dem Kompendium (MR-Modifikator)
 bild: portrait.jpg                 # sonst erstes Bild der Notiz
-token: token_Shahane.png           # sonst erstes Bild „token_…“
+token: token_Alrike.png           # sonst erstes Bild „token_…“
 verknüpft: ja                      # Token mit Actor verknüpft; Standard: ja bei einem Block pro Notiz
 eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }
 SO: 6

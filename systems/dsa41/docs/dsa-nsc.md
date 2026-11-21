@@ -54,7 +54,7 @@ Der Inhalt ist YAML. Das Wichtigste:
     Klettern: 5
   ```
 
-- **Anführungszeichen** braucht ein Wert, der mit `#`, `[`, `{`, `*`, `&`, `!`, `|`, `>`, `%` oder `@` beginnt oder `: ` enthält. Der wichtigste Fall sind Links: `bild: "[[Shahane.webp]]"`. Im Zweifel immer `"…"`.
+- **Anführungszeichen** braucht ein Wert, der mit `#`, `[`, `{`, `*`, `&`, `!`, `|`, `>`, `%` oder `@` beginnt oder `: ` enthält. Der wichtigste Fall sind Links: `bild: "[[Alrike.webp]]"`. Im Zweifel immer `"…"`.
 - **Kommentare** beginnen mit ` #`: `MR: 6   # fest`.
 - **Zahlen** sind ganze Zahlen, auch als `"+3"` oder `-2`.
 - **Einrücken mit Leerzeichen**, nicht mit Tabs.
@@ -129,10 +129,10 @@ Nur `name` ist Pflicht. Alles andere kann weg; was fehlt, bleibt leer oder wird 
 ### Steckbrief: `name`, `rolle`, `rasse`, `kultur`, `notiz`
 
 ```yaml
-name: Shahane ay Zedrakin
+name: Alrike Brannwald
 rolle: Proviantmeisterin
-rasse: Tulamidin
-kultur: Tulamidische Stadtstaaten
+rasse: Mittelländerin
+kultur: Mittelländische Städte
 notiz: |
   Hat eine Schwäche für Glücksspiel.
   Schuldet dem Kapitän Geld.
@@ -150,10 +150,10 @@ notiz: |
 
 ```yaml
 bild: portrait.jpg                 # Dateiname genügt
-bild: "[[Shahane.webp]]"           # Wikilink, in Anführungszeichen
-bild: Bilder/NSC/Shahane.webp      # Pfad
+bild: "[[Alrike.webp]]"           # Wikilink, in Anführungszeichen
+bild: Bilder/NSC/Alrike.webp      # Pfad
 bild: https://example.org/s.png    # Webbild
-token: token_Shahane.png
+token: token_Alrike.png
 ```
 
 Die Datei wird wie ein Obsidian-Link gesucht. Ohne Angabe nimmt das Plugin Bilder, die im **Abschnitt** des Blocks eingebettet sind (`![[…]]` oder `![](…)`); der Abschnitt reicht vom vorigen `dsa-nsc`-Block (oder dem Anfang der Notiz) bis zum nächsten:
@@ -442,9 +442,9 @@ nachteile: [Goldgier 5]
 
 ~~~markdown
 ```dsa-nsc
-name: Shahane ay Zedrakin
+name: Alrike Brannwald
 rolle: Proviantmeisterin
-bild: "[[Shahane.webp]]"
+bild: "[[Alrike.webp]]"
 eigenschaften: { MU: 14, KL: 14, IN: 15, CH: 13, FF: 12, GE: 13, KO: 13, KK: 11 }
 SO: 6
 LeP: 36
