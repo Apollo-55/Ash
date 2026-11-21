@@ -200,8 +200,8 @@ describe('Callouts und Secrets', () => {
   })
 
   it('[!geheim] und [!secret] werden Foundry-Secrets', () => {
-    const { html: out } = html({ 'N.md': '> [!geheim]\n> Shahane ist Paktiererin.\n\n> [!secret]- Wahr\n> **fett**' }, 'N.md')
-    expect(out).toMatch(/<section class="secret" id="secret-[A-Za-z0-9]{16}">\n<p>Shahane ist Paktiererin.<\/p>\n<\/section>/)
+    const { html: out } = html({ 'N.md': '> [!geheim]\n> Alrike ist eine Schmugglerin.\n\n> [!secret]- Wahr\n> **fett**' }, 'N.md')
+    expect(out).toMatch(/<section class="secret" id="secret-[A-Za-z0-9]{16}">\n<p>Alrike ist eine Schmugglerin.<\/p>\n<\/section>/)
     expect(out).toContain('<p class="vtf-secret-title"><strong>Wahr</strong></p>')
     expect(out).toContain('<strong>fett</strong>')
   })
