@@ -2,6 +2,7 @@
 
 ## Unveröffentlicht
 
+- GitHub: Jeder Pull Request prüft Typen, Tests und Build automatisch (`.github/workflows/tests.yml`, nur Leserechte).
 - Lizenz: MIT (`LICENSE`), Hinweise zu fremden Inhalten und Marken in `NOTICE`. Beide Dateien liegen jetzt in allen ZIPs und im vtf-sync-Image.
 - Dokumentation: Die Haupt-README beschreibt nur noch Installation und allgemeine Bedienung; alles zu DSA 4.1 (`dsa-nsc`-Block) steht in `systems/dsa41/README.md`.
 - Dokumentation: `docs/bloecke.md` aufgeteilt – der `dsa-nsc`-Teil steht jetzt in `systems/dsa41/docs/dsa-nsc.md`, der systemunabhängige `szene`-Block in `docs/szene.md`. `docs/dsa41-datenmodell.md` liegt jetzt unter `systems/dsa41/docs/datenmodell.md`.
